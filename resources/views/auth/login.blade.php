@@ -97,21 +97,36 @@
         </div>
 
         <div class="card">
-            <form method="POST" action="#">
+            @if ($errors->any())
+                <div style="background:#ffecec;border:1px solid #f5c2c2;color:#7f1d1d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
+                    <strong>Please fix the following:</strong>
+                    <ul style="margin:8px 0 0 18px;padding:0;">
+                        @foreach ($errors->all() as $error)
+                            <li style="margin-bottom:4px;">{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('login.submit') }}">
                 @csrf
                 <div class="field">
                     <label for="email">Email</label>
-                    <input id="email" name="email" type="email" placeholder="Your email address" required>
+                    <input id="email" name="email" type="email" placeholder="Your email address" value="{{ old('email') }}" required>
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
                     <input id="password" name="password" type="password" placeholder="Your password" required>
                 </div>
                 <button type="submit" class="btn">Sign In</button>
+            </form>
+
                 <div class="link">
                     <a href="#">Forgot password?</a>
                 </div>
-            </form>
+                <div class="link">
+                    New to the platform? <a href="{{ route('register') }}">Create an account</a>
+                </div>
         </div>
 
         <div class="bottom-bar"></div>

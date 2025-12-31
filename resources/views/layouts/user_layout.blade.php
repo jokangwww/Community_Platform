@@ -118,8 +118,11 @@
             <img src="{{ asset('images/tunku-abdul-rahman-university-of-management-and-technology-tar-umt.png') }}" alt="Logo" width="140">
         </div>
         <div class="user-area">
-            <span>@yield('welcome_text', 'Welcome, Username')</span>
-            <button class="pill-btn">Log Out</button>
+            <span>@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'User'))</span>
+            <form method="POST" action="{{ route('logout') }}" style="margin:0;">
+                @csrf
+                <button type="submit" class="pill-btn">Log Out</button>
+            </form>
         </div>
     </header>
     <div class="layout">
