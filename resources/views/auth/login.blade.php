@@ -99,7 +99,7 @@
         <div class="card">
             @if ($errors->any())
                 <div style="background:#ffecec;border:1px solid #f5c2c2;color:#7f1d1d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
-                    <strong>Please fix the following:</strong>
+                    <strong>Please correct the following:</strong>
                     <ul style="margin:8px 0 0 18px;padding:0;">
                         @foreach ($errors->all() as $error)
                             <li style="margin-bottom:4px;">{{ $error }}</li>

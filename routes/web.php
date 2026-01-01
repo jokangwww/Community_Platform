@@ -10,6 +10,10 @@ Route::get('/', function () {
     return view('user.home');
 })->middleware('auth')->name('home');
 
+Route::get('/profile', function () {
+    return view('user.profile');
+})->middleware('auth')->name('profile');
+
 Route::view('/login', 'auth.login')->name('login');
 Route::post('/login', function (Request $request) {
     $credentials = $request->validate([

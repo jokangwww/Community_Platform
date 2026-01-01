@@ -58,7 +58,6 @@
         .sidebar {
             background: #65a4f6;
             color: #0f2c57;
-            padding: 20px 18px;
         }
         .sidebar-title {
             display: flex;
@@ -68,6 +67,39 @@
             font-weight: 600;
             color: #fff;
             margin-bottom: 16px;
+            width: 100%;
+        }
+        .sidebar-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 12px;
+            margin: 0;
+            padding: 10px 12px;
+            background: none;
+            border:none;
+            border-bottom: 3px solid rgba(86, 78, 78, 0.35);
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+        }
+        .sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.55);
+        }
+        .sidebar-toggle .chevron {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .sidebar-toggle .label {
+            margin-left: 8px;
         }
         .nav-list {
             list-style: none;
@@ -76,6 +108,9 @@
             color: #0f2c57;
             font-size: 16px;
             line-height: 1.8;
+        }
+        .nav-list.is-collapsed {
+            display: none;
         }
         .nav-list li { padding-left: 8px; }
         .content {
@@ -99,6 +134,19 @@
             gap: 16px;
             font-size: 24px;
         }
+        .action-icon {
+            color: inherit;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+        .action-icon:hover {
+            background: #f0f2f8;
+        }
         .main-card {
             margin-top: 24px;
             border: 2px solid #9a9a9a;
@@ -114,9 +162,9 @@
 </head>
 <body>
     <header class="topbar">
-        <div class="logo">
+        <a class="logo" href="{{ route('home') }}" title="Home" wire:navigate>
             <img src="{{ asset('images/tunku-abdul-rahman-university-of-management-and-technology-tar-umt.png') }}" alt="Logo" width="140">
-        </div>
+        </a>
         <div class="user-area">
             <span>@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'User'))</span>
             <form method="POST" action="{{ route('logout') }}" style="margin:0;">
@@ -128,10 +176,12 @@
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-title">
-                <span>Event</span>
-                <span>▼</span>
+                <button class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="event-nav">
+                    <span class="label">Event</span>
+                    <span class="chevron">►</span>
+                </button>
             </div>
-            <ul class="nav-list">
+            <ul class="nav-list is-collapsed" id="event-nav">
                 <li>- Event Posting</li>
                 <li>- Recruitment</li>
                 <li>- Calendar</li>
@@ -145,17 +195,39 @@
             </ul>
         </aside>
         <main class="content">
-            <div class="tabs">
-                <div class="tab">Recent</div>
-                <div class="tab" style="color:#555;">/</div>
-                <div class="tab">Favourite</div>
-                <div class="actions">
-                    <span>👤</span>
-                    <span>🔔</span>
-                </div>
-            </div>
             @yield('content')
         </main>
     </div>
+    <script>
+        function initSidebarToggle() {
+            const sidebarToggle = document.querySelector('.sidebar-toggle');
+            const eventNav = document.getElementById('event-nav');
+            const chevron = sidebarToggle ? sidebarToggle.querySelector('.chevron') : null;
+
+            if (!sidebarToggle || !eventNav) return;
+
+            const stored = localStorage.getItem('eventNavExpanded');
+            const startExpanded = stored === null ? false : stored === 'true';
+            sidebarToggle.setAttribute('aria-expanded', String(startExpanded));
+            eventNav.classList.toggle('is-collapsed', !startExpanded);
+            if (chevron) {
+                chevron.textContent = startExpanded ? '▼' : '►';
+            }
+
+            sidebarToggle.onclick = () => {
+                const isExpanded = sidebarToggle.getAttribute('aria-expanded') === 'true';
+                const nextExpanded = !isExpanded;
+                sidebarToggle.setAttribute('aria-expanded', String(nextExpanded));
+                eventNav.classList.toggle('is-collapsed', !nextExpanded);
+                if (chevron) {
+                    chevron.textContent = nextExpanded ? '▼' : '►';
+                }
+                localStorage.setItem('eventNavExpanded', String(nextExpanded));
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', initSidebarToggle);
+        document.addEventListener('livewire:navigated', initSidebarToggle);
+    </script>
 </body>
 </html>
