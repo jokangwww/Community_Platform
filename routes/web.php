@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\User\ProfileController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,9 +11,12 @@ Route::get('/', function () {
     return view('user.home');
 })->middleware('auth')->name('home');
 
-Route::get('/profile', function () {
-    return view('user.profile');
-})->middleware('auth')->name('profile');
+Route::get('/profile', [ProfileController::class, 'show'])
+    ->middleware('auth')
+    ->name('profile');
+Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])
+    ->middleware('auth')
+    ->name('profile.photo');
 
 Route::view('/login', 'auth.login')->name('login');
 Route::post('/login', function (Request $request) {
