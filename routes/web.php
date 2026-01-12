@@ -74,6 +74,9 @@ Route::prefix('club')->middleware('auth')->group(function () {
     Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
     Route::get('/events/create', [EventController::class, 'create'])->name('club.events.create');
     Route::post('/events', [EventController::class, 'store'])->name('club.events.store');
+    Route::get('/events/{event}', [EventController::class, 'show'])->name('club.events.show');
+    Route::get('/events/{event}/edit', [EventController::class, 'edit'])->name('club.events.edit');
+    Route::put('/events/{event}', [EventController::class, 'update'])->name('club.events.update');
 });
 
 Route::view('/register', 'auth.register')->name('register');
