@@ -6,18 +6,28 @@
     <title>@yield('title', 'Dashboard')</title>
     <style>
         * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+        }
         body {
             margin: 0;
             font-family: Arial, sans-serif;
             background: #f5f6f7;
+            overflow: hidden;
         }
         .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 10px 20px;
             background: #fff;
             border-bottom: 4px solid #2e63e6;
+            z-index: 1000;
         }
         .logo {
             display: flex;
@@ -54,10 +64,17 @@
             display: grid;
             grid-template-columns: 240px 1fr;
             min-height: calc(100vh - 64px);
+            margin-top: 64px;
         }
         .sidebar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            bottom: 0;
+            width: 240px;
             background: #65a4f6;
             color: #0f2c57;
+            overflow-y: auto;
         }
         .sidebar-title {
             display: flex;
@@ -125,8 +142,14 @@
         }
         .nav-list li { padding-left: 8px; }
         .content {
+            position: fixed;
+            top: 64px;
+            right: 0;
+            bottom: 0;
+            left: 240px;
             background: #fff;
             padding: 0 24px 24px;
+            overflow-y: auto;
         }
         .tabs {
             display: flex;
@@ -193,9 +216,9 @@
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
-                <li><a class="nav-link" href="{{ route('events.section', 'event-posting') }}">- Event Posting</a></li>
+                <li><a class="nav-link" href="{{ route('club.event-posting') }}">- Event Posting</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'recruitment') }}">- Recruitment</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'event') }}">- Event</a></li>
+                <li><a class="nav-link" href="{{ route('club.events.index') }}">- Event</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'live-stream') }}">- Live Stream</a></li>

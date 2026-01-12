@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Club\EventController;
 use App\Http\Controllers\User\ProfileController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -61,6 +62,19 @@ Route::get('/club', function () {
 
     return view('club.home');
 })->middleware('auth')->name('club.home');
+Route::get('/club/event-posting', function () {
+    $user = Auth::user();
+    if (! $user || $user->role !== 'club') {
+        abort(403);
+    }
+
+    return view('club.event-posting');
+})->middleware('auth')->name('club.event-posting');
+Route::prefix('club')->middleware('auth')->group(function () {
+    Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
+    Route::get('/events/create', [EventController::class, 'create'])->name('club.events.create');
+    Route::post('/events', [EventController::class, 'store'])->name('club.events.store');
+});
 
 Route::view('/register', 'auth.register')->name('register');
 Route::post('/register', function (Request $request) {
