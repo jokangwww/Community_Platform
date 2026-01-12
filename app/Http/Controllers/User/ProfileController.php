@@ -5,7 +5,10 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -32,5 +35,59 @@ class ProfileController extends Controller
         $user->save();
 
         return back()->with('status', 'Profile photo updated.');
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'The current password is incorrect.',
+            ]);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return back()->with('password_status', 'Password updated.');
+    }
+
+    public function update(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'display_name' => ['nullable', 'string', 'max:255'],
+            'nickname' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'in:subscriber,student,staff,alumni'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'whatsapp' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'telegram' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $fullName = trim($validated['first_name'] . ' ' . $validated['last_name']);
+
+        $user->name = $fullName;
+        $user->display_name = $validated['display_name'] ?: $fullName;
+        $user->nickname = $validated['nickname'];
+        $user->role = $validated['role'];
+        $user->email = $validated['email'];
+        $user->whatsapp = $validated['whatsapp'];
+        $user->website = $validated['website'];
+        $user->telegram = $validated['telegram'];
+        $user->bio = $validated['bio'];
+        $user->save();
+
+        return back()->with('profile_status', 'Profile updated.');
     }
 }

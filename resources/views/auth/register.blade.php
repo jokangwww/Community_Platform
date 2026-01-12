@@ -182,7 +182,7 @@
                         <option value="" selected disabled>Select one</option>
                         <option value="student" {{ old('role') === 'student' ? 'selected' : '' }}>Student</option>
                         <option value="staff" {{ old('role') === 'staff' ? 'selected' : '' }}>Staff</option>
-                        <option value="alumni" {{ old('role') === 'alumni' ? 'selected' : '' }}>Alumni</option>
+                        <option value="club" {{ old('role') === 'club' ? 'selected' : '' }}>Club</option>
                     </select>
                 </div>
 

@@ -136,6 +136,14 @@
         .full {
             grid-column: 1 / -1;
         }
+        .profile-actions {
+            display: none;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .profile-actions.is-visible {
+            display: flex;
+        }
         @media (max-width: 800px) {
             .profile-layout {
                 grid-template-columns: 1fr;
@@ -175,18 +183,49 @@
             </form>
             <div class="profile-panel" style="margin-top: 16px;">
                 <div class="section-title">Change Password</div>
-                <div class="form-row" style="margin-top: 8px;">
-                    <label for="old_password">Old Password</label>
-                    <input id="old_password" type="password" placeholder="Type your old password">
-                </div>
-                <div class="form-row" style="margin-top: 10px;">
-                    <label for="new_password">New Password</label>
-                    <input id="new_password" type="password" placeholder="Type your new password">
-                </div>
-                <button class="action-btn" style="margin-top: 12px;">Change Password</button>
+                <form action="{{ route('profile.password') }}" method="POST" style="margin-top: 8px;">
+                    @csrf
+                    <div class="form-row">
+                        <label for="current_password">Old Password</label>
+                        <input id="current_password" name="current_password" type="password" placeholder="Type your old password" required>
+                        @error('current_password')
+                            <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="form-row" style="margin-top: 10px;">
+                        <label for="password">New Password</label>
+                        <input id="password" name="password" type="password" placeholder="Type your new password" required>
+                        @error('password')
+                            <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="form-row" style="margin-top: 10px;">
+                        <label for="password_confirmation">Confirm New Password</label>
+                        <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your new password" required>
+                    </div>
+                    <button type="submit" class="action-btn" style="margin-top: 12px;">Change Password</button>
+                    @if (session('password_status'))
+                        <div class="status-text">{{ session('password_status') }}</div>
+                    @endif
+                </form>
+                <button id="edit-profile-btn" type="button" class="action-btn" style="margin-top: 10px;">Update Profile</button>
             </div>
         </div>
-        <div class="profile-panel">
+        @php
+            $hasProfileErrors = $errors->has('first_name')
+                || $errors->has('last_name')
+                || $errors->has('display_name')
+                || $errors->has('nickname')
+                || $errors->has('role')
+                || $errors->has('email')
+                || $errors->has('whatsapp')
+                || $errors->has('website')
+                || $errors->has('telegram')
+                || $errors->has('bio');
+        @endphp
+        <form id="profile-form" class="profile-panel" method="POST" action="{{ route('profile.update') }}" data-start-edit="{{ $hasProfileErrors ? 'true' : 'false' }}">
+            @csrf
+            @method('PUT')
             <div class="section-title">Profile Information</div>
             <div class="form-grid" style="margin-top: 10px;">
                 <div class="form-row">
@@ -194,55 +233,137 @@
                     <input type="text" value="{{ $user?->email ?? '' }}" placeholder="username" readonly>
                 </div>
                 <div class="form-row">
-                    <label>First Name</label>
-                    <input type="text" value="{{ $user?->name ? explode(' ', $user->name)[0] : '' }}" placeholder="First name" readonly>
+                    <label for="first_name">First Name</label>
+                    <input id="first_name" name="first_name" type="text" value="{{ old('first_name', $user?->name ? explode(' ', $user->name)[0] : '') }}" placeholder="First name" readonly>
+                    @error('first_name')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Nickname</label>
-                    <input type="text" placeholder="Nickname" readonly>
+                    <label for="nickname">Nickname</label>
+                    <input id="nickname" name="nickname" type="text" value="{{ old('nickname', $user?->nickname ?? '') }}" placeholder="Nickname" readonly>
+                    @error('nickname')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Role</label>
-                    <select disabled>
-                        <option>Subscriber</option>
-                        <option>Student</option>
-                        <option>Staff</option>
-                        <option>Alumni</option>
+                    <label for="role">Role</label>
+                    <select id="role" name="role" disabled>
+                        @php
+                            $roleValue = old('role', $user?->role ?? 'subscriber');
+                        @endphp
+                        <option value="subscriber" @selected($roleValue === 'subscriber')>Subscriber</option>
+                        <option value="student" @selected($roleValue === 'student')>Student</option>
+                        <option value="staff" @selected($roleValue === 'staff')>Staff</option>
+                        <option value="alumni" @selected($roleValue === 'alumni')>Alumni</option>
                     </select>
+                    @error('role')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Last Name</label>
-                    <input type="text" value="{{ $user?->name ? implode(' ', array_slice(explode(' ', $user->name), 1)) : '' }}" placeholder="Last name" readonly>
+                    <label for="last_name">Last Name</label>
+                    <input id="last_name" name="last_name" type="text" value="{{ old('last_name', $user?->name ? implode(' ', array_slice(explode(' ', $user->name), 1)) : '') }}" placeholder="Last name" readonly>
+                    @error('last_name')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Display Name Publicly as</label>
-                    <input type="text" value="{{ $user?->name ?? '' }}" placeholder="Display name" readonly>
+                    <label for="display_name">Display Name Publicly as</label>
+                    <input id="display_name" name="display_name" type="text" value="{{ old('display_name', $user?->display_name ?? $user?->name ?? '') }}" placeholder="Display name" readonly>
+                    @error('display_name')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
             <div class="section-title" style="margin-top: 16px;">Contact Info</div>
             <div class="form-grid" style="margin-top: 10px;">
                 <div class="form-row">
-                    <label>Email (required)</label>
-                    <input type="email" value="{{ $user?->email ?? '' }}" placeholder="email@example.com" readonly>
+                    <label for="email">Email (required)</label>
+                    <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" readonly>
+                    @error('email')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>WhatsApp</label>
-                    <input type="text" placeholder="@handle" readonly>
+                    <label for="whatsapp">WhatsApp</label>
+                    <input id="whatsapp" name="whatsapp" type="text" value="{{ old('whatsapp', $user?->whatsapp ?? '') }}" placeholder="@handle" readonly>
+                    @error('whatsapp')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Website</label>
-                    <input type="text" placeholder="https://example.com" readonly>
+                    <label for="website">Website</label>
+                    <input id="website" name="website" type="text" value="{{ old('website', $user?->website ?? '') }}" placeholder="https://example.com" readonly>
+                    @error('website')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="form-row">
-                    <label>Telegram</label>
-                    <input type="text" placeholder="@handle" readonly>
+                    <label for="telegram">Telegram</label>
+                    <input id="telegram" name="telegram" type="text" value="{{ old('telegram', $user?->telegram ?? '') }}" placeholder="@handle" readonly>
+                    @error('telegram')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
             <div class="section-title" style="margin-top: 16px;">About the User</div>
             <div class="form-row full" style="margin-top: 10px;">
-                <label>Biographical Info</label>
-                <textarea placeholder="Tell us about yourself..." readonly></textarea>
+                <label for="bio">Biographical Info</label>
+                <textarea id="bio" name="bio" placeholder="Tell us about yourself..." readonly>{{ old('bio', $user?->bio ?? '') }}</textarea>
+                @error('bio')
+                    <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                @enderror
             </div>
-        </div>
+            <div id="profile-actions" class="profile-actions">
+                <button type="submit" class="action-btn" style="width: 160px;">Update</button>
+                <button id="profile-cancel" type="button" class="action-btn" style="width: 160px;">Cancel</button>
+            </div>
+            @if (session('profile_status'))
+                <div class="status-text" style="margin-top: 10px;">{{ session('profile_status') }}</div>
+            @endif
+        </form>
     </div>
+    <script>
+        (function () {
+            const editButton = document.getElementById('edit-profile-btn');
+            const form = document.getElementById('profile-form');
+            const actionBar = document.getElementById('profile-actions');
+            const cancelButton = document.getElementById('profile-cancel');
+            if (!editButton || !form || !actionBar || !cancelButton) return;
+
+            const fields = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]'));
+
+            const setEditable = (isEditable) => {
+                fields.forEach((field) => {
+                    if (field.dataset.originalValue === undefined) {
+                        field.dataset.originalValue = field.value;
+                        field.dataset.originalReadonly = field.hasAttribute('readonly') ? 'true' : 'false';
+                        field.dataset.originalDisabled = field.hasAttribute('disabled') ? 'true' : 'false';
+                    }
+
+                    if (isEditable) {
+                        field.removeAttribute('readonly');
+                        field.removeAttribute('disabled');
+                    } else {
+                        field.value = field.dataset.originalValue;
+                        if (field.dataset.originalReadonly === 'true') {
+                            field.setAttribute('readonly', 'readonly');
+                        }
+                        if (field.dataset.originalDisabled === 'true') {
+                            field.setAttribute('disabled', 'disabled');
+                        }
+                    }
+                });
+                actionBar.classList.toggle('is-visible', isEditable);
+            };
+
+            editButton.addEventListener('click', () => setEditable(true));
+            cancelButton.addEventListener('click', () => setEditable(false));
+
+            if (form.dataset.startEdit === 'true') {
+                setEditable(true);
+            }
+        })();
+    </script>
 @endsection
