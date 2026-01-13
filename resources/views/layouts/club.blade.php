@@ -196,7 +196,7 @@
 </head>
 <body>
     <header class="topbar">
-        <a class="logo" href="{{ route('home') }}" title="Home" wire:navigate>
+        <a class="logo" href="{{ route('club.home') }}" title="Club Home" wire:navigate>
             <img src="{{ asset('images/tunku-abdul-rahman-university-of-management-and-technology-tar-umt.png') }}" alt="Logo" width="140">
         </a>
         <div class="user-area">

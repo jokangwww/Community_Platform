@@ -26,7 +26,27 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
-            $table->string('profile_photo_path')->nullable()->after('password');
+            $table->string('profile_photo_path')->nullable();
+        });
+
+        Schema::create('admins', function (Blueprint $table) {
+            $table->foreignId('admin_id')->primary()->constrained('users')->cascadeOnDelete();
+            $table->string('staff_id');
+            $table->string('position')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('students', function (Blueprint $table) {
+            $table->foreignId('student_id')->primary()->constrained('users')->cascadeOnDelete();
+            $table->string('student_year')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('clubs', function (Blueprint $table) {
+            $table->foreignId('club_id')->primary()->constrained('users')->cascadeOnDelete();
+            $table->string('club_category')->nullable();
+            $table->string('staff_id');
+            $table->timestamps();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -50,6 +70,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('clubs');
+        Schema::dropIfExists('students');
+        Schema::dropIfExists('admins');
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');

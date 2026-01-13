@@ -1,0 +1,5 @@
+php artisan db:seed
+php artisan migrate:fresh --seed
+php artisan db:seed --class=DatabaseSeeder
+php artisan migrate
+php artisan migrate:status
