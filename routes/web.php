@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Club\EventController;
+use App\Http\Controllers\Club\PostingController;
 use App\Http\Controllers\User\ProfileController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 Route::get('/', function () {
+    return redirect()->route('login');
+})->name('root');
+
+Route::get('/home', function () {
     return view('user.home');
 })->middleware('auth')->name('home');
 
@@ -43,6 +48,9 @@ Route::post('/login', function (Request $request) {
     if (Auth::attempt($credentials, true)) {
         $request->session()->regenerate();
         $user = Auth::user();
+        if ($user && $user->role === 'admin') {
+            return redirect()->intended(route('admin.home'));
+        }
         if ($user && $user->role === 'club') {
             return redirect()->intended(route('club.home'));
         }
@@ -62,16 +70,26 @@ Route::get('/club', function () {
 
     return view('club.home');
 })->middleware('auth')->name('club.home');
-Route::get('/club/event-posting', function () {
+Route::get('/admin', function () {
     $user = Auth::user();
-    if (! $user || $user->role !== 'club') {
+    if (! $user || $user->role !== 'admin') {
         abort(403);
     }
 
-    return view('club.event-posting');
-})->middleware('auth')->name('club.event-posting');
+    return view('admin.home');
+})->middleware('auth')->name('admin.home');
+Route::get('/club/event-posting', [PostingController::class, 'index'])
+    ->middleware('auth')
+    ->name('club.event-posting');
+Route::get('/club/event-posting/create', [PostingController::class, 'create'])
+    ->middleware('auth')
+    ->name('club.event-posting.create');
+Route::post('/club/event-posting', [PostingController::class, 'store'])
+    ->middleware('auth')
+    ->name('club.event-posting.store');
 Route::prefix('club')->middleware('auth')->group(function () {
     Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
+    Route::view('/events/propose', 'club.events.propose')->name('club.events.propose');
     Route::get('/events/create', [EventController::class, 'create'])->name('club.events.create');
     Route::post('/events', [EventController::class, 'store'])->name('club.events.store');
     Route::get('/events/{event}', [EventController::class, 'show'])->name('club.events.show');

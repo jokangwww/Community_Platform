@@ -222,7 +222,7 @@
                 <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'live-stream') }}">- Live Stream</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'event-propose') }}">- Event Propose</a></li>
+                <li><a class="nav-link" href="{{ route('club.events.propose') }}">- Event Propose</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'lucky-draw') }}">- Lucky Draw</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'event-attendance') }}">- Event Attendance</a></li>
             </ul>

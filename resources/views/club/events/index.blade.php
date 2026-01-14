@@ -4,21 +4,68 @@
 
 @section('content')
     <style>
-        .events-header {
+        .events-topbar {
+            padding: 10px 0 6px;
+            border-bottom: 2px solid #1f1f1f;
+        }
+        .events-topbar-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px 0 12px;
-            border-bottom: 2px solid #1f1f1f;
+            gap: 16px;
         }
-        .events-header h2 {
+        .events-topbar h2 {
             margin: 0;
-            font-size: 26px;
+            font-size: 22px;
         }
-        .events-header .apply-btn {
-            padding: 8px 16px;
+        .events-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #2b2b2b;
+            padding: 4px 8px;
+            min-width: 320px;
+            background: #fff;
+        }
+        .events-search input {
+            border: none;
+            outline: none;
+            font-size: 16px;
+            width: 100%;
+        }
+        .events-search svg {
+            width: 18px;
+            height: 18px;
+        }
+        .events-subbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0 6px;
+        }
+        .events-tabs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+        }
+        .events-tabs a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .events-tabs a.active {
+            font-weight: 700;
+        }
+        .events-tabs .separator {
+            color: #333;
+        }
+        .apply-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
             border: 1px solid #1f1f1f;
-            border-radius: 6px;
+            border-radius: 4px;
             background: #fff;
             text-decoration: none;
             color: inherit;
@@ -90,9 +137,24 @@
         }
     </style>
 
-    <div class="events-header">
-        <h2>Events</h2>
-        <a class="apply-btn" href="{{ route('club.events.create') }}">Apply New Event +</a>
+    <div class="events-topbar">
+        <div class="events-topbar-row">
+            <h2>Manage Event</h2>
+            <form class="events-search" action="#" method="GET">
+                <input type="text" name="q" placeholder="Search">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
+                </svg>
+            </form>
+        </div>
+    </div>
+    <div class="events-subbar">
+        <div class="events-tabs">
+            <a class="active" href="{{ route('club.events.index') }}">My Event</a>
+            <span class="separator">/</span>
+            <a href="{{ route('club.events.propose') }}">Propose</a>
+        </div>
+        <a class="apply-btn" href="{{ route('club.events.create') }}">New Event +</a>
     </div>
     @if (session('status'))
         <div class="empty-state" style="border-style: solid; margin-top: 12px;">
