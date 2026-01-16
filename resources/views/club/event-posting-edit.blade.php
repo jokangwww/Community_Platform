@@ -1,6 +1,6 @@
 @extends('layouts.club')
 
-@section('title', 'New Posting')
+@section('title', 'Edit Posting')
 
 @section('content')
     <style>
@@ -63,19 +63,41 @@
             font-size: 14px;
             margin-top: 6px;
         }
+        .poster-previews {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .poster-preview {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border: 1px solid #cfcfcf;
+            background: #f4f4f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .poster-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     </style>
 
-    <h2>New Posting</h2>
+    <h2>Edit Posting</h2>
 
-    <form class="posting-form" method="POST" action="{{ route('club.event-posting.store') }}" enctype="multipart/form-data">
+    <form class="posting-form" method="POST" action="{{ route('club.event-posting.update', $posting) }}" enctype="multipart/form-data">
         @csrf
+        @method('PUT')
 
         <div class="form-row">
             <label for="event_id">Event</label>
             <select id="event_id" name="event_id" required>
                 <option value="">Select an event</option>
                 @foreach ($events as $event)
-                    <option value="{{ $event->id }}" @selected(old('event_id') == $event->id)>
+                    <option value="{{ $event->id }}" @selected(old('event_id', $posting->event_id) == $event->id)>
                         {{ $event->name }}
                     </option>
                 @endforeach
@@ -88,25 +110,40 @@
         <div class="form-row">
             <label for="posters">Poster Images</label>
             <input id="posters" name="posters[]" type="file" accept="image/*" multiple>
-            <div class="help-text">Upload one or more poster images (JPG/PNG).</div>
+            <div class="help-text">Upload one or more images to replace the current set.</div>
             @error('posters')
                 <div class="error">{{ $message }}</div>
             @enderror
             @error('posters.*')
                 <div class="error">{{ $message }}</div>
             @enderror
+            @php
+                $images = $posting->images;
+                if ($images->isEmpty() && $posting->poster_path) {
+                    $images = collect([(object) ['image_path' => $posting->poster_path]]);
+                }
+            @endphp
+            @if ($images->isNotEmpty())
+                <div class="poster-previews">
+                    @foreach ($images as $image)
+                        <div class="poster-preview">
+                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="Current poster">
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <div class="form-row">
             <label for="description">Description</label>
-            <textarea id="description" name="description" required>{{ old('description') }}</textarea>
+            <textarea id="description" name="description" required>{{ old('description', $posting->description) }}</textarea>
             @error('description')
                 <div class="error">{{ $message }}</div>
             @enderror
         </div>
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Create Posting</button>
+            <button class="btn btn-primary" type="submit">Save Changes</button>
             <a class="btn" href="{{ route('club.event-posting.mine') }}">Cancel</a>
         </div>
     </form>

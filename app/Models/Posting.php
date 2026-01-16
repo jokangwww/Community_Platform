@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PostingImage;
 
 class Posting extends Model
 {
@@ -15,6 +16,21 @@ class Posting extends Model
         'description',
         'poster_path',
     ];
+
+    public function images()
+    {
+        return $this->hasMany(PostingImage::class)->orderBy('position');
+    }
+
+    public function displayImages()
+    {
+        $images = $this->images;
+        if ($images->isEmpty() && $this->poster_path) {
+            return collect([(object) ['image_path' => $this->poster_path]]);
+        }
+
+        return $images;
+    }
 
     public function event()
     {

@@ -63,40 +63,103 @@
         }
         .posting-card {
             display: grid;
-            grid-template-columns: 300px 1fr;
+            grid-template-columns: 420px 1fr;
             gap: 24px;
             padding: 18px 0;
             border-bottom: 1px solid #d0d0d0;
-            align-items: start;
+            align-items: stretch;
         }
         .posting-media {
-            aspect-ratio: 4 / 5;
-            width: 300px;
+            aspect-ratio: 1 / 1;
+            width: 420px;
             background: #ececec;
             border: 1px solid #2f2f2f;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             font-size: 40px;
             color: #1f1f1f;
             overflow: hidden;
+            position: relative;
         }
         .posting-media,
-        .posting-desc {
-            min-height: 320px;
+        .posting-body {
+            min-height: 420px;
         }
-        .posting-media img {
+        .posting-carousel {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            position: relative;
+        }
+        .posting-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        .posting-track img {
+            width: 100%;
+            height: 100%;
+            flex: 0 0 100%;
+            object-fit: contain;
+            background: #e0e0e0;
+        }
+        .posting-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid #2f2f2f;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .carousel-btn.prev {
+            left: 8px;
+        }
+        .carousel-btn.next {
+            right: 8px;
+        }
+        .carousel-dots {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 4px 8px;
+            border-radius: 999px;
+        }
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #b0b0b0;
+        }
+        .carousel-dot.active {
+            background: #1f1f1f;
+        }
+        .posting-body {
+            display: flex;
+            flex-direction: column;
         }
         .posting-desc {
             background: #f5f5f5;
             border: 1px solid #2f2f2f;
-            font-size: 24px;
+            font-size: 20px;
             color: #1f1f1f;
-            padding: 16px;
+            padding: 12px;
             overflow-y: auto;
+            flex: 1;
         }
         .posting-desc h3 {
             margin: 0 0 10px;
@@ -109,24 +172,33 @@
             margin-top: 10px;
             font-size: 24px;
         }
+        .posting-actions a,
         .posting-actions button {
             background: none;
             border: 0;
             cursor: pointer;
-            font-size: 26px;
+            font-size: 30px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
-            height: 36px;
+            width: 46px;
+            height: 46px;
             border-radius: 8px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .posting-actions form {
+            margin: 0;
         }
         .posting-actions button:hover {
             background: #f0f2f8;
         }
+        .posting-actions a:hover {
+            background: #f0f2f8;
+        }
         .posting-actions svg {
-            width: 22px;
-            height: 22px;
+            width: 26px;
+            height: 26px;
         }
         @media (max-width: 900px) {
             .posting-header {
@@ -140,8 +212,11 @@
                 grid-template-columns: 1fr;
             }
             .posting-media,
-            .posting-desc {
+            .posting-body {
                 min-height: 220px;
+            }
+            .posting-media {
+                width: 100%;
             }
         }
     </style>
@@ -160,9 +235,9 @@
     </div>
 
     <div class="posting-tabs">
-        <a href="#" class="active">All</a>
+        <a href="{{ route('club.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
         <span>/</span>
-        <a href="#">My Posting</a>
+        <a href="{{ route('club.event-posting.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
     </div>
 
     <div class="posting-list">
@@ -180,39 +255,106 @@
             @foreach ($postings as $posting)
                 <div class="posting-card">
                     <div class="posting-media">
-                        @if ($posting->poster_path)
-                            <img src="{{ asset('storage/' . $posting->poster_path) }}" alt="Posting poster">
+                        @if ($posting->displayImages()->isNotEmpty())
+                            <div class="posting-carousel" data-count="{{ $posting->displayImages()->count() }}">
+                                <div class="posting-track">
+                                    @foreach ($posting->displayImages() as $image)
+                                        <img src="{{ asset('storage/' . $image->image_path) }}" alt="Posting poster">
+                                    @endforeach
+                                </div>
+                                @if ($posting->displayImages()->count() > 1)
+                                    <button type="button" class="carousel-btn prev" aria-label="Previous image">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M15.5 5l-7 7 7 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="carousel-btn next" aria-label="Next image">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M8.5 5l7 7-7 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <div class="carousel-dots">
+                                        @foreach ($posting->displayImages() as $image)
+                                            <span class="carousel-dot"></span>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         @else
-                            Show Posting
+                            <div class="posting-empty">Show Posting</div>
                         @endif
                     </div>
-                    <div>
+                    <div class="posting-body">
                         <div class="posting-desc">
                             <h3>{{ $posting->event->name ?? 'Event' }}</h3>
                             <div>{{ $posting->description }}</div>
                         </div>
                         <div class="posting-actions">
-                            <button type="button" title="Edit" aria-label="Edit">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#111"/>
-                                </svg>
-                            </button>
-                            <button type="button" title="Delete" aria-label="Delete">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z" fill="#111"/>
-                                </svg>
-                            </button>
-                            <button type="button" title="More" aria-label="More">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <circle cx="5" cy="12" r="2" fill="#111"/>
-                                    <circle cx="12" cy="12" r="2" fill="#111"/>
-                                    <circle cx="19" cy="12" r="2" fill="#111"/>
-                                </svg>
-                            </button>
+                            @if ($activeTab === 'mine')
+                                <a href="{{ route('club.event-posting.edit', $posting) }}" title="Edit" aria-label="Edit">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#111"/>
+                                    </svg>
+                                </a>
+                                <form method="POST" action="{{ route('club.event-posting.destroy', $posting) }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" title="Delete" aria-label="Delete" onclick="return confirm('Delete this posting?')">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z" fill="#111"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                            @else
+                                <button type="button" title="Favorite" aria-label="Favorite">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
+                                    </svg>
+                                </button>
+                                <button type="button" title="Share" aria-label="Share">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
+                                    </svg>
+                                </button>
+                                <button type="button" title="More" aria-label="More">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <circle cx="5" cy="12" r="2" fill="#111"/>
+                                        <circle cx="12" cy="12" r="2" fill="#111"/>
+                                        <circle cx="19" cy="12" r="2" fill="#111"/>
+                                    </svg>
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
             @endforeach
         @endif
     </div>
+
+    <script>
+        document.querySelectorAll('.posting-carousel').forEach((carousel) => {
+            const track = carousel.querySelector('.posting-track');
+            const dots = Array.from(carousel.querySelectorAll('.carousel-dot'));
+            const prev = carousel.querySelector('.carousel-btn.prev');
+            const next = carousel.querySelector('.carousel-btn.next');
+            const count = parseInt(carousel.dataset.count || '0', 10);
+            if (!track || count <= 1) {
+                return;
+            }
+            let index = 0;
+            const update = () => {
+                track.style.transform = `translateX(-${index * 100}%)`;
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            };
+            const step = (delta) => {
+                index = (index + delta + count) % count;
+                update();
+            };
+            prev.addEventListener('click', () => step(-1));
+            next.addEventListener('click', () => step(1));
+            update();
+        });
+    </script>
 @endsection

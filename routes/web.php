@@ -81,12 +81,24 @@ Route::get('/admin', function () {
 Route::get('/club/event-posting', [PostingController::class, 'index'])
     ->middleware('auth')
     ->name('club.event-posting');
+Route::get('/club/event-posting/mine', [PostingController::class, 'mine'])
+    ->middleware('auth')
+    ->name('club.event-posting.mine');
 Route::get('/club/event-posting/create', [PostingController::class, 'create'])
     ->middleware('auth')
     ->name('club.event-posting.create');
 Route::post('/club/event-posting', [PostingController::class, 'store'])
     ->middleware('auth')
     ->name('club.event-posting.store');
+Route::get('/club/event-posting/{posting}/edit', [PostingController::class, 'edit'])
+    ->middleware('auth')
+    ->name('club.event-posting.edit');
+Route::put('/club/event-posting/{posting}', [PostingController::class, 'update'])
+    ->middleware('auth')
+    ->name('club.event-posting.update');
+Route::delete('/club/event-posting/{posting}', [PostingController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('club.event-posting.destroy');
 Route::prefix('club')->middleware('auth')->group(function () {
     Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
     Route::view('/events/propose', 'club.events.propose')->name('club.events.propose');
