@@ -1,0 +1,269 @@
+@extends('layouts.club')
+
+@section('title', 'Event Posting')
+
+@section('content')
+    <style>
+        .posting-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 2px solid #1f1f1f;
+        }
+        .posting-header h2 {
+            margin: 0;
+            font-size: 26px;
+        }
+        .back-link {
+            text-decoration: none;
+            color: inherit;
+            font-size: 16px;
+        }
+        .posting-card {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 24px;
+            border-bottom: 1px solid #d0d0d0;
+            padding-bottom: 20px;
+        }
+        .posting-media {
+            aspect-ratio: 1 / 1;
+            width: 420px;
+            background: #ececec;
+            border: 1px solid #2f2f2f;
+            font-size: 40px;
+            color: #1f1f1f;
+            overflow: hidden;
+            position: relative;
+        }
+        .posting-carousel {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .posting-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        .posting-track img {
+            width: 100%;
+            height: 100%;
+            flex: 0 0 100%;
+            object-fit: contain;
+            background: #e0e0e0;
+        }
+        .posting-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid #2f2f2f;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .carousel-btn.prev {
+            left: 8px;
+        }
+        .carousel-btn.next {
+            right: 8px;
+        }
+        .carousel-dots {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 4px 8px;
+            border-radius: 999px;
+        }
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #b0b0b0;
+        }
+        .carousel-dot.active {
+            background: #1f1f1f;
+        }
+        .posting-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .posting-desc {
+            background: #f5f5f5;
+            border: 1px solid #2f2f2f;
+            font-size: 20px;
+            color: #1f1f1f;
+            padding: 12px;
+        }
+        .posting-desc h3 {
+            margin: 0 0 10px;
+            font-size: 20px;
+        }
+        .posting-actions {
+            display: flex;
+            gap: 18px;
+            justify-content: flex-end;
+            margin-top: 10px;
+            font-size: 24px;
+        }
+        .posting-actions a,
+        .posting-actions button {
+            background: none;
+            border: 0;
+            cursor: pointer;
+            font-size: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .posting-actions a:hover,
+        .posting-actions button:hover {
+            background: #f0f2f8;
+        }
+        .posting-actions svg {
+            width: 26px;
+            height: 26px;
+        }
+        .favorite-active svg path {
+            fill: #d14b4b;
+            stroke: #d14b4b;
+        }
+        @media (max-width: 900px) {
+            .posting-card {
+                grid-template-columns: 1fr;
+            }
+            .posting-media {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="posting-header">
+        <h2>Event Posting</h2>
+        <a class="back-link" href="{{ route('club.event-posting') }}">Back to all</a>
+    </div>
+
+    <div class="posting-card">
+        <div class="posting-media">
+            @if ($posting->displayImages()->isNotEmpty())
+                <div class="posting-carousel" data-count="{{ $posting->displayImages()->count() }}">
+                    <div class="posting-track">
+                        @foreach ($posting->displayImages() as $image)
+                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="Posting poster">
+                        @endforeach
+                    </div>
+                    @if ($posting->displayImages()->count() > 1)
+                        <button type="button" class="carousel-btn prev" aria-label="Previous image">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M15.5 5l-7 7 7 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="carousel-btn next" aria-label="Next image">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M8.5 5l7 7-7 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div class="carousel-dots">
+                            @foreach ($posting->displayImages() as $image)
+                                <span class="carousel-dot"></span>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @else
+                <div class="posting-empty">Show Posting</div>
+            @endif
+        </div>
+        <div class="posting-body">
+            <div class="posting-desc">
+                <h3>{{ $posting->event->name ?? 'Event' }}</h3>
+                <div>{{ $posting->description }}</div>
+            </div>
+            <div class="posting-actions">
+                @php
+                    $isFavorited = in_array($posting->id, $favoriteIds ?? [], true);
+                @endphp
+                <form method="POST" action="{{ route('club.event-posting.favorite', $posting) }}">
+                    @csrf
+                    <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
+                        </svg>
+                    </button>
+                </form>
+                <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.posting-carousel').forEach((carousel) => {
+            const track = carousel.querySelector('.posting-track');
+            const dots = Array.from(carousel.querySelectorAll('.carousel-dot'));
+            const prev = carousel.querySelector('.carousel-btn.prev');
+            const next = carousel.querySelector('.carousel-btn.next');
+            const count = parseInt(carousel.dataset.count || '0', 10);
+            if (!track || count <= 1) {
+                return;
+            }
+            let index = 0;
+            const update = () => {
+                track.style.transform = `translateX(-${index * 100}%)`;
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            };
+            const step = (delta) => {
+                index = (index + delta + count) % count;
+                update();
+            };
+            prev.addEventListener('click', () => step(-1));
+            next.addEventListener('click', () => step(1));
+            update();
+        });
+
+        document.querySelectorAll('.share-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const url = button.getAttribute('data-share-url');
+                if (!url) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url).catch(() => {
+                        window.prompt('Copy link:', url);
+                    });
+                } else {
+                    window.prompt('Copy link:', url);
+                }
+            });
+        });
+    </script>
+@endsection

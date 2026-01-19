@@ -20,6 +20,13 @@ class PostingController extends Controller
         return $user;
     }
 
+    private function favoriteIds($user): array
+    {
+        return $user->favoritePostings()
+            ->pluck('postings.id')
+            ->all();
+    }
+
     public function index()
     {
         $user = $this->requireClub();
@@ -31,6 +38,7 @@ class PostingController extends Controller
         return view('club.event-posting', [
             'postings' => $postings,
             'activeTab' => 'all',
+            'favoriteIds' => $this->favoriteIds($user),
         ]);
     }
 
@@ -46,6 +54,23 @@ class PostingController extends Controller
         return view('club.event-posting', [
             'postings' => $postings,
             'activeTab' => 'mine',
+            'favoriteIds' => $this->favoriteIds($user),
+        ]);
+    }
+
+    public function favorites()
+    {
+        $user = $this->requireClub();
+
+        $postings = $user->favoritePostings()
+            ->with(['event', 'images'])
+            ->latest('postings.created_at')
+            ->get();
+
+        return view('club.event-posting', [
+            'postings' => $postings,
+            'activeTab' => 'favorites',
+            'favoriteIds' => $this->favoriteIds($user),
         ]);
     }
 
@@ -112,6 +137,18 @@ class PostingController extends Controller
         return view('club.event-posting-edit', compact('posting', 'events'));
     }
 
+    public function show(Posting $posting)
+    {
+        $user = $this->requireClub();
+
+        $posting->load(['event', 'images']);
+
+        return view('club.event-posting-show', [
+            'posting' => $posting,
+            'favoriteIds' => $this->favoriteIds($user),
+        ]);
+    }
+
     public function update(Request $request, Posting $posting)
     {
         $user = $this->requireClub();
@@ -164,5 +201,15 @@ class PostingController extends Controller
         return redirect()
             ->route('club.event-posting.mine')
             ->with('status', 'Posting deleted.');
+    }
+
+    public function toggleFavorite(Posting $posting)
+    {
+        $user = $this->requireClub();
+
+        $user->favoritePostings()->toggle($posting->id);
+
+        return redirect()
+            ->back();
     }
 }

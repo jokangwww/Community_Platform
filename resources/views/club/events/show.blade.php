@@ -89,6 +89,22 @@
             text-transform: uppercase;
             letter-spacing: 0.6px;
         }
+        .subevent-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #4a4a4a;
+        }
+        .subevent-list li {
+            margin-bottom: 4px;
+        }
+        .faculty-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #4a4a4a;
+        }
+        .faculty-list li {
+            margin-bottom: 4px;
+        }
         .status-banner {
             margin-top: 12px;
             padding: 12px 16px;
@@ -129,6 +145,57 @@
             <div class="info-section">
                 <h3>Category</h3>
                 <span class="detail-tag">{{ $event->category }}</span>
+            </div>
+            <div class="info-section">
+                <h3>Participant limit</h3>
+                <p>{{ $event->participant_limit ? $event->participant_limit . ' people' : 'Not set' }}</p>
+            </div>
+            <div class="info-section">
+                <h3>Event dates</h3>
+                <p>
+                    {{ $event->start_date ? $event->start_date : 'Not set' }}
+                    -
+                    {{ $event->end_date ? $event->end_date : 'Not set' }}
+                </p>
+            </div>
+            <div class="info-section">
+                <h3>Committee student IDs</h3>
+                @if ($event->committeeMembers->isNotEmpty())
+                    <p>
+                        {{ $event->committeeMembers->pluck('student_id')->implode(', ') }}
+                    </p>
+                @else
+                    <p>Not set</p>
+                @endif
+            </div>
+            <div class="info-section">
+                <h3>Sub events</h3>
+                @if ($event->subEvents->isNotEmpty())
+                    <ul class="subevent-list">
+                        @foreach ($event->subEvents as $subEvent)
+                            <li>
+                                {{ $subEvent->title }}
+                                @if ($subEvent->event_date)
+                                    ({{ $subEvent->event_date }})
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p>Not set</p>
+                @endif
+            </div>
+            <div class="info-section">
+                <h3>Faculty limits</h3>
+                @if ($event->facultyLimits->isNotEmpty())
+                    <ul class="faculty-list">
+                        @foreach ($event->facultyLimits as $limit)
+                            <li>{{ $limit->faculty_name }}: {{ $limit->limit }}</li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p>Not set</p>
+                @endif
             </div>
             <div class="info-section">
                 <h3>Attachment</h3>

@@ -14,7 +14,26 @@ class Event extends Model
         'name',
         'description',
         'category',
+        'participant_limit',
+        'start_date',
+        'end_date',
         'logo_path',
         'attachment_path',
     ];
+
+    public function committeeMembers()
+    {
+        return $this->belongsToMany(User::class, 'event_committees')
+            ->withTimestamps();
+    }
+
+    public function subEvents()
+    {
+        return $this->hasMany(EventSubEvent::class)->orderBy('event_date');
+    }
+
+    public function facultyLimits()
+    {
+        return $this->hasMany(EventFacultyLimit::class);
+    }
 }

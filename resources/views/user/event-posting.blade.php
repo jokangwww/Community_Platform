@@ -1,4 +1,4 @@
-﻿@extends('layouts.club')
+@extends('layouts.user_layout')
 
 @section('title', 'Event Posting')
 
@@ -6,7 +6,7 @@
     <style>
         .posting-header {
             display: grid;
-            grid-template-columns: auto 1fr auto;
+            grid-template-columns: 1fr auto;
             align-items: center;
             gap: 16px;
             padding: 12px 0;
@@ -50,12 +50,6 @@
         }
         .posting-tabs .active {
             font-weight: 700;
-        }
-        .new-posting {
-            margin-left: auto;
-            font-size: 20px;
-            text-decoration: none;
-            color: inherit;
         }
         .posting-list {
             margin-top: 16px;
@@ -172,8 +166,8 @@
             margin-top: 10px;
             font-size: 24px;
         }
-        .posting-actions a,
-        .posting-actions button {
+        .posting-actions button,
+        .posting-actions a {
             background: none;
             border: 0;
             cursor: pointer;
@@ -191,9 +185,6 @@
             margin: 0;
         }
         .posting-actions button:hover {
-            background: #f0f2f8;
-        }
-        .posting-actions a:hover {
             background: #f0f2f8;
         }
         .posting-actions svg {
@@ -226,7 +217,7 @@
     </style>
 
     <div class="posting-header">
-        <h2>Posting</h2>
+        <h2>Event Posting</h2>
         <div class="search-bar">
             <input type="text" placeholder="Search">
             <span class="search-icon" aria-hidden="true">
@@ -235,15 +226,12 @@
                 </svg>
             </span>
         </div>
-        <a class="new-posting" href="{{ route('club.event-posting.create') }}">New Posting +</a>
     </div>
 
     <div class="posting-tabs">
-        <a href="{{ route('club.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
+        <a href="{{ route('user.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
         <span>/</span>
-        <a href="{{ route('club.event-posting.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
-        <span>/</span>
-        <a href="{{ route('club.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
+        <a href="{{ route('user.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
     </div>
 
     <div class="posting-list">
@@ -255,7 +243,7 @@
 
         @if ($postings->isEmpty())
             <div class="posting-desc" style="height:auto;">
-                No postings yet. Click "New Posting +" to create one.
+                No postings yet.
             </div>
         @else
             @foreach ($postings as $posting)
@@ -299,43 +287,26 @@
                             <div>{{ $posting->description }}</div>
                         </div>
                         <div class="posting-actions">
-                            @if ($activeTab === 'mine')
-                                <a href="{{ route('club.event-posting.edit', $posting) }}" title="Edit" aria-label="Edit">
+                            <form method="POST" action="{{ route('user.event-posting.favorite', $posting) }}">
+                                @csrf
+                                <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
                                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#111"/>
-                                    </svg>
-                                </a>
-                                <form method="POST" action="{{ route('club.event-posting.destroy', $posting) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" title="Delete" aria-label="Delete" onclick="return confirm('Delete this posting?')">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                            <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z" fill="#111"/>
-                                        </svg>
-                                    </button>
-                                </form>
-                            @else
-                                <form method="POST" action="{{ route('club.event-posting.favorite', $posting) }}">
-                                    @csrf
-                                    <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                            <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
-                                        </svg>
-                                    </button>
-                                </form>
-                                <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
+                                        <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
                                     </svg>
                                 </button>
-                                <a href="{{ route('club.event-posting.show', $posting) }}" title="More" aria-label="More">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <circle cx="5" cy="12" r="2" fill="#111"/>
-                                        <circle cx="12" cy="12" r="2" fill="#111"/>
-                                        <circle cx="19" cy="12" r="2" fill="#111"/>
-                                    </svg>
-                                </a>
-                            @endif
+                            </form>
+                            <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
+                                </svg>
+                            </button>
+                            <a href="{{ route('user.event-posting.show', $posting) }}" class="action-link" title="More" aria-label="More">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <circle cx="5" cy="12" r="2" fill="#111"/>
+                                    <circle cx="12" cy="12" r="2" fill="#111"/>
+                                    <circle cx="19" cy="12" r="2" fill="#111"/>
+                                </svg>
+                            </a>
                         </div>
                     </div>
                 </div>

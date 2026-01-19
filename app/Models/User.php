@@ -19,6 +19,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'student_id',
         'email',
         'password',
         'profile_photo_path',
@@ -52,5 +53,11 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function favoritePostings()
+    {
+        return $this->belongsToMany(Posting::class, 'posting_favorites')
+            ->withTimestamps();
     }
 }

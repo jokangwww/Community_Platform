@@ -36,4 +36,10 @@ class Posting extends Model
     {
         return $this->belongsTo(Event::class);
     }
+
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(User::class, 'posting_favorites')
+            ->withTimestamps();
+    }
 }

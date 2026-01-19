@@ -50,6 +50,109 @@
             color: #b00020;
             font-size: 13px;
         }
+        .committee-input {
+            display: flex;
+            gap: 10px;
+        }
+        .committee-input button {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+        }
+        .committee-search {
+            margin-top: 8px;
+        }
+        .committee-list {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0 0;
+            border: 1px solid #d6d6d6;
+            border-radius: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .committee-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid #ededed;
+        }
+        .committee-list li:last-child {
+            border-bottom: 0;
+        }
+        .committee-remove {
+            border: 0;
+            background: none;
+            color: #b00020;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .committee-error {
+            margin-top: 6px;
+            color: #b00020;
+            font-size: 13px;
+        }
+        .committee-empty {
+            color: #6a6a6a;
+            font-size: 13px;
+        }
+        .subevent-row {
+            display: grid;
+            grid-template-columns: 1fr 180px auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .subevent-row button {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+        }
+        .subevent-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .subevent-add {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+            width: fit-content;
+        }
+        .faculty-row {
+            display: grid;
+            grid-template-columns: 1fr 140px auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .faculty-row button {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+        }
+        .faculty-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .faculty-add {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+            width: fit-content;
+        }
     </style>
 
     <div class="tabs">
@@ -80,6 +183,83 @@
             @enderror
         </div>
         <div class="field">
+            <label for="participant_limit">Participant limit</label>
+            <input id="participant_limit" name="participant_limit" type="number" min="1" max="100000" value="{{ old('participant_limit') }}">
+            @error('participant_limit')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="start_date">Event start date</label>
+            <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}">
+            @error('start_date')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="end_date">Event end date</label>
+            <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}">
+            @error('end_date')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="committee_student_ids">Committee student IDs</label>
+            <div class="committee-input">
+                <input id="committee_entry" type="text" placeholder="Enter student ID">
+                <button type="button" id="committee_add">Add</button>
+            </div>
+            <input id="committee_student_ids" name="committee_student_ids" type="hidden" value="{{ old('committee_student_ids') }}">
+            <input id="committee_search" class="committee-search" type="text" placeholder="Search committee">
+            <ul id="committee_list" class="committee-list"></ul>
+            <div id="committee_error" class="committee-error" style="display:none;"></div>
+            @error('committee_student_ids')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label>Sub events</label>
+            <div id="subevent_list" class="subevent-list">
+                @if (is_array(old('sub_event_title')))
+                    @foreach (old('sub_event_title') as $index => $title)
+                        <div class="subevent-row">
+                            <input type="text" name="sub_event_title[]" value="{{ $title }}" placeholder="e.g. Registration day">
+                            <input type="date" name="sub_event_date[]" value="{{ old('sub_event_date.' . $index) }}">
+                            <button type="button" class="subevent-remove">Remove</button>
+                        </div>
+                    @endforeach
+                @endif
+            </div>
+            <button type="button" id="subevent_add" class="subevent-add">Add sub event</button>
+            @error('sub_event_title.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            @error('sub_event_date.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label>Faculty limits</label>
+            <div id="faculty_list" class="faculty-list">
+                @if (is_array(old('faculty_name')))
+                    @foreach (old('faculty_name') as $index => $name)
+                        <div class="faculty-row">
+                            <input type="text" name="faculty_name[]" value="{{ $name }}" placeholder="e.g. Faculty of Computing">
+                            <input type="number" name="faculty_limit[]" min="1" max="100000" value="{{ old('faculty_limit.' . $index) }}" placeholder="Limit">
+                            <button type="button" class="faculty-remove">Remove</button>
+                        </div>
+                    @endforeach
+                @endif
+            </div>
+            <button type="button" id="faculty_add" class="faculty-add">Add faculty limit</button>
+            @error('faculty_name.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            @error('faculty_limit.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
             <label for="logo">Event Logo (PNG, JPG)</label>
             <input id="logo" name="logo" type="file" accept="image/*">
             @error('logo')
@@ -98,4 +278,243 @@
             <a href="{{ route('club.events.index') }}">Cancel</a>
         </div>
     </form>
+
+    <script>
+        (function () {
+            var hidden = document.getElementById('committee_student_ids');
+            var list = document.getElementById('committee_list');
+            var entry = document.getElementById('committee_entry');
+            var addBtn = document.getElementById('committee_add');
+            var search = document.getElementById('committee_search');
+            var errorBox = document.getElementById('committee_error');
+            var validateUrl = "{{ route('club.events.committee.validate') }}";
+
+            if (!hidden || !list || !entry || !addBtn || !search) {
+                return;
+            }
+
+            function normalize(value) {
+                return value.trim();
+            }
+
+            var items = hidden.value
+                ? hidden.value.split(',').map(normalize).filter(Boolean)
+                : [];
+            items = Array.from(new Set(items));
+
+            function syncHidden() {
+                hidden.value = items.join(', ');
+            }
+
+            function render() {
+                var filter = normalize(search.value || '').toLowerCase();
+                list.innerHTML = '';
+
+                var visible = items.filter(function (id) {
+                    return !filter || id.toLowerCase().indexOf(filter) !== -1;
+                });
+
+                if (visible.length === 0) {
+                    var empty = document.createElement('li');
+                    empty.className = 'committee-empty';
+                    empty.textContent = items.length ? 'No matching student IDs.' : 'No committee members yet.';
+                    list.appendChild(empty);
+                    return;
+                }
+
+                visible.forEach(function (id) {
+                    var item = document.createElement('li');
+                    var label = document.createElement('span');
+                    label.textContent = id;
+
+                    var remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.className = 'committee-remove';
+                    remove.textContent = 'Remove';
+                    remove.addEventListener('click', function () {
+                        items = items.filter(function (value) {
+                            return value !== id;
+                        });
+                        syncHidden();
+                        render();
+                    });
+
+                    item.appendChild(label);
+                    item.appendChild(remove);
+                    list.appendChild(item);
+                });
+            }
+
+            function addEntry() {
+                var value = normalize(entry.value);
+                if (!value) {
+                    return;
+                }
+                if (items.indexOf(value) !== -1) {
+                    entry.value = '';
+                    render();
+                    return;
+                }
+                if (errorBox) {
+                    errorBox.style.display = 'none';
+                    errorBox.textContent = '';
+                }
+
+                fetch(validateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify({ student_id: value })
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (!data || !data.valid) {
+                            if (errorBox) {
+                                errorBox.textContent = data && data.message ? data.message : 'Student ID not found.';
+                                errorBox.style.display = 'block';
+                            }
+                            return;
+                        }
+                        items.push(value);
+                        items.sort();
+                        syncHidden();
+                        entry.value = '';
+                        render();
+                    })
+                    .catch(function () {
+                        if (errorBox) {
+                            errorBox.textContent = 'Unable to validate student ID right now.';
+                            errorBox.style.display = 'block';
+                        }
+                    });
+            }
+
+            addBtn.addEventListener('click', addEntry);
+            entry.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addEntry();
+                }
+            });
+            search.addEventListener('input', render);
+
+            syncHidden();
+            render();
+        })();
+    </script>
+    <script>
+        (function () {
+            var list = document.getElementById('subevent_list');
+            var addBtn = document.getElementById('subevent_add');
+
+            if (!list || !addBtn) {
+                return;
+            }
+
+            function makeRow(title, dateValue) {
+                var row = document.createElement('div');
+                row.className = 'subevent-row';
+
+                var titleInput = document.createElement('input');
+                titleInput.type = 'text';
+                titleInput.name = 'sub_event_title[]';
+                titleInput.placeholder = 'e.g. Registration day';
+                titleInput.value = title || '';
+
+                var dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.name = 'sub_event_date[]';
+                dateInput.value = dateValue || '';
+
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'subevent-remove';
+                remove.textContent = 'Remove';
+
+                row.appendChild(titleInput);
+                row.appendChild(dateInput);
+                row.appendChild(remove);
+                return row;
+            }
+
+            function wireRemoveButtons() {
+                list.querySelectorAll('.subevent-remove').forEach(function (button) {
+                    if (button.dataset.bound) {
+                        return;
+                    }
+                    button.dataset.bound = 'true';
+                    button.addEventListener('click', function () {
+                        button.closest('.subevent-row').remove();
+                    });
+                });
+            }
+
+            addBtn.addEventListener('click', function () {
+                list.appendChild(makeRow('', ''));
+                wireRemoveButtons();
+            });
+
+            wireRemoveButtons();
+        })();
+    </script>
+    <script>
+        (function () {
+            var list = document.getElementById('faculty_list');
+            var addBtn = document.getElementById('faculty_add');
+
+            if (!list || !addBtn) {
+                return;
+            }
+
+            function wireRemoveButtons() {
+                list.querySelectorAll('.faculty-remove').forEach(function (button) {
+                    if (button.dataset.bound) {
+                        return;
+                    }
+                    button.dataset.bound = 'true';
+                    button.addEventListener('click', function () {
+                        button.closest('.faculty-row').remove();
+                    });
+                });
+            }
+
+            function makeRow(nameValue, limitValue) {
+                var row = document.createElement('div');
+                row.className = 'faculty-row';
+
+                var nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.name = 'faculty_name[]';
+                nameInput.placeholder = 'e.g. Faculty of Computing';
+                nameInput.value = nameValue || '';
+
+                var limitInput = document.createElement('input');
+                limitInput.type = 'number';
+                limitInput.name = 'faculty_limit[]';
+                limitInput.min = '1';
+                limitInput.max = '100000';
+                limitInput.placeholder = 'Limit';
+                limitInput.value = limitValue || '';
+
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'faculty-remove';
+                remove.textContent = 'Remove';
+
+                row.appendChild(nameInput);
+                row.appendChild(limitInput);
+                row.appendChild(remove);
+                return row;
+            }
+
+            addBtn.addEventListener('click', function () {
+                list.appendChild(makeRow('', ''));
+                wireRemoveButtons();
+            });
+
+            wireRemoveButtons();
+        })();
+    </script>
 @endsection

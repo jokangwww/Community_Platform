@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Student User',
             'email' => 'student@gmail.com',
             'role' => 'student',
+            'student_id' => '26WMR12345',
             'password' => $password,
             'email_verified_at' => now(),
         ]);

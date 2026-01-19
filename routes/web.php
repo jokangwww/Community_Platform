@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\Club\EventController;
 use App\Http\Controllers\Club\PostingController;
+use App\Http\Controllers\Club\RecruitmentController;
+use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController;
 use App\Http\Controllers\User\ProfileController;
+use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +33,27 @@ Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])
 Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
     ->middleware('auth')
     ->name('profile.password');
+Route::get('/events/event-posting', [\App\Http\Controllers\User\PostingController::class, 'index'])
+    ->middleware('auth')
+    ->name('user.event-posting');
+Route::get('/events/event-posting/favorites', [\App\Http\Controllers\User\PostingController::class, 'favorites'])
+    ->middleware('auth')
+    ->name('user.event-posting.favorites');
+Route::get('/events/event-posting/{posting}', [\App\Http\Controllers\User\PostingController::class, 'show'])
+    ->middleware('auth')
+    ->name('user.event-posting.show');
+Route::post('/events/event-posting/{posting}/favorite', [\App\Http\Controllers\User\PostingController::class, 'toggleFavorite'])
+    ->middleware('auth')
+    ->name('user.event-posting.favorite');
+Route::get('/events/recruitment', [UserRecruitmentController::class, 'index'])
+    ->middleware('auth')
+    ->name('user.recruitment');
+Route::get('/events/recruitment/{recruitment}', [UserRecruitmentController::class, 'show'])
+    ->middleware('auth')
+    ->name('user.recruitment.show');
+Route::post('/events/recruitment/{recruitment}/apply', [UserRecruitmentController::class, 'apply'])
+    ->middleware('auth')
+    ->name('user.recruitment.apply');
 Route::get('/events/{section}', function (string $section) {
     $title = Str::title(str_replace('-', ' ', $section));
 
@@ -37,7 +61,29 @@ Route::get('/events/{section}', function (string $section) {
         'section' => $title,
     ]);
 })->middleware('auth')->name('events.section');
+Route::get('/event-posting/{posting}', function (Posting $posting) {
+    $user = Auth::user();
+    if (! $user) {
+        abort(403);
+    }
 
+    $posting->load(['event', 'images']);
+
+    if ($user->role === 'club') {
+        return view('club.event-posting-show', [
+            'posting' => $posting,
+        ]);
+    }
+
+    $favoriteIds = $user->favoritePostings()
+        ->pluck('postings.id')
+        ->all();
+
+    return view('user.event-posting-show', [
+        'posting' => $posting,
+        'favoriteIds' => $favoriteIds,
+    ]);
+})->middleware('auth')->name('event-posting.show');
 Route::view('/login', 'auth.login')->name('login');
 Route::post('/login', function (Request $request) {
     $credentials = $request->validate([
@@ -84,18 +130,27 @@ Route::get('/club/event-posting', [PostingController::class, 'index'])
 Route::get('/club/event-posting/mine', [PostingController::class, 'mine'])
     ->middleware('auth')
     ->name('club.event-posting.mine');
+Route::get('/club/event-posting/favorites', [PostingController::class, 'favorites'])
+    ->middleware('auth')
+    ->name('club.event-posting.favorites');
 Route::get('/club/event-posting/create', [PostingController::class, 'create'])
     ->middleware('auth')
     ->name('club.event-posting.create');
 Route::post('/club/event-posting', [PostingController::class, 'store'])
     ->middleware('auth')
     ->name('club.event-posting.store');
+Route::post('/club/event-posting/{posting}/favorite', [PostingController::class, 'toggleFavorite'])
+    ->middleware('auth')
+    ->name('club.event-posting.favorite');
 Route::get('/club/event-posting/{posting}/edit', [PostingController::class, 'edit'])
     ->middleware('auth')
     ->name('club.event-posting.edit');
 Route::put('/club/event-posting/{posting}', [PostingController::class, 'update'])
     ->middleware('auth')
     ->name('club.event-posting.update');
+Route::get('/club/event-posting/{posting}', [PostingController::class, 'show'])
+    ->middleware('auth')
+    ->name('club.event-posting.show');
 Route::delete('/club/event-posting/{posting}', [PostingController::class, 'destroy'])
     ->middleware('auth')
     ->name('club.event-posting.destroy');
@@ -107,6 +162,16 @@ Route::prefix('club')->middleware('auth')->group(function () {
     Route::get('/events/{event}', [EventController::class, 'show'])->name('club.events.show');
     Route::get('/events/{event}/edit', [EventController::class, 'edit'])->name('club.events.edit');
     Route::put('/events/{event}', [EventController::class, 'update'])->name('club.events.update');
+    Route::post('/events/committee/validate', [EventController::class, 'validateCommittee'])
+        ->name('club.events.committee.validate');
+    Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('club.recruitment');
+    Route::get('/recruitment/mine', [RecruitmentController::class, 'mine'])->name('club.recruitment.mine');
+    Route::get('/recruitment/create', [RecruitmentController::class, 'create'])->name('club.recruitment.create');
+    Route::post('/recruitment', [RecruitmentController::class, 'store'])->name('club.recruitment.store');
+    Route::get('/recruitment/{recruitment}', [RecruitmentController::class, 'show'])->name('club.recruitment.show');
+    Route::get('/recruitment/{recruitment}/edit', [RecruitmentController::class, 'edit'])->name('club.recruitment.edit');
+    Route::put('/recruitment/{recruitment}', [RecruitmentController::class, 'update'])->name('club.recruitment.update');
+    Route::delete('/recruitment/{recruitment}', [RecruitmentController::class, 'destroy'])->name('club.recruitment.destroy');
 });
 
 Route::view('/register', 'auth.register')->name('register');
@@ -114,6 +179,7 @@ Route::post('/register', function (Request $request) {
     $validated = $request->validate([
         'first_name' => ['required', 'string', 'max:255'],
         'last_name' => ['required', 'string', 'max:255'],
+        'student_id' => ['nullable', 'string', 'max:255', 'unique:users,student_id'],
         'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
         'password' => ['required', 'string', 'min:8', 'confirmed'],
         'role' => ['required', 'in:student,staff,alumni,club'],
@@ -122,6 +188,7 @@ Route::post('/register', function (Request $request) {
 
     $user = User::create([
         'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
+        'student_id' => $validated['student_id'] ?? null,
         'email' => $validated['email'],
         'password' => Hash::make($validated['password']),
         'role' => $validated['role'],
