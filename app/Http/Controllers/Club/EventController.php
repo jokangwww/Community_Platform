@@ -162,10 +162,12 @@ class EventController extends Controller
             abort(403);
         }
 
-        $event->load(['committeeMembers', 'subEvents', 'facultyLimits']);
+        $event->load(['committeeMembers', 'subEvents', 'facultyLimits', 'postings.registrations.student']);
+        $registrations = $event->postings->flatMap->registrations;
 
         return view('club.events.show', [
             'event' => $event,
+            'registrations' => $registrations,
         ]);
     }
 

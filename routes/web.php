@@ -45,6 +45,9 @@ Route::get('/events/event-posting/{posting}', [\App\Http\Controllers\User\Postin
 Route::post('/events/event-posting/{posting}/favorite', [\App\Http\Controllers\User\PostingController::class, 'toggleFavorite'])
     ->middleware('auth')
     ->name('user.event-posting.favorite');
+Route::post('/events/event-posting/{posting}/register', [\App\Http\Controllers\User\PostingController::class, 'register'])
+    ->middleware('auth')
+    ->name('user.event-posting.register');
 Route::get('/events/recruitment', [UserRecruitmentController::class, 'index'])
     ->middleware('auth')
     ->name('user.recruitment');

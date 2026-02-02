@@ -165,6 +165,46 @@
             margin: 0 0 10px;
             font-size: 20px;
         }
+        .posting-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #4a4a4a;
+            margin-top: 8px;
+        }
+        .meta-pill {
+            border: 1px solid #d0d0d0;
+            border-radius: 999px;
+            padding: 2px 10px;
+            background: #fff;
+            font-weight: 600;
+        }
+        .posting-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .status-open {
+            background: #e6f4ea;
+            color: #1f7a1f;
+            border: 1px solid #b7e2c1;
+        }
+        .status-closed {
+            background: #fce8e6;
+            color: #a11919;
+            border: 1px solid #f3c2bf;
+        }
         .posting-actions {
             display: flex;
             gap: 18px;
@@ -314,8 +354,16 @@
                     </div>
                     <div class="posting-body">
                         <div class="posting-desc">
-                            <h3>{{ $posting->event->name ?? 'Event' }}</h3>
+                            <div class="posting-title">
+                                <h3>{{ $posting->event->name ?? 'Event' }}</h3>
+                                <span class="status-badge {{ ($posting->status ?? 'open') === 'open' ? 'status-open' : 'status-closed' }}">
+                                    {{ ucfirst($posting->status ?? 'open') }}
+                                </span>
+                            </div>
                             <div>{{ $posting->description }}</div>
+                            <div class="posting-meta">
+                                <span class="meta-pill">{{ $posting->registrations_count ?? 0 }} registered</span>
+                            </div>
                         </div>
                         <div class="posting-actions">
                             @if ($activeTab === 'mine')

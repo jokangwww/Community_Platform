@@ -36,4 +36,9 @@ class Event extends Model
     {
         return $this->hasMany(EventFacultyLimit::class);
     }
+
+    public function postings()
+    {
+        return $this->hasMany(Posting::class);
+    }
 }

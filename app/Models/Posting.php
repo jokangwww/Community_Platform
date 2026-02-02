@@ -14,6 +14,7 @@ class Posting extends Model
         'club_id',
         'event_id',
         'description',
+        'status',
         'poster_path',
     ];
 
@@ -41,5 +42,10 @@ class Posting extends Model
     {
         return $this->belongsToMany(User::class, 'posting_favorites')
             ->withTimestamps();
+    }
+
+    public function registrations()
+    {
+        return $this->hasMany(EventRegistration::class);
     }
 }

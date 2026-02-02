@@ -30,28 +30,23 @@
         }
         .filter-bar {
             display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr auto auto;
+            grid-template-columns: 1.4fr 1fr 1fr 0.9fr auto;
             gap: 12px;
             margin-top: 16px;
             align-items: end;
-        }
-        .filter-bar .checkbox-field {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            height: 100%;
-        }
-        .filter-bar .checkbox-field input {
-            width: auto;
-        }
-        .filter-bar .checkbox-field label {
-            font-size: 14px;
         }
         .filter-bar input {
             border: 1px solid #cfcfcf;
             border-radius: 6px;
             padding: 8px 10px;
             font-size: 14px;
+        }
+        .filter-bar select {
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: #fff;
         }
         .filter-bar button {
             padding: 8px 14px;
@@ -122,9 +117,14 @@
             <label for="interests">Interest filter</label>
             <input id="interests" name="interests" type="text" value="{{ $filters['interests'] ?? '' }}" placeholder="e.g. Community">
         </div>
-        <div class="checkbox-field">
-            <input id="submitted" name="submitted" type="checkbox" value="1" @checked(!empty($filters['submitted']))>
-            <label for="submitted">Submitted only</label>
+        <div>
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="">All</option>
+                <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
+                <option value="accepted" @selected(($filters['status'] ?? '') === 'accepted')>Accepted</option>
+                <option value="rejected" @selected(($filters['status'] ?? '') === 'rejected')>Rejected</option>
+            </select>
         </div>
         <button type="submit">Filter</button>
     </form>

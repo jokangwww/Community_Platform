@@ -135,6 +135,17 @@
         </div>
 
         <div class="form-row">
+            <label for="status">Registration Status</label>
+            <select id="status" name="status" required>
+                <option value="open" @selected(old('status', $posting->status ?? 'open') === 'open')>Open</option>
+                <option value="closed" @selected(old('status', $posting->status ?? 'open') === 'closed')>Closed</option>
+            </select>
+            @error('status')
+                <div class="error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <div class="form-row">
             <label for="description">Description</label>
             <textarea id="description" name="description" required>{{ old('description', $posting->description) }}</textarea>
             @error('description')

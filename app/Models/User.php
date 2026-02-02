@@ -28,9 +28,6 @@ class User extends Authenticatable
         'display_name',
         'nickname',
         'role',
-        'whatsapp',
-        'website',
-        'telegram',
         'bio',
     ];
 

@@ -159,15 +159,20 @@
             margin: 0 0 10px;
             font-size: 20px;
         }
-        .posting-actions {
-            display: flex;
-            gap: 18px;
-            justify-content: flex-end;
+        .posting-footer-row {
             margin-top: 10px;
-            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
         }
-        .posting-actions button,
-        .posting-actions a {
+        .posting-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .posting-footer-right button,
+        .posting-footer-right a {
             background: none;
             border: 0;
             cursor: pointer;
@@ -181,15 +186,60 @@
             color: inherit;
             text-decoration: none;
         }
-        .posting-actions form {
+        .posting-footer-right form {
             margin: 0;
         }
-        .posting-actions button:hover {
+        .posting-footer-right button:hover,
+        .posting-footer-right a:hover {
             background: #f0f2f8;
         }
-        .posting-actions svg {
+        .posting-footer-right svg {
             width: 26px;
             height: 26px;
+        }
+        .posting-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .status-open {
+            background: #e6f4ea;
+            color: #1f7a1f;
+            border: 1px solid #b7e2c1;
+        }
+        .status-closed {
+            background: #fce8e6;
+            color: #a11919;
+            border: 1px solid #f3c2bf;
+        }
+        .register-btn {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid #1a73e8;
+            background: #1a73e8;
+            color: #fff;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 42px;
+        }
+        .register-btn[disabled] {
+            background: #d5d5d5;
+            border-color: #b0b0b0;
+            color: #5a5a5a;
+            cursor: not-allowed;
         }
         .favorite-active svg path {
             fill: #d14b4b;
@@ -268,6 +318,11 @@
             @foreach ($postings as $posting)
                 @php
                     $isFavorited = in_array($posting->id, $favoriteIds ?? [], true);
+                    $isRegistered = in_array($posting->id, $registeredIds ?? [], true);
+                    $eventId = $posting->event_id;
+                    $limit = $posting->event->participant_limit ?? null;
+                    $currentCount = $eventRegistrationCounts[$eventId] ?? 0;
+                    $isFull = $limit && $currentCount >= $limit;
                 @endphp
                 <div class="posting-card">
                     <div class="posting-media">
@@ -302,30 +357,51 @@
                     </div>
                     <div class="posting-body">
                         <div class="posting-desc">
-                            <h3>{{ $posting->event->name ?? 'Event' }}</h3>
+                            <div class="posting-title">
+                                <h3>{{ $posting->event->name ?? 'Event' }}</h3>
+                                <span class="status-badge {{ ($posting->status ?? 'open') === 'open' ? 'status-open' : 'status-closed' }}">
+                                    {{ ucfirst($posting->status ?? 'open') }}
+                                </span>
+                            </div>
                             <div>{{ $posting->description }}</div>
                         </div>
-                        <div class="posting-actions">
-                            <form method="POST" action="{{ route('user.event-posting.favorite', $posting) }}">
-                                @csrf
-                                <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
+                        <div class="posting-footer-row">
+                            <div>
+                                @if (!empty($canRegister) && ($posting->status ?? 'open') === 'open')
+                                    @if ($isRegistered)
+                                        <button type="button" class="register-btn" disabled>Registered</button>
+                                    @elseif ($isFull)
+                                        <button type="button" class="register-btn" disabled>Full</button>
+                                    @else
+                                        <form method="POST" action="{{ route('user.event-posting.register', $posting) }}">
+                                            @csrf
+                                            <button type="submit" class="register-btn">Register</button>
+                                        </form>
+                                    @endif
+                                @endif
+                            </div>
+                            <div class="posting-footer-right">
+                                <form method="POST" action="{{ route('user.event-posting.favorite', $posting) }}">
+                                    @csrf
+                                    <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                                <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
                                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
+                                        <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
                                     </svg>
                                 </button>
-                            </form>
-                            <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>
-                                </svg>
-                            </button>
-                            <a href="{{ route('user.event-posting.show', $posting) }}" class="action-link" title="More" aria-label="More">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                    <circle cx="5" cy="12" r="2" fill="#111"/>
-                                    <circle cx="12" cy="12" r="2" fill="#111"/>
-                                    <circle cx="19" cy="12" r="2" fill="#111"/>
-                                </svg>
-                            </a>
+                                <a href="{{ route('user.event-posting.show', $posting) }}" class="action-link" title="More" aria-label="More">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <circle cx="5" cy="12" r="2" fill="#111"/>
+                                        <circle cx="12" cy="12" r="2" fill="#111"/>
+                                        <circle cx="19" cy="12" r="2" fill="#111"/>
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

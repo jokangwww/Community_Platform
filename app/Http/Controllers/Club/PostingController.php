@@ -33,6 +33,7 @@ class PostingController extends Controller
         $user = $this->requireClub();
 
         $postings = Posting::with(['event', 'images'])
+            ->withCount('registrations')
             ->latest()
             ->get();
 
@@ -48,6 +49,7 @@ class PostingController extends Controller
         $user = $this->requireClub();
 
         $postings = Posting::with(['event', 'images'])
+            ->withCount('registrations')
             ->where('club_id', $user->id)
             ->latest()
             ->get();
@@ -65,6 +67,7 @@ class PostingController extends Controller
 
         $postings = $user->favoritePostings()
             ->with(['event', 'images'])
+            ->withCount('registrations')
             ->latest('postings.created_at')
             ->get();
 
@@ -93,6 +96,7 @@ class PostingController extends Controller
         $validated = $request->validate([
             'event_id' => ['required', 'integer', 'exists:events,id'],
             'description' => ['required', 'string', 'max:2000'],
+            'status' => ['required', 'in:open,closed'],
             'posters' => ['nullable', 'array'],
             'posters.*' => ['image', 'max:2048'],
         ]);
@@ -105,6 +109,7 @@ class PostingController extends Controller
             'club_id' => $user->id,
             'event_id' => $event->id,
             'description' => $validated['description'],
+            'status' => $validated['status'],
             'poster_path' => null,
         ]);
 
@@ -142,7 +147,7 @@ class PostingController extends Controller
     {
         $user = $this->requireClub();
 
-        $posting->load(['event', 'images']);
+        $posting->load(['event', 'images', 'registrations.student']);
 
         return view('club.event-posting-show', [
             'posting' => $posting,
@@ -161,6 +166,7 @@ class PostingController extends Controller
         $validated = $request->validate([
             'event_id' => ['required', 'integer', 'exists:events,id'],
             'description' => ['required', 'string', 'max:2000'],
+            'status' => ['required', 'in:open,closed'],
             'posters' => ['nullable', 'array'],
             'posters.*' => ['image', 'max:2048'],
         ]);
@@ -171,6 +177,7 @@ class PostingController extends Controller
 
         $posting->event_id = $event->id;
         $posting->description = $validated['description'];
+        $posting->status = $validated['status'];
         $posting->save();
 
         if ($request->hasFile('posters')) {

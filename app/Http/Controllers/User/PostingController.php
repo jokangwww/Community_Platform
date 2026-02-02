@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\EventRegistration;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,32 @@ class PostingController extends Controller
             ->all();
     }
 
+    private function registeredPostingIds(User $user): array
+    {
+        if ($user->role !== 'student') {
+            return [];
+        }
+
+        return EventRegistration::where('student_id', $user->id)
+            ->pluck('posting_id')
+            ->all();
+    }
+
+    private function eventRegistrationCounts(array $eventIds): array
+    {
+        if ($eventIds === []) {
+            return [];
+        }
+
+        return EventRegistration::query()
+            ->join('postings', 'event_registrations.posting_id', '=', 'postings.id')
+            ->whereIn('postings.event_id', $eventIds)
+            ->groupBy('postings.event_id')
+            ->selectRaw('postings.event_id, COUNT(*) as total')
+            ->pluck('total', 'postings.event_id')
+            ->all();
+    }
+
     public function index()
     {
         $user = $this->requireUser();
@@ -38,6 +65,9 @@ class PostingController extends Controller
             'postings' => $postings,
             'activeTab' => 'all',
             'favoriteIds' => $this->favoriteIds($user),
+            'registeredIds' => $this->registeredPostingIds($user),
+            'canRegister' => $user->role === 'student',
+            'eventRegistrationCounts' => $this->eventRegistrationCounts($postings->pluck('event_id')->filter()->unique()->all()),
         ]);
     }
 
@@ -54,6 +84,9 @@ class PostingController extends Controller
             'postings' => $postings,
             'activeTab' => 'favorites',
             'favoriteIds' => $this->favoriteIds($user),
+            'registeredIds' => $this->registeredPostingIds($user),
+            'canRegister' => $user->role === 'student',
+            'eventRegistrationCounts' => $this->eventRegistrationCounts($postings->pluck('event_id')->filter()->unique()->all()),
         ]);
     }
 
@@ -66,7 +99,47 @@ class PostingController extends Controller
         return view('user.event-posting-show', [
             'posting' => $posting,
             'favoriteIds' => $this->favoriteIds($user),
+            'registeredIds' => $this->registeredPostingIds($user),
+            'canRegister' => $user->role === 'student',
+            'eventRegistrationCounts' => $this->eventRegistrationCounts($posting->event_id ? [$posting->event_id] : []),
         ]);
+    }
+
+    public function register(Posting $posting)
+    {
+        $user = $this->requireUser();
+
+        if ($user->role !== 'student') {
+            abort(403);
+        }
+
+        if (($posting->status ?? 'open') !== 'open') {
+            return redirect()
+                ->back()
+                ->with('status', 'Registration is closed for this event.');
+        }
+
+        $posting->loadMissing('event');
+        $limit = $posting->event?->participant_limit;
+        if ($limit) {
+            $currentCount = EventRegistration::whereHas('posting', function ($query) use ($posting) {
+                $query->where('event_id', $posting->event_id);
+            })->count();
+            if ($currentCount >= $limit) {
+                return redirect()
+                    ->back()
+                    ->with('status', 'Registration limit reached for this event.');
+            }
+        }
+
+        EventRegistration::firstOrCreate([
+            'posting_id' => $posting->id,
+            'student_id' => $user->id,
+        ]);
+
+        return redirect()
+            ->back()
+            ->with('status', 'Registration submitted.');
     }
 
     public function toggleFavorite(Posting $posting)

@@ -212,15 +212,10 @@
             </div>
         </div>
         @php
-            $hasProfileErrors = $errors->has('first_name')
-                || $errors->has('last_name')
+            $hasProfileErrors = $errors->has('name')
                 || $errors->has('display_name')
-                || $errors->has('nickname')
                 || $errors->has('role')
                 || $errors->has('email')
-                || $errors->has('whatsapp')
-                || $errors->has('website')
-                || $errors->has('telegram')
                 || $errors->has('bio');
         @endphp
         <form id="profile-form" class="profile-panel" method="POST" action="{{ route('profile.update') }}" data-start-edit="{{ $hasProfileErrors ? 'true' : 'false' }}">
@@ -233,16 +228,9 @@
                     <input type="text" value="{{ $user?->email ?? '' }}" placeholder="username" readonly>
                 </div>
                 <div class="form-row">
-                    <label for="first_name">First Name</label>
-                    <input id="first_name" name="first_name" type="text" value="{{ old('first_name', $user?->name ? explode(' ', $user->name)[0] : '') }}" placeholder="First name" readonly>
-                    @error('first_name')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
-                    <label for="nickname">Nickname</label>
-                    <input id="nickname" name="nickname" type="text" value="{{ old('nickname', $user?->nickname ?? '') }}" placeholder="Nickname" readonly>
-                    @error('nickname')
+                    <label for="name">Full Name</label>
+                    <input id="name" name="name" type="text" value="{{ old('name', $user?->name ?? '') }}" placeholder="Full name" readonly>
+                    @error('name')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>
@@ -262,13 +250,6 @@
                     @enderror
                 </div>
                 <div class="form-row">
-                    <label for="last_name">Last Name</label>
-                    <input id="last_name" name="last_name" type="text" value="{{ old('last_name', $user?->name ? implode(' ', array_slice(explode(' ', $user->name), 1)) : '') }}" placeholder="Last name" readonly>
-                    @error('last_name')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
                     <label for="display_name">Display Name Publicly as</label>
                     <input id="display_name" name="display_name" type="text" value="{{ old('display_name', $user?->display_name ?? $user?->name ?? '') }}" placeholder="Display name" readonly>
                     @error('display_name')
@@ -282,27 +263,6 @@
                     <label for="email">Email (required)</label>
                     <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" readonly>
                     @error('email')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
-                    <label for="whatsapp">WhatsApp</label>
-                    <input id="whatsapp" name="whatsapp" type="text" value="{{ old('whatsapp', $user?->whatsapp ?? '') }}" placeholder="@handle" readonly>
-                    @error('whatsapp')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
-                    <label for="website">Website</label>
-                    <input id="website" name="website" type="text" value="{{ old('website', $user?->website ?? '') }}" placeholder="https://example.com" readonly>
-                    @error('website')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
-                    <label for="telegram">Telegram</label>
-                    <input id="telegram" name="telegram" type="text" value="{{ old('telegram', $user?->telegram ?? '') }}" placeholder="@handle" readonly>
-                    @error('telegram')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>

@@ -112,6 +112,48 @@
             border-radius: 8px;
             background: #f7f7f7;
         }
+        .registration-panel {
+            margin-top: 18px;
+            border: 1px solid #d6d6d6;
+            border-radius: 10px;
+            padding: 18px 20px;
+            background: #fff;
+        }
+        .registration-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .registration-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .registration-count {
+            font-size: 13px;
+            color: #4a4a4a;
+        }
+        .registration-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .registration-table th,
+        .registration-table td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .registration-table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+        }
+        .registration-empty {
+            font-size: 14px;
+            color: #4a4a4a;
+        }
     </style>
 
     <div class="event-header">
@@ -209,6 +251,32 @@
                     <p>No attachment uploaded.</p>
                 @endif
             </div>
+        </div>
+        <div class="registration-panel">
+            <div class="registration-header">
+                <h3>Registrations</h3>
+                <div class="registration-count">{{ $registrations->count() }} registered</div>
+            </div>
+            @if ($registrations->isEmpty())
+                <div class="registration-empty">No students registered yet.</div>
+            @else
+                <table class="registration-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Student ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($registrations as $registration)
+                            <tr>
+                                <td>{{ $registration->student->name ?? 'Unknown' }}</td>
+                                <td>{{ $registration->student->student_id ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
         </div>
     </div>
 @endsection

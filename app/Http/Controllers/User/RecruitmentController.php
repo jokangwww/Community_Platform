@@ -28,7 +28,7 @@ class RecruitmentController extends Controller
         $keyword = $request->query('q');
         $skills = $request->query('skills');
         $interests = $request->query('interests');
-        $submittedOnly = $request->boolean('submitted');
+        $status = $request->query('status');
 
         $recruitments = Recruitment::with(['event', 'club'])
             ->when($keyword, function ($query) use ($keyword) {
@@ -46,9 +46,10 @@ class RecruitmentController extends Controller
             ->when($interests, function ($query) use ($interests) {
                 $query->where('interests', 'like', '%' . $interests . '%');
             })
-            ->when($submittedOnly, function ($query) use ($user) {
-                $query->whereHas('applications', function ($sub) use ($user) {
-                    $sub->where('student_id', $user->id);
+            ->when($status, function ($query) use ($user, $status) {
+                $query->whereHas('applications', function ($sub) use ($user, $status) {
+                    $sub->where('student_id', $user->id)
+                        ->where('status', $status);
                 });
             })
             ->latest()
@@ -60,7 +61,7 @@ class RecruitmentController extends Controller
                 'q' => $keyword,
                 'skills' => $skills,
                 'interests' => $interests,
-                'submitted' => $submittedOnly,
+                'status' => $status,
             ],
         ]);
     }

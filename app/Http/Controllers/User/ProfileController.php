@@ -63,28 +63,17 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'display_name' => ['nullable', 'string', 'max:255'],
-            'nickname' => ['nullable', 'string', 'max:255'],
             'role' => ['nullable', 'in:subscriber,student,staff,alumni'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'whatsapp' => ['nullable', 'string', 'max:255'],
-            'website' => ['nullable', 'string', 'max:255'],
-            'telegram' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $fullName = trim($validated['first_name'] . ' ' . $validated['last_name']);
-
-        $user->name = $fullName;
-        $user->display_name = $validated['display_name'] ?: $fullName;
-        $user->nickname = $validated['nickname'];
+        $user->name = $validated['name'];
+        $user->display_name = $validated['display_name'] ?: $validated['name'];
         $user->role = $validated['role'];
         $user->email = $validated['email'];
-        $user->whatsapp = $validated['whatsapp'];
-        $user->website = $validated['website'];
-        $user->telegram = $validated['telegram'];
         $user->bio = $validated['bio'];
         $user->save();
 

@@ -98,6 +98,17 @@
         </div>
 
         <div class="form-row">
+            <label for="status">Registration Status</label>
+            <select id="status" name="status" required>
+                <option value="open" @selected(old('status', 'open') === 'open')>Open</option>
+                <option value="closed" @selected(old('status') === 'closed')>Closed</option>
+            </select>
+            @error('status')
+                <div class="error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <div class="form-row">
             <label for="description">Description</label>
             <textarea id="description" name="description" required>{{ old('description') }}</textarea>
             @error('description')
