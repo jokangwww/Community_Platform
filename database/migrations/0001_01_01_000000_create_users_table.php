@@ -14,6 +14,9 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('student_id')->nullable()->unique();
+            $table->string('study_year')->nullable();
+            $table->string('department')->nullable();
             $table->string('display_name')->nullable();
             $table->string('nickname')->nullable();
             $table->string('role')->nullable();
@@ -33,12 +36,6 @@ return new class extends Migration
             $table->foreignId('admin_id')->primary()->constrained('users')->cascadeOnDelete();
             $table->string('staff_id');
             $table->string('position')->nullable();
-            $table->timestamps();
-        });
-
-        Schema::create('students', function (Blueprint $table) {
-            $table->foreignId('student_id')->primary()->constrained('users')->cascadeOnDelete();
-            $table->string('student_year')->nullable();
             $table->timestamps();
         });
 
@@ -71,7 +68,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('clubs');
-        Schema::dropIfExists('students');
         Schema::dropIfExists('admins');
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');

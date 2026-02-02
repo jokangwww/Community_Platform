@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('name');
             $table->text('description');
             $table->string('category');
+            $table->unsignedInteger('participant_limit')->nullable();
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
             $table->string('logo_path')->nullable();
             $table->string('attachment_path')->nullable();
             $table->timestamps();

@@ -17,6 +17,9 @@ return new class extends Migration
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
             $table->string('title');
             $table->text('description');
+            $table->text('requirements')->nullable();
+            $table->string('required_skills')->nullable();
+            $table->string('interests')->nullable();
             $table->timestamps();
         });
     }

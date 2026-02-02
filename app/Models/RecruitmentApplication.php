@@ -12,8 +12,11 @@ class RecruitmentApplication extends Model
     protected $fillable = [
         'recruitment_id',
         'student_id',
+        'phone',
         'skills',
         'experience',
+        'status',
+        'reply',
     ];
 
     public function recruitment()

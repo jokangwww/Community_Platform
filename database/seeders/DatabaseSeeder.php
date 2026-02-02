@@ -56,15 +56,10 @@ class DatabaseSeeder extends Seeder
             'email' => 'student@gmail.com',
             'role' => 'student',
             'student_id' => '26WMR12345',
+            'study_year' => 'Year 1',
+            'department' => 'General',
             'password' => $password,
             'email_verified_at' => now(),
-        ]);
-
-        DB::table('students')->insert([
-            'student_id' => $student->id,
-            'student_year' => 'Year 1',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         DB::table('events')->insert([

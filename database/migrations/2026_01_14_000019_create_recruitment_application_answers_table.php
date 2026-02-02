@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('recruitment_application_answers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('recruitment_application_id')->constrained('recruitment_applications')->cascadeOnDelete();
-            $table->foreignId('recruitment_question_id')->constrained('recruitment_questions')->cascadeOnDelete();
+            $table->foreignId('recruitment_application_id')->constrained('recruitment_applications', indexName: 'raa_app_fk')->cascadeOnDelete();
+            $table->foreignId('recruitment_question_id')->constrained('recruitment_questions', indexName: 'raa_q_fk')->cascadeOnDelete();
             $table->text('answer');
             $table->timestamps();
         });

@@ -154,6 +154,25 @@
             fill: #d14b4b;
             stroke: #d14b4b;
         }
+        .share-toast {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            background: #1f1f1f;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .share-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
         @media (max-width: 900px) {
             .posting-card {
                 grid-template-columns: 1fr;
@@ -225,8 +244,23 @@
             </div>
         </div>
     </div>
+    <div class="share-toast" role="status" aria-live="polite"></div>
 
     <script>
+        const shareToast = document.querySelector('.share-toast');
+        let shareToastTimer;
+        const showShareToast = (message) => {
+            if (!shareToast) {
+                return;
+            }
+            shareToast.textContent = message;
+            shareToast.classList.add('show');
+            clearTimeout(shareToastTimer);
+            shareToastTimer = setTimeout(() => {
+                shareToast.classList.remove('show');
+            }, 2000);
+        };
+
         document.querySelectorAll('.posting-carousel').forEach((carousel) => {
             const track = carousel.querySelector('.posting-track');
             const dots = Array.from(carousel.querySelectorAll('.carousel-dot'));
@@ -255,15 +289,17 @@
         document.querySelectorAll('.share-btn').forEach((button) => {
             button.addEventListener('click', () => {
                 const url = button.getAttribute('data-share-url');
-                if (!url) return;
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(url).catch(() => {
-                        window.prompt('Copy link:', url);
-                    });
-                } else {
+            if (!url) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showShareToast('Link copied to clipboard.');
+                }).catch(() => {
                     window.prompt('Copy link:', url);
-                }
-            });
+                });
+            } else {
+                window.prompt('Copy link:', url);
+            }
+        });
         });
     </script>
 @endsection

@@ -48,6 +48,9 @@ Route::post('/events/event-posting/{posting}/favorite', [\App\Http\Controllers\U
 Route::get('/events/recruitment', [UserRecruitmentController::class, 'index'])
     ->middleware('auth')
     ->name('user.recruitment');
+Route::get('/events/recruitment/submitted', [UserRecruitmentController::class, 'submitted'])
+    ->middleware('auth')
+    ->name('user.recruitment.submitted');
 Route::get('/events/recruitment/{recruitment}', [UserRecruitmentController::class, 'show'])
     ->middleware('auth')
     ->name('user.recruitment.show');
@@ -169,6 +172,8 @@ Route::prefix('club')->middleware('auth')->group(function () {
     Route::get('/recruitment/create', [RecruitmentController::class, 'create'])->name('club.recruitment.create');
     Route::post('/recruitment', [RecruitmentController::class, 'store'])->name('club.recruitment.store');
     Route::get('/recruitment/{recruitment}', [RecruitmentController::class, 'show'])->name('club.recruitment.show');
+    Route::put('/recruitment/{recruitment}/applications/{application}', [RecruitmentController::class, 'updateApplication'])
+        ->name('club.recruitment.application.update');
     Route::get('/recruitment/{recruitment}/edit', [RecruitmentController::class, 'edit'])->name('club.recruitment.edit');
     Route::put('/recruitment/{recruitment}', [RecruitmentController::class, 'update'])->name('club.recruitment.update');
     Route::delete('/recruitment/{recruitment}', [RecruitmentController::class, 'destroy'])->name('club.recruitment.destroy');

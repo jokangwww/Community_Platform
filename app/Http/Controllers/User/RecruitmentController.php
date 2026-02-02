@@ -23,11 +23,12 @@ class RecruitmentController extends Controller
 
     public function index(Request $request)
     {
-        $this->requireStudent();
+        $user = $this->requireStudent();
 
         $keyword = $request->query('q');
         $skills = $request->query('skills');
         $interests = $request->query('interests');
+        $submittedOnly = $request->boolean('submitted');
 
         $recruitments = Recruitment::with(['event', 'club'])
             ->when($keyword, function ($query) use ($keyword) {
@@ -45,6 +46,11 @@ class RecruitmentController extends Controller
             ->when($interests, function ($query) use ($interests) {
                 $query->where('interests', 'like', '%' . $interests . '%');
             })
+            ->when($submittedOnly, function ($query) use ($user) {
+                $query->whereHas('applications', function ($sub) use ($user) {
+                    $sub->where('student_id', $user->id);
+                });
+            })
             ->latest()
             ->get();
 
@@ -54,6 +60,7 @@ class RecruitmentController extends Controller
                 'q' => $keyword,
                 'skills' => $skills,
                 'interests' => $interests,
+                'submitted' => $submittedOnly,
             ],
         ]);
     }
@@ -64,13 +71,29 @@ class RecruitmentController extends Controller
 
         $recruitment->load(['event', 'club', 'questions']);
 
-        $applied = RecruitmentApplication::where('recruitment_id', $recruitment->id)
+        $application = RecruitmentApplication::where('recruitment_id', $recruitment->id)
             ->where('student_id', $user->id)
-            ->exists();
+            ->first();
+        $applied = (bool) $application;
 
         return view('user.recruitment-show', [
             'recruitment' => $recruitment,
             'applied' => $applied,
+            'application' => $application,
+        ]);
+    }
+
+    public function submitted()
+    {
+        $user = $this->requireStudent();
+
+        $applications = RecruitmentApplication::with(['recruitment.event', 'recruitment.club'])
+            ->where('student_id', $user->id)
+            ->latest()
+            ->get();
+
+        return view('user.recruitment-submitted', [
+            'applications' => $applications,
         ]);
     }
 
@@ -81,6 +104,7 @@ class RecruitmentController extends Controller
         $recruitment->load('questions');
 
         $validated = $request->validate([
+            'phone' => ['nullable', 'string', 'max:30'],
             'skills' => ['nullable', 'string', 'max:255'],
             'experience' => ['nullable', 'string', 'max:2000'],
             'answer' => ['nullable', 'array'],
@@ -93,12 +117,14 @@ class RecruitmentController extends Controller
                 'student_id' => $user->id,
             ],
             [
+                'phone' => $validated['phone'] ?? null,
                 'skills' => $validated['skills'] ?? null,
                 'experience' => $validated['experience'] ?? null,
             ]
         );
 
         $application->update([
+            'phone' => $validated['phone'] ?? null,
             'skills' => $validated['skills'] ?? null,
             'experience' => $validated['experience'] ?? null,
         ]);

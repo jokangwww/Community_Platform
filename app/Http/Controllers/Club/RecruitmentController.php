@@ -114,6 +114,9 @@ class RecruitmentController extends Controller
 
         $skills = $request->query('skills');
         $experience = $request->query('experience');
+        $status = $request->query('status');
+        $allowedStatuses = ['pending', 'accepted', 'rejected'];
+        $statusFilter = in_array($status, $allowedStatuses, true) ? $status : null;
 
         $applications = RecruitmentApplication::with(['student', 'answers'])
             ->where('recruitment_id', $recruitment->id)
@@ -122,6 +125,9 @@ class RecruitmentController extends Controller
             })
             ->when($experience, function ($query) use ($experience) {
                 $query->where('experience', 'like', '%' . $experience . '%');
+            })
+            ->when($statusFilter, function ($query) use ($statusFilter) {
+                $query->where('status', $statusFilter);
             })
             ->latest()
             ->get();
@@ -134,6 +140,7 @@ class RecruitmentController extends Controller
             'filters' => [
                 'skills' => $skills,
                 'experience' => $experience,
+                'status' => $statusFilter,
             ],
         ]);
     }
@@ -217,5 +224,28 @@ class RecruitmentController extends Controller
         return redirect()
             ->route('club.recruitment.mine')
             ->with('status', 'Recruitment deleted.');
+    }
+
+    public function updateApplication(Request $request, Recruitment $recruitment, RecruitmentApplication $application)
+    {
+        $user = $this->requireClub();
+
+        if ($recruitment->club_id !== $user->id || $application->recruitment_id !== $recruitment->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:pending,accepted,rejected'],
+            'reply' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $application->update([
+            'status' => $validated['status'],
+            'reply' => $validated['reply'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('club.recruitment.show', $recruitment)
+            ->with('status', 'Application updated.');
     }
 }

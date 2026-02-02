@@ -4,21 +4,22 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Posting;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class PostingController extends Controller
 {
-    private function requireUser()
+    private function requireUser(): User
     {
         $user = Auth::user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(403);
         }
 
         return $user;
     }
 
-    private function favoriteIds($user): array
+    private function favoriteIds(User $user): array
     {
         return $user->favoritePostings()
             ->pluck('postings.id')

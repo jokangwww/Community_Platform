@@ -5,22 +5,23 @@ namespace App\Http\Controllers\Club;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Posting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PostingController extends Controller
 {
-    private function requireClub()
+    private function requireClub(): User
     {
         $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
+        if (! $user instanceof User || $user->role !== 'club') {
             abort(403);
         }
 
         return $user;
     }
 
-    private function favoriteIds($user): array
+    private function favoriteIds(User $user): array
     {
         return $user->favoritePostings()
             ->pluck('postings.id')

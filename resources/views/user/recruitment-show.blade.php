@@ -87,6 +87,21 @@
             border-radius: 8px;
             background: #f7f7f7;
         }
+        .application-card {
+            margin-top: 16px;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            padding: 16px;
+            background: #fff;
+        }
+        .application-card h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+        .application-card p {
+            margin: 0 0 6px;
+            color: #4a4a4a;
+        }
     </style>
 
     <div class="recruitment-header">
@@ -108,36 +123,53 @@
     </div>
 
     @if ($applied)
-        <div class="status-banner">You already submitted your application.</div>
-    @else
-        <form class="apply-form" action="{{ route('user.recruitment.apply', $recruitment) }}" method="POST">
-            @csrf
-            <div class="field">
-                <label for="skills">Your skills</label>
-                <input id="skills" name="skills" type="text" value="{{ old('skills') }}" placeholder="e.g. Design, Leadership">
-                @error('skills')
-                    <div class="error-text">{{ $message }}</div>
-                @enderror
+        <div class="status-banner">You already submitted your application. You can update it below.</div>
+        @if ($application)
+            <div class="application-card">
+                <h3>Your Application</h3>
+                <p><strong>Phone:</strong> {{ $application->phone ?: 'Not provided' }}</p>
+                <p><strong>Skills:</strong> {{ $application->skills ?: 'Not provided' }}</p>
+                <p><strong>Experience:</strong> {{ $application->experience ?: 'Not provided' }}</p>
+                <p><strong>Status:</strong> {{ ucfirst($application->status ?? 'pending') }}</p>
+                <p><strong>Reply:</strong> {{ $application->reply ?: 'No reply yet.' }}</p>
             </div>
-            <div class="field">
-                <label for="experience">Experience</label>
-                <textarea id="experience" name="experience" placeholder="Share your relevant experience">{{ old('experience') }}</textarea>
-                @error('experience')
-                    <div class="error-text">{{ $message }}</div>
-                @enderror
-            </div>
-            @foreach ($recruitment->questions as $index => $question)
-                <div class="field">
-                    <label>{{ $question->question }}</label>
-                    <textarea name="answer[]">{{ old('answer.' . $index) }}</textarea>
-                    @error('answer.' . $index)
-                        <div class="error-text">{{ $message }}</div>
-                    @enderror
-                </div>
-            @endforeach
-            <div class="form-actions">
-                <button type="submit">Submit Application</button>
-            </div>
-        </form>
+        @endif
     @endif
+
+    <form class="apply-form" action="{{ route('user.recruitment.apply', $recruitment) }}" method="POST">
+        @csrf
+        <div class="field">
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone" type="text" value="{{ old('phone', $application->phone ?? '') }}" placeholder="e.g. 012-345 6789">
+            @error('phone')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="skills">Your skills</label>
+            <input id="skills" name="skills" type="text" value="{{ old('skills', $application->skills ?? '') }}" placeholder="e.g. Design, Leadership">
+            @error('skills')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="experience">Experience</label>
+            <textarea id="experience" name="experience" placeholder="Share your relevant experience">{{ old('experience', $application->experience ?? '') }}</textarea>
+            @error('experience')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        @foreach ($recruitment->questions as $index => $question)
+            <div class="field">
+                <label>{{ $question->question }}</label>
+                <textarea name="answer[]">{{ old('answer.' . $index) }}</textarea>
+                @error('answer.' . $index)
+                    <div class="error-text">{{ $message }}</div>
+                @enderror
+            </div>
+        @endforeach
+        <div class="form-actions">
+            <button type="submit">{{ $applied ? 'Update Application' : 'Submit Application' }}</button>
+        </div>
+    </form>
 @endsection

@@ -11,16 +11,41 @@
             padding: 12px 0;
             border-bottom: 2px solid #1f1f1f;
         }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .header-actions a {
+            padding: 6px 10px;
+            border: 1px solid #1f1f1f;
+            border-radius: 6px;
+            text-decoration: none;
+            color: inherit;
+            font-size: 13px;
+            background: #fff;
+        }
         .recruitment-header h2 {
             margin: 0;
             font-size: 26px;
         }
         .filter-bar {
             display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr auto;
+            grid-template-columns: 1.5fr 1fr 1fr auto auto;
             gap: 12px;
             margin-top: 16px;
             align-items: end;
+        }
+        .filter-bar .checkbox-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 100%;
+        }
+        .filter-bar .checkbox-field input {
+            width: auto;
+        }
+        .filter-bar .checkbox-field label {
+            font-size: 14px;
         }
         .filter-bar input {
             border: 1px solid #cfcfcf;
@@ -79,6 +104,9 @@
 
     <div class="recruitment-header">
         <h2>Recruitment</h2>
+        <div class="header-actions">
+            <a href="{{ route('user.recruitment.submitted') }}">My Applications</a>
+        </div>
     </div>
 
     <form class="filter-bar" method="GET" action="{{ route('user.recruitment') }}">
@@ -93,6 +121,10 @@
         <div>
             <label for="interests">Interest filter</label>
             <input id="interests" name="interests" type="text" value="{{ $filters['interests'] ?? '' }}" placeholder="e.g. Community">
+        </div>
+        <div class="checkbox-field">
+            <input id="submitted" name="submitted" type="checkbox" value="1" @checked(!empty($filters['submitted']))>
+            <label for="submitted">Submitted only</label>
         </div>
         <button type="submit">Filter</button>
     </form>
