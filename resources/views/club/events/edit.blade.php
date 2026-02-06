@@ -188,6 +188,32 @@
             @enderror
         </div>
         <div class="field">
+            <label for="status">Event Status</label>
+            <select id="status" name="status" required>
+                @php
+                    $eventStatus = old('status', $event->status ?? 'in_progress');
+                @endphp
+                <option value="in_progress" @selected($eventStatus === 'in_progress')>In progress</option>
+                <option value="ended" @selected($eventStatus === 'ended')>Ended</option>
+            </select>
+            @error('status')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="registration_type">Join Type</label>
+            <select id="registration_type" name="registration_type" required>
+                @php
+                    $joinType = old('registration_type', $event->registration_type ?? 'register');
+                @endphp
+                <option value="register" @selected($joinType === 'register')>Register only</option>
+                <option value="ticket" @selected($joinType === 'ticket')>Ticket required</option>
+            </select>
+            @error('registration_type')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
             <label for="participant_limit">Participant limit</label>
             <input id="participant_limit" name="participant_limit" type="number" min="1" max="100000" value="{{ old('participant_limit', $event->participant_limit) }}">
             @error('participant_limit')

@@ -57,7 +57,10 @@ class PostingController extends Controller
     {
         $user = $this->requireUser();
 
-        $postings = Posting::with(['event', 'images'])
+        $postings = Posting::with(['event.ticketSetting', 'images'])
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest()
             ->get();
 
@@ -76,7 +79,10 @@ class PostingController extends Controller
         $user = $this->requireUser();
 
         $postings = $user->favoritePostings()
-            ->with(['event', 'images'])
+            ->with(['event.ticketSetting', 'images'])
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest('postings.created_at')
             ->get();
 
@@ -94,7 +100,10 @@ class PostingController extends Controller
     {
         $user = $this->requireUser();
 
-        $posting->load(['event', 'images']);
+        $posting->load(['event.ticketSetting', 'images']);
+        if (($posting->event?->status ?? 'in_progress') === 'ended') {
+            abort(404);
+        }
 
         return view('user.event-posting-show', [
             'posting' => $posting,
@@ -120,7 +129,17 @@ class PostingController extends Controller
         }
 
         $posting->loadMissing('event');
+        if (($posting->event?->status ?? 'in_progress') === 'ended') {
+            return redirect()
+                ->back()
+                ->with('status', 'This event has ended.');
+        }
         $limit = $posting->event?->participant_limit;
+        if (($posting->event?->registration_type ?? 'register') === 'ticket') {
+            return redirect()
+                ->back()
+                ->with('status', 'This event requires a ticket purchase.');
+        }
         if ($limit) {
             $currentCount = EventRegistration::whereHas('posting', function ($query) use ($posting) {
                 $query->where('event_id', $posting->event_id);

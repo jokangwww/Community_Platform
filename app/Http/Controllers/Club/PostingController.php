@@ -34,6 +34,9 @@ class PostingController extends Controller
 
         $postings = Posting::with(['event', 'images'])
             ->withCount('registrations')
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest()
             ->get();
 
@@ -51,6 +54,9 @@ class PostingController extends Controller
         $postings = Posting::with(['event', 'images'])
             ->withCount('registrations')
             ->where('club_id', $user->id)
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest()
             ->get();
 
@@ -68,6 +74,9 @@ class PostingController extends Controller
         $postings = $user->favoritePostings()
             ->with(['event', 'images'])
             ->withCount('registrations')
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest('postings.created_at')
             ->get();
 
@@ -83,6 +92,7 @@ class PostingController extends Controller
         $user = $this->requireClub();
 
         $events = Event::where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->orderBy('name')
             ->get();
 
@@ -137,6 +147,7 @@ class PostingController extends Controller
         }
 
         $events = Event::where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->orderBy('name')
             ->get();
 
@@ -148,6 +159,9 @@ class PostingController extends Controller
         $user = $this->requireClub();
 
         $posting->load(['event', 'images', 'registrations.student']);
+        if (($posting->event?->status ?? 'in_progress') === 'ended') {
+            abort(404);
+        }
 
         return view('club.event-posting-show', [
             'posting' => $posting,

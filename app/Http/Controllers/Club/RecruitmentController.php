@@ -27,6 +27,9 @@ class RecruitmentController extends Controller
         $this->requireClub();
 
         $recruitments = Recruitment::with(['event', 'club'])
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest()
             ->get();
 
@@ -42,6 +45,9 @@ class RecruitmentController extends Controller
 
         $recruitments = Recruitment::with(['event', 'club'])
             ->where('club_id', $user->id)
+            ->whereHas('event', function ($query) {
+                $query->where('status', '!=', 'ended');
+            })
             ->latest()
             ->get();
 
@@ -56,6 +62,7 @@ class RecruitmentController extends Controller
         $user = $this->requireClub();
 
         $events = Event::where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->orderBy('name')
             ->get();
 
@@ -79,6 +86,7 @@ class RecruitmentController extends Controller
 
         $event = Event::where('id', $validated['event_id'])
             ->where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->firstOrFail();
 
         $recruitment = Recruitment::create([
@@ -110,6 +118,9 @@ class RecruitmentController extends Controller
 
         if ($recruitment->club_id !== $user->id) {
             abort(403);
+        }
+        if (($recruitment->event?->status ?? 'in_progress') === 'ended') {
+            abort(404);
         }
 
         $skills = $request->query('skills');
@@ -154,6 +165,7 @@ class RecruitmentController extends Controller
         }
 
         $events = Event::where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->orderBy('name')
             ->get();
 
@@ -172,6 +184,9 @@ class RecruitmentController extends Controller
         if ($recruitment->club_id !== $user->id) {
             abort(403);
         }
+        if (($recruitment->event?->status ?? 'in_progress') === 'ended') {
+            abort(404);
+        }
 
         $validated = $request->validate([
             'event_id' => ['required', 'integer', 'exists:events,id'],
@@ -186,6 +201,7 @@ class RecruitmentController extends Controller
 
         $event = Event::where('id', $validated['event_id'])
             ->where('club_id', $user->id)
+            ->where('status', '!=', 'ended')
             ->firstOrFail();
 
         $recruitment->update([

@@ -117,8 +117,11 @@
             padding: 12px;
         }
         .posting-desc h3 {
-            margin: 0 0 10px;
+            margin: 0;
             font-size: 20px;
+        }
+        .posting-title {
+            margin-bottom: 10px;
         }
         .posting-title {
             display: flex;

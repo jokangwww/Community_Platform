@@ -14,6 +14,8 @@ class Event extends Model
         'name',
         'description',
         'category',
+        'status',
+        'registration_type',
         'participant_limit',
         'start_date',
         'end_date',
@@ -40,5 +42,15 @@ class Event extends Model
     public function postings()
     {
         return $this->hasMany(Posting::class);
+    }
+
+    public function ticketSetting()
+    {
+        return $this->hasOne(EventTicketSetting::class);
+    }
+
+    public function ticketPurchases()
+    {
+        return $this->hasMany(TicketPurchase::class);
     }
 }

@@ -186,7 +186,15 @@
             </div>
             <div class="info-section">
                 <h3>Category</h3>
-                <span class="detail-tag">{{ $event->category }}</span>
+                <p>{{ $event->category }}</p>
+            </div>
+            <div class="info-section">
+                <h3>Status</h3>
+                <p>{{ ($event->status ?? 'in_progress') === 'ended' ? 'Ended' : 'In progress' }}</p>
+            </div>
+            <div class="info-section">
+                <h3>Join type</h3>
+                <p>{{ ($event->registration_type ?? 'register') === 'ticket' ? 'Ticket required' : 'Register only' }}</p>
             </div>
             <div class="info-section">
                 <h3>Participant limit</h3>

@@ -156,8 +156,11 @@
             flex: 1;
         }
         .posting-desc h3 {
-            margin: 0 0 10px;
+            margin: 0;
             font-size: 20px;
+        }
+        .posting-title {
+            margin-bottom: 10px;
         }
         .posting-footer-row {
             margin-top: 10px;
@@ -373,10 +376,25 @@
                                     @elseif ($isFull)
                                         <button type="button" class="register-btn" disabled>Full</button>
                                     @else
-                                        <form method="POST" action="{{ route('user.event-posting.register', $posting) }}">
-                                            @csrf
-                                            <button type="submit" class="register-btn">Register</button>
-                                        </form>
+                                        @php
+                                            $joinType = $posting->event->registration_type ?? 'register';
+                                            $ticketSetting = $posting->event->ticketSetting;
+                                            $eventEnded = ($posting->event->status ?? 'in_progress') === 'ended';
+                                        @endphp
+                                        @if ($eventEnded)
+                                            <button type="button" class="register-btn" disabled>Ended</button>
+                                        @elseif ($joinType === 'ticket')
+                                            @if (! $ticketSetting || ($ticketSetting->price ?? 0) <= 0)
+                                                <button type="button" class="register-btn" disabled>Ticket Unavailable</button>
+                                            @else
+                                                <a class="register-btn" href="{{ route('tickets.checkout', $posting->event) }}">Buy Ticket</a>
+                                            @endif
+                                        @else
+                                            <form method="POST" action="{{ route('user.event-posting.register', $posting) }}">
+                                                @csrf
+                                                <button type="submit" class="register-btn">Register</button>
+                                            </form>
+                                        @endif
                                     @endif
                                 @endif
                             </div>

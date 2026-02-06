@@ -178,6 +178,11 @@
             height: 32px;
             border-radius: 8px;
         }
+        .action-icon svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+        }
         .action-icon:hover {
             background: #f0f2f8;
         }
@@ -220,7 +225,7 @@
                 <li><a class="nav-link" href="{{ route('club.recruitment') }}">- Recruitment</a></li>
                 <li><a class="nav-link" href="{{ route('club.events.index') }}">- Event</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
+                <li><a class="nav-link" href="{{ route('club.tickets.index') }}">- E-Ticket</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'live-stream') }}">- Live Stream</a></li>
                 <li><a class="nav-link" href="{{ route('club.events.propose') }}">- Event Propose</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'lucky-draw') }}">- Lucky Draw</a></li>

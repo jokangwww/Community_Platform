@@ -114,6 +114,17 @@
             margin: 0 0 6px;
             font-size: 20px;
         }
+        .event-status {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            background: #f3c2bf;
+            color: #8f1717;
+        }
         .event-meta p {
             margin: 0 0 6px;
             color: #4a4a4a;
@@ -176,7 +187,12 @@
                         @endif
                     </div>
                     <div class="event-meta">
-                        <h3>{{ $event->name }}</h3>
+                        <h3>
+                            {{ $event->name }}
+                            @if (($event->status ?? 'in_progress') === 'ended')
+                                <span class="event-status">Ended</span>
+                            @endif
+                        </h3>
                         <p>{{ $event->description }}</p>
                         <span class="event-tag">{{ $event->category }}</span>
                     </div>

@@ -4,56 +4,72 @@
 
 @section('content')
     <style>
-        .posting-header {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            gap: 16px;
-            padding: 12px 0;
+        .posting-topbar {
+            padding: 10px 0 6px;
             border-bottom: 2px solid #1f1f1f;
         }
-        .posting-header h2 {
+        .posting-topbar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .posting-topbar h2 {
             margin: 0;
-            font-size: 26px;
+            font-size: 22px;
         }
         .search-bar {
             display: flex;
             align-items: center;
             gap: 10px;
+            border: 1px solid #2b2b2b;
+            padding: 4px 8px;
+            min-width: 320px;
+            background: #fff;
         }
         .search-bar input {
             width: 100%;
             max-width: 520px;
-            padding: 8px 12px;
-            border: 1px solid #3a3a3a;
-            border-radius: 4px;
+            padding: 6px 4px;
+            border: none;
+            outline: none;
             font-size: 16px;
         }
         .search-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
+        }
+        .posting-subbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0 6px;
         }
         .posting-tabs {
             display: flex;
             align-items: center;
             gap: 16px;
-            padding: 14px 0 10px;
-            border-bottom: 1px solid #1f1f1f;
+            font-size: 18px;
         }
         .posting-tabs a {
             color: inherit;
             text-decoration: none;
-            font-size: 20px;
         }
         .posting-tabs .active {
             font-weight: 700;
         }
         .new-posting {
-            margin-left: auto;
-            font-size: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border: 1px solid #1f1f1f;
+            border-radius: 4px;
+            background: #fff;
+            font-size: 16px;
             text-decoration: none;
             color: inherit;
         }
@@ -162,8 +178,11 @@
             flex: 1;
         }
         .posting-desc h3 {
-            margin: 0 0 10px;
+            margin: 0;
             font-size: 20px;
+        }
+        .posting-title {
+            margin-bottom: 10px;
         }
         .posting-meta {
             display: flex;
@@ -264,12 +283,21 @@
             transform: translateY(0);
         }
         @media (max-width: 900px) {
-            .posting-header {
-                grid-template-columns: 1fr;
+            .posting-topbar-row {
+                flex-direction: column;
+                align-items: stretch;
                 gap: 10px;
+            }
+            .search-bar {
+                min-width: 0;
             }
             .search-bar input {
                 max-width: 100%;
+            }
+            .posting-subbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
             .posting-card {
                 grid-template-columns: 1fr;
@@ -284,25 +312,29 @@
         }
     </style>
 
-    <div class="posting-header">
-        <h2>Posting</h2>
-        <div class="search-bar">
-            <input type="text" placeholder="Search">
-            <span class="search-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
-                </svg>
-            </span>
+    <div class="posting-topbar">
+        <div class="posting-topbar-row">
+            <h2>Posting</h2>
+            <div class="search-bar">
+                <input type="text" placeholder="Search">
+                <span class="search-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
+                    </svg>
+                </span>
+            </div>
         </div>
-        <a class="new-posting" href="{{ route('club.event-posting.create') }}">New Posting +</a>
     </div>
 
-    <div class="posting-tabs">
-        <a href="{{ route('club.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
-        <span>/</span>
-        <a href="{{ route('club.event-posting.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
-        <span>/</span>
-        <a href="{{ route('club.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
+    <div class="posting-subbar">
+        <div class="posting-tabs">
+            <a href="{{ route('club.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
+            <span>/</span>
+            <a href="{{ route('club.event-posting.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
+            <span>/</span>
+            <a href="{{ route('club.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
+        </div>
+        <a class="new-posting" href="{{ route('club.event-posting.create') }}">New Posting +</a>
     </div>
 
     <div class="posting-list">

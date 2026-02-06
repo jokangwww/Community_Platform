@@ -4,35 +4,67 @@
 
 @section('content')
     <style>
-        .recruitment-header {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            align-items: center;
-            gap: 16px;
-            padding: 12px 0;
+        .recruitment-topbar {
+            padding: 10px 0 6px;
             border-bottom: 2px solid #1f1f1f;
         }
-        .recruitment-header h2 {
+        .recruitment-topbar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .recruitment-topbar h2 {
             margin: 0;
-            font-size: 26px;
+            font-size: 22px;
+        }
+        .recruitment-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #2b2b2b;
+            padding: 4px 8px;
+            min-width: 320px;
+            background: #fff;
+        }
+        .recruitment-search input {
+            border: none;
+            outline: none;
+            font-size: 16px;
+            width: 100%;
+        }
+        .recruitment-search svg {
+            width: 18px;
+            height: 18px;
+        }
+        .recruitment-subbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0 6px;
         }
         .recruitment-tabs {
             display: flex;
             align-items: center;
             gap: 16px;
-            padding: 14px 0 10px;
-            border-bottom: 1px solid #1f1f1f;
+            font-size: 18px;
         }
         .recruitment-tabs a {
             color: inherit;
             text-decoration: none;
-            font-size: 20px;
         }
         .recruitment-tabs .active {
             font-weight: 700;
         }
         .new-recruitment {
-            font-size: 18px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border: 1px solid #1f1f1f;
+            border-radius: 4px;
+            background: #fff;
+            font-size: 16px;
             text-decoration: none;
             color: inherit;
         }
@@ -75,15 +107,25 @@
         }
     </style>
 
-    <div class="recruitment-header">
-        <h2>Recruitment</h2>
-        <a class="new-recruitment" href="{{ route('club.recruitment.create') }}">New Recruitment +</a>
+    <div class="recruitment-topbar">
+        <div class="recruitment-topbar-row">
+            <h2>Recruitment</h2>
+            <form class="recruitment-search" action="#" method="GET">
+                <input type="text" name="q" placeholder="Search">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
+                </svg>
+            </form>
+        </div>
     </div>
 
-    <div class="recruitment-tabs">
-        <a href="{{ route('club.recruitment') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
-        <span>/</span>
-        <a href="{{ route('club.recruitment.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Recruitment</a>
+    <div class="recruitment-subbar">
+        <div class="recruitment-tabs">
+            <a href="{{ route('club.recruitment') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
+            <span>/</span>
+            <a href="{{ route('club.recruitment.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Recruitment</a>
+        </div>
+        <a class="new-recruitment" href="{{ route('club.recruitment.create') }}">New Recruitment +</a>
     </div>
 
     <div class="recruitment-list">

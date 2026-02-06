@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Club\EventController;
 use App\Http\Controllers\Club\PostingController;
+use App\Http\Controllers\Club\ProfileController as ClubProfileController;
 use App\Http\Controllers\Club\RecruitmentController;
+use App\Http\Controllers\Club\TicketController as ClubTicketController;
 use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController;
 use App\Http\Controllers\User\ProfileController;
+use App\Http\Controllers\User\TicketController as UserTicketController;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -48,6 +51,18 @@ Route::post('/events/event-posting/{posting}/favorite', [\App\Http\Controllers\U
 Route::post('/events/event-posting/{posting}/register', [\App\Http\Controllers\User\PostingController::class, 'register'])
     ->middleware('auth')
     ->name('user.event-posting.register');
+Route::get('/events/{event}/checkout', [UserTicketController::class, 'checkout'])
+    ->middleware('auth')
+    ->name('tickets.checkout');
+Route::post('/events/{event}/paypal/create', [UserTicketController::class, 'createOrder'])
+    ->middleware('auth')
+    ->name('tickets.paypal.create');
+Route::post('/events/{event}/paypal/capture', [UserTicketController::class, 'captureOrder'])
+    ->middleware('auth')
+    ->name('tickets.paypal.capture');
+Route::get('/events/{event}/ticket/{ticket}', [UserTicketController::class, 'success'])
+    ->middleware('auth')
+    ->name('tickets.success');
 Route::get('/events/recruitment', [UserRecruitmentController::class, 'index'])
     ->middleware('auth')
     ->name('user.recruitment');
@@ -122,6 +137,18 @@ Route::get('/club', function () {
 
     return view('club.home');
 })->middleware('auth')->name('club.home');
+Route::get('/club/profile', [ClubProfileController::class, 'show'])
+    ->middleware('auth')
+    ->name('club.profile');
+Route::put('/club/profile', [ClubProfileController::class, 'update'])
+    ->middleware('auth')
+    ->name('club.profile.update');
+Route::post('/club/profile/photo', [ClubProfileController::class, 'updatePhoto'])
+    ->middleware('auth')
+    ->name('club.profile.photo');
+Route::post('/club/profile/password', [ClubProfileController::class, 'updatePassword'])
+    ->middleware('auth')
+    ->name('club.profile.password');
 Route::get('/admin', function () {
     $user = Auth::user();
     if (! $user || $user->role !== 'admin') {
@@ -170,6 +197,8 @@ Route::prefix('club')->middleware('auth')->group(function () {
     Route::put('/events/{event}', [EventController::class, 'update'])->name('club.events.update');
     Route::post('/events/committee/validate', [EventController::class, 'validateCommittee'])
         ->name('club.events.committee.validate');
+    Route::get('/tickets', [ClubTicketController::class, 'index'])->name('club.tickets.index');
+    Route::put('/tickets/{event}', [ClubTicketController::class, 'update'])->name('club.tickets.update');
     Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('club.recruitment');
     Route::get('/recruitment/mine', [RecruitmentController::class, 'mine'])->name('club.recruitment.mine');
     Route::get('/recruitment/create', [RecruitmentController::class, 'create'])->name('club.recruitment.create');
