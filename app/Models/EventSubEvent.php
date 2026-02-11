@@ -13,5 +13,7 @@ class EventSubEvent extends Model
         'event_id',
         'title',
         'event_date',
+        'start_time',
+        'end_time',
     ];
 }

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -54,9 +56,14 @@ class User extends Authenticatable
         ];
     }
 
-    public function favoritePostings()
+    public function favoritePostings(): BelongsToMany
     {
         return $this->belongsToMany(Posting::class, 'posting_favorites')
             ->withTimestamps();
+    }
+
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(StudentCalendarEvent::class, 'student_id');
     }
 }

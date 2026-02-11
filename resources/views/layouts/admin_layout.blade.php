@@ -193,6 +193,7 @@
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
+                <li><a class="nav-link" href="{{ route('admin.event-proposals.index') }}">- Event Proposals</a></li>
                 <li><a class="nav-link" href="#">- Event Posting</a></li>
                 <li><a class="nav-link" href="#">- Location</a></li>
                 <li><a class="nav-link" href="#">- Feedback</a></li>

@@ -7,17 +7,15 @@ use App\Models\Event;
 use App\Models\Recruitment;
 use App\Models\RecruitmentQuestion;
 use App\Models\RecruitmentApplication;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class RecruitmentController extends Controller
 {
-    private function requireClub()
+    private function requireClub(): User
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        /** @var User $user */
+        $user = request()->user();
 
         return $user;
     }

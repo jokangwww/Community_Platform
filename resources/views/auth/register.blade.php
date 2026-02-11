@@ -174,15 +174,9 @@
 
             <form method="POST" action="{{ route('register.submit') }}">
                 @csrf
-                <div class="grid">
-                    <div class="field">
-                        <label for="first_name">First name</label>
-                        <input id="first_name" name="first_name" type="text" placeholder="e.g. Aisyah" value="{{ old('first_name') }}" required>
-                    </div>
-                    <div class="field">
-                        <label for="last_name">Last name</label>
-                        <input id="last_name" name="last_name" type="text" placeholder="e.g. Lee" value="{{ old('last_name') }}" required>
-                    </div>
+                <div class="field">
+                    <label for="name">Full name</label>
+                    <input id="name" name="name" type="text" placeholder="e.g. Aisyah Lee" value="{{ old('name') }}" required>
                 </div>
 
                 <div class="field">

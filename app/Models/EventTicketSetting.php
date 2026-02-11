@@ -13,11 +13,16 @@ class EventTicketSetting extends Model
         'event_id',
         'price',
         'currency',
+        'bundle_discounts',
         'prefix',
         'suffix',
         'start_number',
         'number_padding',
         'last_number',
+    ];
+
+    protected $casts = [
+        'bundle_discounts' => 'array',
     ];
 
     public function event()

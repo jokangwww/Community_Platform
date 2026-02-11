@@ -22,20 +22,25 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            border: 1px solid #2b2b2b;
-            padding: 4px 8px;
             min-width: 320px;
-            background: #fff;
         }
         .events-search input {
-            border: none;
-            outline: none;
-            font-size: 16px;
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            min-width: 260px;
+            max-width: 360px;
             width: 100%;
         }
-        .events-search svg {
-            width: 18px;
-            height: 18px;
+        .events-search button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1.2;
         }
         .events-subbar {
             display: flex;
@@ -125,6 +130,33 @@
             background: #f3c2bf;
             color: #8f1717;
         }
+        .approval-status {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            border: 1px solid #d5d5d5;
+            background: #f8f8f8;
+            color: #4a4a4a;
+        }
+        .approval-pending {
+            background: #fff5da;
+            border-color: #efd596;
+            color: #8a6a00;
+        }
+        .approval-approved {
+            background: #e6f4ea;
+            border-color: #b7e2c1;
+            color: #1f7a1f;
+        }
+        .approval-rejected {
+            background: #fce8e6;
+            border-color: #f3c2bf;
+            color: #a11919;
+        }
         .event-meta p {
             margin: 0 0 6px;
             color: #4a4a4a;
@@ -146,16 +178,29 @@
             text-align: center;
             color: #4a4a4a;
         }
+        @media (max-width: 900px) {
+            .events-topbar-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .events-search {
+                min-width: 0;
+                width: 100%;
+            }
+            .events-search input {
+                min-width: 0;
+                max-width: none;
+            }
+        }
     </style>
 
     <div class="events-topbar">
         <div class="events-topbar-row">
             <h2>Manage Event</h2>
-            <form class="events-search" action="#" method="GET">
-                <input type="text" name="q" placeholder="Search">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
-                </svg>
+            <form class="events-search" action="{{ url()->current() }}" method="GET">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search">
+                <button type="submit">Search</button>
             </form>
         </div>
     </div>
@@ -192,6 +237,9 @@
                             @if (($event->status ?? 'in_progress') === 'ended')
                                 <span class="event-status">Ended</span>
                             @endif
+                            <span class="approval-status approval-{{ $event->approval_status ?? 'approved' }}">
+                                {{ ucfirst($event->approval_status ?? 'approved') }}
+                            </span>
                         </h3>
                         <p>{{ $event->description }}</p>
                         <span class="event-tag">{{ $event->category }}</span>

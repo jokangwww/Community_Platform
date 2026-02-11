@@ -195,7 +195,7 @@
             <ul class="nav-list is-collapsed" id="event-nav">
                 <li><a class="nav-link" href="{{ route('user.event-posting') }}">- Event Posting</a></li>
                 <li><a class="nav-link" href="{{ route('user.recruitment') }}">- Recruitment</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'calendar') }}">- Calendar</a></li>
+                <li><a class="nav-link" href="{{ route('user.calendar') }}">- Calendar</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'location') }}">- Location</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>

@@ -5,18 +5,15 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Recruitment;
 use App\Models\RecruitmentApplication;
-use App\Models\RecruitmentApplicationAnswer;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class RecruitmentController extends Controller
 {
-    private function requireStudent()
+    private function requireStudent(): User
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'student') {
-            abort(403);
-        }
+        /** @var User $user */
+        $user = request()->user();
 
         return $user;
     }

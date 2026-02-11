@@ -189,6 +189,10 @@
                 <p>{{ $event->category }}</p>
             </div>
             <div class="info-section">
+                <h3>Venue</h3>
+                <p>{{ $event->venue ?: 'Not set' }}</p>
+            </div>
+            <div class="info-section">
                 <h3>Status</h3>
                 <p>{{ ($event->status ?? 'in_progress') === 'ended' ? 'Ended' : 'In progress' }}</p>
             </div>
@@ -227,6 +231,9 @@
                                 {{ $subEvent->title }}
                                 @if ($subEvent->event_date)
                                     ({{ $subEvent->event_date }})
+                                @endif
+                                @if ($subEvent->start_time || $subEvent->end_time)
+                                    - {{ $subEvent->start_time ?: 'TBA' }} to {{ $subEvent->end_time ?: 'TBA' }}
                                 @endif
                             </li>
                         @endforeach

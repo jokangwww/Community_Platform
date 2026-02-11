@@ -101,7 +101,7 @@
         }
         .subevent-row {
             display: grid;
-            grid-template-columns: 1fr 180px auto;
+            grid-template-columns: 1fr 170px 140px 140px auto;
             gap: 10px;
             align-items: center;
         }
@@ -183,6 +183,13 @@
             @enderror
         </div>
         <div class="field">
+            <label for="venue">Venue</label>
+            <input id="venue" name="venue" type="text" value="{{ old('venue') }}" placeholder="e.g. Hall A">
+            @error('venue')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
             <label for="status">Event Status</label>
             <select id="status" name="status" required>
                 <option value="in_progress" @selected(old('status', 'in_progress') === 'in_progress')>In progress</option>
@@ -245,6 +252,8 @@
                         <div class="subevent-row">
                             <input type="text" name="sub_event_title[]" value="{{ $title }}" placeholder="e.g. Registration day">
                             <input type="date" name="sub_event_date[]" value="{{ old('sub_event_date.' . $index) }}">
+                            <input type="time" name="sub_event_start_time[]" value="{{ old('sub_event_start_time.' . $index) }}">
+                            <input type="time" name="sub_event_end_time[]" value="{{ old('sub_event_end_time.' . $index) }}">
                             <button type="button" class="subevent-remove">Remove</button>
                         </div>
                     @endforeach
@@ -255,6 +264,12 @@
                 <div class="error-text">{{ $message }}</div>
             @enderror
             @error('sub_event_date.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            @error('sub_event_start_time.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            @error('sub_event_end_time.*')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
@@ -433,7 +448,7 @@
                 return;
             }
 
-            function makeRow(title, dateValue) {
+            function makeRow(title, dateValue, startTimeValue, endTimeValue) {
                 var row = document.createElement('div');
                 row.className = 'subevent-row';
 
@@ -448,6 +463,16 @@
                 dateInput.name = 'sub_event_date[]';
                 dateInput.value = dateValue || '';
 
+                var startTimeInput = document.createElement('input');
+                startTimeInput.type = 'time';
+                startTimeInput.name = 'sub_event_start_time[]';
+                startTimeInput.value = startTimeValue || '';
+
+                var endTimeInput = document.createElement('input');
+                endTimeInput.type = 'time';
+                endTimeInput.name = 'sub_event_end_time[]';
+                endTimeInput.value = endTimeValue || '';
+
                 var remove = document.createElement('button');
                 remove.type = 'button';
                 remove.className = 'subevent-remove';
@@ -455,6 +480,8 @@
 
                 row.appendChild(titleInput);
                 row.appendChild(dateInput);
+                row.appendChild(startTimeInput);
+                row.appendChild(endTimeInput);
                 row.appendChild(remove);
                 return row;
             }
@@ -472,7 +499,7 @@
             }
 
             addBtn.addEventListener('click', function () {
-                list.appendChild(makeRow('', ''));
+                list.appendChild(makeRow('', '', '', ''));
                 wireRemoveButtons();
             });
 

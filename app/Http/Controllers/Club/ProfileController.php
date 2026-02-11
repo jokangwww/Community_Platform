@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -13,19 +14,17 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    private function requireClub(Request $request)
+    private function requireClub(Request $request): User
     {
+        /** @var User $user */
         $user = $request->user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
 
         return $user;
     }
 
-    public function show(): View
+    public function show(Request $request): View
     {
-        $this->requireClub(request());
+        $this->requireClub($request);
 
         return view('club.profile');
     }

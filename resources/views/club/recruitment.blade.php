@@ -22,20 +22,40 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            border: 1px solid #2b2b2b;
-            padding: 4px 8px;
             min-width: 320px;
-            background: #fff;
         }
         .recruitment-search input {
-            border: none;
-            outline: none;
-            font-size: 16px;
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            min-width: 260px;
+            max-width: 360px;
             width: 100%;
         }
-        .recruitment-search svg {
-            width: 18px;
-            height: 18px;
+        .recruitment-search button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+        @media (max-width: 900px) {
+            .recruitment-topbar-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .recruitment-search {
+                min-width: 0;
+                width: 100%;
+            }
+            .recruitment-search input {
+                min-width: 0;
+                max-width: none;
+            }
         }
         .recruitment-subbar {
             display: flex;
@@ -110,11 +130,9 @@
     <div class="recruitment-topbar">
         <div class="recruitment-topbar-row">
             <h2>Recruitment</h2>
-            <form class="recruitment-search" action="#" method="GET">
-                <input type="text" name="q" placeholder="Search">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
-                </svg>
+            <form class="recruitment-search" action="{{ url()->current() }}" method="GET">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search">
+                <button type="submit">Search</button>
             </form>
         </div>
     </div>

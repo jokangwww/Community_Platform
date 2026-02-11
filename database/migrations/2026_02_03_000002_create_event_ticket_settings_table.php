@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
             $table->decimal('price', 10, 2)->default(0);
             $table->string('currency', 3)->default('MYR');
+            $table->json('bundle_discounts')->nullable();
             $table->string('prefix')->nullable();
             $table->string('suffix')->nullable();
             $table->unsignedInteger('start_number')->default(1);

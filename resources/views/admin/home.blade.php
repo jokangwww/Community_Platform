@@ -21,6 +21,8 @@
         </div>
     </div>
     <div class="main-card">
-        Show Recent Action
+        <a href="{{ route('admin.event-proposals.index') }}" style="text-decoration:none;color:inherit;">
+            Review Event Proposals
+        </a>
     </div>
 @endsection

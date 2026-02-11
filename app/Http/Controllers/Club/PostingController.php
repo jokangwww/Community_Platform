@@ -7,16 +7,13 @@ use App\Models\Event;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class PostingController extends Controller
 {
     private function requireClub(): User
     {
-        $user = Auth::user();
-        if (! $user instanceof User || $user->role !== 'club') {
-            abort(403);
-        }
+        /** @var User $user */
+        $user = request()->user();
 
         return $user;
     }
@@ -35,7 +32,8 @@ class PostingController extends Controller
         $postings = Posting::with(['event', 'images'])
             ->withCount('registrations')
             ->whereHas('event', function ($query) {
-                $query->where('status', '!=', 'ended');
+                $query->where('status', '!=', 'ended')
+                    ->where('approval_status', 'approved');
             })
             ->latest()
             ->get();
@@ -55,7 +53,8 @@ class PostingController extends Controller
             ->withCount('registrations')
             ->where('club_id', $user->id)
             ->whereHas('event', function ($query) {
-                $query->where('status', '!=', 'ended');
+                $query->where('status', '!=', 'ended')
+                    ->where('approval_status', 'approved');
             })
             ->latest()
             ->get();
@@ -75,7 +74,8 @@ class PostingController extends Controller
             ->with(['event', 'images'])
             ->withCount('registrations')
             ->whereHas('event', function ($query) {
-                $query->where('status', '!=', 'ended');
+                $query->where('status', '!=', 'ended')
+                    ->where('approval_status', 'approved');
             })
             ->latest('postings.created_at')
             ->get();
@@ -93,6 +93,7 @@ class PostingController extends Controller
 
         $events = Event::where('club_id', $user->id)
             ->where('status', '!=', 'ended')
+            ->where('approval_status', 'approved')
             ->orderBy('name')
             ->get();
 
@@ -113,6 +114,7 @@ class PostingController extends Controller
 
         $event = Event::where('id', $validated['event_id'])
             ->where('club_id', $user->id)
+            ->where('approval_status', 'approved')
             ->firstOrFail();
 
         $posting = Posting::create([
@@ -148,6 +150,7 @@ class PostingController extends Controller
 
         $events = Event::where('club_id', $user->id)
             ->where('status', '!=', 'ended')
+            ->where('approval_status', 'approved')
             ->orderBy('name')
             ->get();
 
@@ -187,6 +190,7 @@ class PostingController extends Controller
 
         $event = Event::where('id', $validated['event_id'])
             ->where('club_id', $user->id)
+            ->where('approval_status', 'approved')
             ->firstOrFail();
 
         $posting->event_id = $event->id;

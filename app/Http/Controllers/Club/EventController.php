@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\EventSubEvent;
-use App\Models\EventFacultyLimit;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class EventController extends Controller
 {
+    private function authenticatedClub(): User
+    {
+        /** @var User $user */
+        $user = request()->user();
+
+        return $user;
+    }
+
     private function parseCommitteeIds(?string $raw): array
     {
         if (! $raw) {
@@ -46,7 +51,7 @@ class EventController extends Controller
         return $users->pluck('id')->all();
     }
 
-    private function normalizeSubEvents(array $titles, array $dates): array
+    private function normalizeSubEvents(array $titles, array $dates, array $startTimes, array $endTimes): array
     {
         $items = [];
         foreach ($titles as $index => $title) {
@@ -57,6 +62,8 @@ class EventController extends Controller
             $items[] = [
                 'title' => $cleanTitle,
                 'event_date' => $dates[$index] ?? null,
+                'start_time' => $startTimes[$index] ?? null,
+                'end_time' => $endTimes[$index] ?? null,
             ];
         }
         return $items;
@@ -69,6 +76,8 @@ class EventController extends Controller
             $event->subEvents()->create([
                 'title' => $subEvent['title'],
                 'event_date' => $subEvent['event_date'] ?: null,
+                'start_time' => $subEvent['start_time'] ?: null,
+                'end_time' => $subEvent['end_time'] ?: null,
             ]);
         }
     }
@@ -106,11 +115,6 @@ class EventController extends Controller
 
     public function validateCommittee(Request $request)
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
-
         $validated = $request->validate([
             'student_id' => ['required', 'string', 'max:255'],
         ]);
@@ -127,10 +131,7 @@ class EventController extends Controller
 
     public function index(Request $request): View
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        $user = $this->authenticatedClub();
 
         $events = Event::where('club_id', $user->id)
             ->latest()
@@ -143,20 +144,12 @@ class EventController extends Controller
 
     public function create(Request $request): View
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
-
         return view('club.events.create');
     }
 
     public function show(Event $event): View
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        $user = $this->authenticatedClub();
 
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -173,10 +166,7 @@ class EventController extends Controller
 
     public function edit(Event $event): View
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        $user = $this->authenticatedClub();
 
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -195,15 +185,13 @@ class EventController extends Controller
 
     public function store(Request $request)
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        $user = $this->authenticatedClub();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
             'category' => ['required', 'string', 'max:255'],
+            'venue' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:in_progress,ended'],
             'registration_type' => ['required', 'in:register,ticket'],
             'participant_limit' => ['nullable', 'integer', 'min:1', 'max:100000'],
@@ -214,6 +202,10 @@ class EventController extends Controller
             'sub_event_title.*' => ['nullable', 'string', 'max:255'],
             'sub_event_date' => ['nullable', 'array'],
             'sub_event_date.*' => ['nullable', 'date'],
+            'sub_event_start_time' => ['nullable', 'array'],
+            'sub_event_start_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_end_time' => ['nullable', 'array'],
+            'sub_event_end_time.*' => ['nullable', 'date_format:H:i'],
             'faculty_name' => ['nullable', 'array'],
             'faculty_name.*' => ['nullable', 'string', 'max:255'],
             'faculty_limit' => ['nullable', 'array'],
@@ -226,7 +218,9 @@ class EventController extends Controller
         $committeeUserIds = $this->resolveCommitteeUsers($committeeIds);
         $subEvents = $this->normalizeSubEvents(
             $validated['sub_event_title'] ?? [],
-            $validated['sub_event_date'] ?? []
+            $validated['sub_event_date'] ?? [],
+            $validated['sub_event_start_time'] ?? [],
+            $validated['sub_event_end_time'] ?? []
         );
         $facultyLimits = $this->normalizeFacultyLimits(
             $validated['faculty_name'] ?? [],
@@ -248,7 +242,9 @@ class EventController extends Controller
             'name' => $validated['name'],
             'description' => $validated['description'],
             'category' => $validated['category'],
+            'venue' => $validated['venue'] ?? null,
             'status' => $validated['status'],
+            'approval_status' => 'pending',
             'registration_type' => $validated['registration_type'],
             'participant_limit' => $validated['participant_limit'] ?? null,
             'start_date' => $validated['start_date'] ?? null,
@@ -261,15 +257,12 @@ class EventController extends Controller
         $this->storeSubEvents($event, $subEvents);
         $this->storeFacultyLimits($event, $facultyLimits);
 
-        return redirect()->route('club.events.index')->with('status', 'Event submitted.');
+        return redirect()->route('club.events.index')->with('status', 'Event submitted and pending admin approval.');
     }
 
     public function update(Request $request, Event $event)
     {
-        $user = Auth::user();
-        if (! $user || $user->role !== 'club') {
-            abort(403);
-        }
+        $user = $this->authenticatedClub();
 
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -279,6 +272,7 @@ class EventController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
             'category' => ['required', 'string', 'max:255'],
+            'venue' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:in_progress,ended'],
             'registration_type' => ['required', 'in:register,ticket'],
             'participant_limit' => ['nullable', 'integer', 'min:1', 'max:100000'],
@@ -289,6 +283,10 @@ class EventController extends Controller
             'sub_event_title.*' => ['nullable', 'string', 'max:255'],
             'sub_event_date' => ['nullable', 'array'],
             'sub_event_date.*' => ['nullable', 'date'],
+            'sub_event_start_time' => ['nullable', 'array'],
+            'sub_event_start_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_end_time' => ['nullable', 'array'],
+            'sub_event_end_time.*' => ['nullable', 'date_format:H:i'],
             'faculty_name' => ['nullable', 'array'],
             'faculty_name.*' => ['nullable', 'string', 'max:255'],
             'faculty_limit' => ['nullable', 'array'],
@@ -301,7 +299,9 @@ class EventController extends Controller
         $committeeUserIds = $this->resolveCommitteeUsers($committeeIds);
         $subEvents = $this->normalizeSubEvents(
             $validated['sub_event_title'] ?? [],
-            $validated['sub_event_date'] ?? []
+            $validated['sub_event_date'] ?? [],
+            $validated['sub_event_start_time'] ?? [],
+            $validated['sub_event_end_time'] ?? []
         );
         $facultyLimits = $this->normalizeFacultyLimits(
             $validated['faculty_name'] ?? [],
@@ -322,6 +322,7 @@ class EventController extends Controller
             'name' => $validated['name'],
             'description' => $validated['description'],
             'category' => $validated['category'],
+            'venue' => $validated['venue'] ?? null,
             'status' => $validated['status'],
             'registration_type' => $validated['registration_type'],
             'participant_limit' => $validated['participant_limit'] ?? null,
