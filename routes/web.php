@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\EventProposalController as AdminEventProposalController;
+use App\Http\Controllers\Admin\LocationManagementController;
 use App\Http\Controllers\Club\EventController;
 use App\Http\Controllers\Club\PostingController;
 use App\Http\Controllers\Club\ProfileController as ClubProfileController;
@@ -148,6 +149,21 @@ Route::post('/admin/event-proposals/{event}/approve', [AdminEventProposalControl
 Route::post('/admin/event-proposals/{event}/reject', [AdminEventProposalController::class, 'reject'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-proposals.reject');
+Route::get('/admin/locations', [LocationManagementController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.index');
+Route::post('/admin/locations/maps', [LocationManagementController::class, 'storeMap'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.maps.store');
+Route::delete('/admin/locations/maps/{locationMap}', [LocationManagementController::class, 'destroyMap'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.maps.destroy');
+Route::post('/admin/locations/maps/{locationMap}/points', [LocationManagementController::class, 'storePoint'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.points.store');
+Route::delete('/admin/locations/maps/{locationMap}/points/{point}', [LocationManagementController::class, 'destroyPoint'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.points.destroy');
 Route::get('/club/event-posting', [PostingController::class, 'index'])
     ->middleware(['auth', 'role:club'])
     ->name('club.event-posting');

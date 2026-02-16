@@ -184,7 +184,19 @@
         </div>
         <div class="field">
             <label for="venue">Venue</label>
-            <input id="venue" name="venue" type="text" value="{{ old('venue') }}" placeholder="e.g. Hall A">
+            @php
+                $selectedVenue = old('venue');
+                $knownVenueValues = array_column($venueOptions ?? [], 'value');
+            @endphp
+            <select id="venue" name="venue">
+                <option value="">Select location point</option>
+                @foreach (($venueOptions ?? []) as $option)
+                    <option value="{{ $option['value'] }}" @selected($selectedVenue === $option['value'])>{{ $option['label'] }}</option>
+                @endforeach
+                @if ($selectedVenue && ! in_array($selectedVenue, $knownVenueValues, true))
+                    <option value="{{ $selectedVenue }}" selected>{{ $selectedVenue }} (Current value)</option>
+                @endif
+            </select>
             @error('venue')
                 <div class="error-text">{{ $message }}</div>
             @enderror

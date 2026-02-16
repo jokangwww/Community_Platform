@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\LocationPoint;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -113,6 +114,31 @@ class EventController extends Controller
         }
     }
 
+    private function venueOptions(): array
+    {
+        return LocationPoint::query()
+            ->with('map')
+            ->orderBy('location_map_id')
+            ->orderBy('name')
+            ->get()
+            ->map(function (LocationPoint $point): array {
+                $mapName = $point->map?->name;
+                $value = trim(($mapName ? $mapName . ' - ' : '') . $point->name);
+                $label = sprintf(
+                    '%s (X: %.2f%%, Y: %.2f%%)',
+                    $value,
+                    (float) $point->x_percent,
+                    (float) $point->y_percent
+                );
+
+                return [
+                    'value' => $value,
+                    'label' => $label,
+                ];
+            })
+            ->all();
+    }
+
     public function validateCommittee(Request $request)
     {
         $validated = $request->validate([
@@ -144,7 +170,9 @@ class EventController extends Controller
 
     public function create(Request $request): View
     {
-        return view('club.events.create');
+        return view('club.events.create', [
+            'venueOptions' => $this->venueOptions(),
+        ]);
     }
 
     public function show(Event $event): View
@@ -180,6 +208,7 @@ class EventController extends Controller
         return view('club.events.edit', [
             'event' => $event,
             'committeeIds' => $committeeIds ? implode(', ', $committeeIds) : null,
+            'venueOptions' => $this->venueOptions(),
         ]);
     }
 
