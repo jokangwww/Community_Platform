@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\LocationPoint;
+use App\Models\TicketPurchase;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +15,25 @@ use Illuminate\View\View;
 
 class EventController extends Controller
 {
+    private function normalizeTimeValue($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $time = trim((string) $value);
+        if ($time === '') {
+            return null;
+        }
+
+        // Accept HH:MM and HH:MM:SS, persist as HH:MM.
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $time) === 1) {
+            return substr($time, 0, 5);
+        }
+
+        return $time;
+    }
+
     private function authenticatedClub(): User
     {
         /** @var User $user */
@@ -52,7 +74,7 @@ class EventController extends Controller
         return $users->pluck('id')->all();
     }
 
-    private function normalizeSubEvents(array $titles, array $dates, array $startTimes, array $endTimes): array
+    private function normalizeSubEvents(array $titles, array $dates, array $startTimes, array $endTimes, array $locationPointIds): array
     {
         $items = [];
         foreach ($titles as $index => $title) {
@@ -62,9 +84,10 @@ class EventController extends Controller
             }
             $items[] = [
                 'title' => $cleanTitle,
+                'location_point_id' => !empty($locationPointIds[$index]) ? (int) $locationPointIds[$index] : null,
                 'event_date' => $dates[$index] ?? null,
-                'start_time' => $startTimes[$index] ?? null,
-                'end_time' => $endTimes[$index] ?? null,
+                'start_time' => $this->normalizeTimeValue($startTimes[$index] ?? null),
+                'end_time' => $this->normalizeTimeValue($endTimes[$index] ?? null),
             ];
         }
         return $items;
@@ -76,6 +99,7 @@ class EventController extends Controller
         foreach ($subEvents as $subEvent) {
             $event->subEvents()->create([
                 'title' => $subEvent['title'],
+                'location_point_id' => $subEvent['location_point_id'] ?? null,
                 'event_date' => $subEvent['event_date'] ?: null,
                 'start_time' => $subEvent['start_time'] ?: null,
                 'end_time' => $subEvent['end_time'] ?: null,
@@ -101,6 +125,23 @@ class EventController extends Controller
             ];
         }
         return $items;
+    }
+
+    private function ensureCompleteFacultyLimitRows(array $names, array $limits): void
+    {
+        $max = max(count($names), count($limits));
+        for ($index = 0; $index < $max; $index++) {
+            $name = trim((string) ($names[$index] ?? ''));
+            $limit = $limits[$index] ?? null;
+            $hasName = $name !== '';
+            $hasLimit = $limit !== null && $limit !== '';
+
+            if ($hasName xor $hasLimit) {
+                throw ValidationException::withMessages([
+                    'faculty_limit.' . $index => 'Please fill both faculty name and limit for each row.',
+                ]);
+            }
+        }
     }
 
     private function storeFacultyLimits(Event $event, array $limits): void
@@ -139,6 +180,24 @@ class EventController extends Controller
             ->all();
     }
 
+    private function locationPointOptions(): array
+    {
+        return LocationPoint::query()
+            ->with('map')
+            ->orderBy('location_map_id')
+            ->orderBy('name')
+            ->get()
+            ->map(function (LocationPoint $point): array {
+                $mapName = $point->map?->name;
+
+                return [
+                    'id' => $point->id,
+                    'label' => trim(($mapName ? $mapName . ' - ' : '') . $point->name),
+                ];
+            })
+            ->all();
+    }
+
     public function validateCommittee(Request $request)
     {
         $validated = $request->validate([
@@ -158,13 +217,56 @@ class EventController extends Controller
     public function index(Request $request): View
     {
         $user = $this->authenticatedClub();
+        $approvalStatus = (string) $request->query('approval_status', '');
 
-        $events = Event::where('club_id', $user->id)
+        $query = Event::where('club_id', $user->id);
+
+        if (in_array($approvalStatus, ['approved', 'rejected'], true)) {
+            $query->where('approval_status', $approvalStatus);
+        }
+
+        $events = $query
             ->latest()
             ->get();
 
         return view('club.events.index', [
             'events' => $events,
+            'filters' => [
+                'approval_status' => $approvalStatus,
+            ],
+        ]);
+    }
+
+    public function attendance(Request $request): View
+    {
+        $user = $this->authenticatedClub();
+        $search = trim((string) $request->query('q', ''));
+
+        $events = Event::query()
+            ->where('club_id', $user->id)
+            ->where('approval_status', 'approved')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', '%' . $search . '%');
+                    if (ctype_digit($search)) {
+                        $inner->orWhere('id', (int) $search);
+                    }
+                });
+            })
+            ->withCount('registrations')
+            ->withCount('ticketPurchases')
+            ->withCount(['registrations as attended_registrations_count' => function ($query) {
+                $query->whereNotNull('attended_at');
+            }])
+            ->withCount(['ticketPurchases as attended_tickets_count' => function ($query) {
+                $query->whereNotNull('attended_at');
+            }])
+            ->latest()
+            ->get();
+
+        return view('club.events.attendance', [
+            'events' => $events,
+            'search' => $search,
         ]);
     }
 
@@ -172,6 +274,8 @@ class EventController extends Controller
     {
         return view('club.events.create', [
             'venueOptions' => $this->venueOptions(),
+            'locationPointOptions' => $this->locationPointOptions(),
+            'departments' => Department::query()->orderBy('name')->get(['name']),
         ]);
     }
 
@@ -183,13 +287,211 @@ class EventController extends Controller
             abort(403);
         }
 
-        $event->load(['committeeMembers', 'subEvents', 'facultyLimits', 'postings.registrations.student']);
-        $registrations = $event->postings->flatMap->registrations;
+        $event->load([
+            'committeeMembers',
+            'subEvents.locationPoint',
+            'facultyLimits',
+            'postings',
+            'registrations.student',
+        ]);
+        $registrations = $event->registrations;
 
         return view('club.events.show', [
             'event' => $event,
             'registrations' => $registrations,
         ]);
+    }
+
+    public function attendanceShow(Event $event): View
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $status = (string) request()->query('status', 'all');
+        if (! in_array($status, ['all', 'attend', 'absent'], true)) {
+            $status = 'all';
+        }
+        $studentIdKeyword = trim((string) request()->query('student_id', ''));
+        $ticketStatus = (string) request()->query('ticket_status', 'all');
+        if (! in_array($ticketStatus, ['all', 'attend', 'absent'], true)) {
+            $ticketStatus = 'all';
+        }
+        $ticketKeyword = trim((string) request()->query('ticket_search', ''));
+
+        $event->load(['subEvents.locationPoint']);
+
+        $registrations = $event->registrations()
+            ->with('student')
+            ->when($studentIdKeyword !== '', function ($query) use ($studentIdKeyword) {
+                $query->whereHas('student', function ($studentQuery) use ($studentIdKeyword) {
+                    $studentQuery->where('student_id', 'like', '%' . $studentIdKeyword . '%');
+                });
+            })
+            ->when($status === 'attend', function ($query) {
+                $query->whereNotNull('attended_at');
+            })
+            ->when($status === 'absent', function ($query) {
+                $query->whereNull('attended_at');
+            })
+            ->get();
+
+        $ticketPurchases = $event->ticketPurchases()
+            ->with('student')
+            ->when($ticketKeyword !== '', function ($query) use ($ticketKeyword) {
+                $query->where(function ($inner) use ($ticketKeyword) {
+                    $inner->where('ticket_number', 'like', '%' . $ticketKeyword . '%')
+                        ->orWhereHas('student', function ($studentQuery) use ($ticketKeyword) {
+                            $studentQuery->where('student_id', 'like', '%' . $ticketKeyword . '%');
+                        });
+                });
+            })
+            ->when($ticketStatus === 'attend', function ($query) {
+                $query->whereNotNull('attended_at');
+            })
+            ->when($ticketStatus === 'absent', function ($query) {
+                $query->whereNull('attended_at');
+            })
+            ->get();
+
+        return view('club.events.attendance-show', [
+            'event' => $event,
+            'registrations' => $registrations,
+            'ticketPurchases' => $ticketPurchases,
+            'filters' => [
+                'status' => $status,
+                'student_id' => $studentIdKeyword,
+                'ticket_status' => $ticketStatus,
+                'ticket_search' => $ticketKeyword,
+            ],
+        ]);
+    }
+
+    public function markRegistrationAttendance(Request $request, Event $event)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+        if (($event->registration_type ?? 'register') !== 'register') {
+            return back()->with('status', 'This event uses ticket attendance.');
+        }
+
+        $validated = $request->validate([
+            'student_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        $student = User::query()
+            ->where('student_id', trim($validated['student_id']))
+            ->where('role', 'student')
+            ->first();
+        if (! $student) {
+            return back()->with('status', 'Student ID not found.');
+        }
+
+        $registration = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('student_id', $student->id)
+            ->first();
+        if (! $registration) {
+            return back()->with('status', 'This student is not registered for the event.');
+        }
+        if ($registration->attended_at) {
+            return back()->with('status', 'Attendance already marked for ' . ($student->name ?? 'this student') . '.');
+        }
+
+        $registration->attended_at = now();
+        $registration->attendance_marked_by = $user->id;
+        $registration->save();
+
+        return back()->with('status', 'Attendance marked for ' . ($student->name ?? 'student') . '.');
+    }
+
+    public function markTicketAttendance(Request $request, Event $event)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+        if (($event->registration_type ?? 'register') !== 'ticket') {
+            return back()->with('status', 'This event uses student ID attendance.');
+        }
+
+        $validated = $request->validate([
+            'ticket_id' => ['required', 'string', 'max:255'],
+        ]);
+        $ticketInput = trim($validated['ticket_id']);
+
+        $ticket = TicketPurchase::query()
+            ->where('event_id', $event->id)
+            ->where(function ($query) use ($ticketInput) {
+                $query->where('ticket_number', $ticketInput);
+                if (ctype_digit($ticketInput)) {
+                    $query->orWhere('id', (int) $ticketInput);
+                }
+            })
+            ->with('student')
+            ->first();
+
+        if (! $ticket) {
+            return back()->with('status', 'Ticket ID/number not found for this event.');
+        }
+        if ($ticket->attended_at) {
+            return back()->with('status', 'Attendance already marked for ticket ' . $ticket->ticket_number . '.');
+        }
+
+        $ticket->attended_at = now();
+        $ticket->attendance_marked_by = $user->id;
+        $ticket->save();
+
+        return back()->with('status', 'Attendance marked for ticket ' . $ticket->ticket_number . '.');
+    }
+
+    public function markRegistrationAttendanceRow(Event $event, EventRegistration $registration)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+        if ($registration->event_id !== $event->id) {
+            abort(404);
+        }
+        if (($event->registration_type ?? 'register') !== 'register') {
+            return back()->with('status', 'This event uses ticket attendance.');
+        }
+        if ($registration->attended_at) {
+            return back()->with('status', 'Attendance already marked.');
+        }
+
+        $registration->attended_at = now();
+        $registration->attendance_marked_by = $user->id;
+        $registration->save();
+
+        return back()->with('status', 'Attendance marked for ' . ($registration->student?->name ?? 'student') . '.');
+    }
+
+    public function markTicketAttendanceRow(Event $event, TicketPurchase $ticketPurchase)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+        if ($ticketPurchase->event_id !== $event->id) {
+            abort(404);
+        }
+        if (($event->registration_type ?? 'register') !== 'ticket') {
+            return back()->with('status', 'This event uses student ID attendance.');
+        }
+        if ($ticketPurchase->attended_at) {
+            return back()->with('status', 'Attendance already marked.');
+        }
+
+        $ticketPurchase->attended_at = now();
+        $ticketPurchase->attendance_marked_by = $user->id;
+        $ticketPurchase->save();
+
+        return back()->with('status', 'Attendance marked for ticket ' . $ticketPurchase->ticket_number . '.');
     }
 
     public function edit(Event $event): View
@@ -200,7 +502,7 @@ class EventController extends Controller
             abort(403);
         }
 
-        $event->load(['subEvents', 'facultyLimits']);
+        $event->load(['subEvents.locationPoint', 'facultyLimits']);
         $committeeIds = $event->committeeMembers()
             ->pluck('student_id')
             ->all();
@@ -209,6 +511,8 @@ class EventController extends Controller
             'event' => $event,
             'committeeIds' => $committeeIds ? implode(', ', $committeeIds) : null,
             'venueOptions' => $this->venueOptions(),
+            'locationPointOptions' => $this->locationPointOptions(),
+            'departments' => Department::query()->orderBy('name')->get(['name']),
         ]);
     }
 
@@ -219,7 +523,6 @@ class EventController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
-            'category' => ['required', 'string', 'max:255'],
             'venue' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:in_progress,ended'],
             'registration_type' => ['required', 'in:register,ticket'],
@@ -232,9 +535,11 @@ class EventController extends Controller
             'sub_event_date' => ['nullable', 'array'],
             'sub_event_date.*' => ['nullable', 'date'],
             'sub_event_start_time' => ['nullable', 'array'],
-            'sub_event_start_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_start_time.*' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
             'sub_event_end_time' => ['nullable', 'array'],
-            'sub_event_end_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_end_time.*' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            'sub_event_location_point_id' => ['nullable', 'array'],
+            'sub_event_location_point_id.*' => ['nullable', 'integer', 'exists:location_points,id'],
             'faculty_name' => ['nullable', 'array'],
             'faculty_name.*' => ['nullable', 'string', 'max:255'],
             'faculty_limit' => ['nullable', 'array'],
@@ -249,9 +554,14 @@ class EventController extends Controller
             $validated['sub_event_title'] ?? [],
             $validated['sub_event_date'] ?? [],
             $validated['sub_event_start_time'] ?? [],
-            $validated['sub_event_end_time'] ?? []
+            $validated['sub_event_end_time'] ?? [],
+            $validated['sub_event_location_point_id'] ?? []
         );
         $facultyLimits = $this->normalizeFacultyLimits(
+            $validated['faculty_name'] ?? [],
+            $validated['faculty_limit'] ?? []
+        );
+        $this->ensureCompleteFacultyLimitRows(
             $validated['faculty_name'] ?? [],
             $validated['faculty_limit'] ?? []
         );
@@ -270,7 +580,6 @@ class EventController extends Controller
             'club_id' => $user->id,
             'name' => $validated['name'],
             'description' => $validated['description'],
-            'category' => $validated['category'],
             'venue' => $validated['venue'] ?? null,
             'status' => $validated['status'],
             'approval_status' => 'pending',
@@ -300,7 +609,6 @@ class EventController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
-            'category' => ['required', 'string', 'max:255'],
             'venue' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:in_progress,ended'],
             'registration_type' => ['required', 'in:register,ticket'],
@@ -313,9 +621,11 @@ class EventController extends Controller
             'sub_event_date' => ['nullable', 'array'],
             'sub_event_date.*' => ['nullable', 'date'],
             'sub_event_start_time' => ['nullable', 'array'],
-            'sub_event_start_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_start_time.*' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
             'sub_event_end_time' => ['nullable', 'array'],
-            'sub_event_end_time.*' => ['nullable', 'date_format:H:i'],
+            'sub_event_end_time.*' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            'sub_event_location_point_id' => ['nullable', 'array'],
+            'sub_event_location_point_id.*' => ['nullable', 'integer', 'exists:location_points,id'],
             'faculty_name' => ['nullable', 'array'],
             'faculty_name.*' => ['nullable', 'string', 'max:255'],
             'faculty_limit' => ['nullable', 'array'],
@@ -330,9 +640,14 @@ class EventController extends Controller
             $validated['sub_event_title'] ?? [],
             $validated['sub_event_date'] ?? [],
             $validated['sub_event_start_time'] ?? [],
-            $validated['sub_event_end_time'] ?? []
+            $validated['sub_event_end_time'] ?? [],
+            $validated['sub_event_location_point_id'] ?? []
         );
         $facultyLimits = $this->normalizeFacultyLimits(
+            $validated['faculty_name'] ?? [],
+            $validated['faculty_limit'] ?? []
+        );
+        $this->ensureCompleteFacultyLimitRows(
             $validated['faculty_name'] ?? [],
             $validated['faculty_limit'] ?? []
         );
@@ -350,7 +665,6 @@ class EventController extends Controller
         $event->update([
             'name' => $validated['name'],
             'description' => $validated['description'],
-            'category' => $validated['category'],
             'venue' => $validated['venue'] ?? null,
             'status' => $validated['status'],
             'registration_type' => $validated['registration_type'],
@@ -368,5 +682,41 @@ class EventController extends Controller
         return redirect()
             ->route('club.events.show', $event)
             ->with('status', 'Event updated.');
+    }
+
+    public function updateStream(Request $request, Event $event)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', 'in:start,stop'],
+            'stream_url' => ['nullable', 'url', 'max:2000'],
+        ]);
+
+        if ($validated['action'] === 'start') {
+            if (empty($validated['stream_url'])) {
+                throw ValidationException::withMessages([
+                    'stream_url' => 'Live stream URL is required to start.',
+                ]);
+            }
+
+            $event->update([
+                'live_stream_url' => $validated['stream_url'],
+                'live_stream_started_at' => now(),
+            ]);
+
+            return back()->with('status', 'Live stream started/updated.');
+        }
+
+        $event->update([
+            'live_stream_url' => null,
+            'live_stream_started_at' => null,
+        ]);
+        $event->streamViewers()->delete();
+
+        return back()->with('status', 'Live stream stopped.');
     }
 }

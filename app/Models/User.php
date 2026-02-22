@@ -22,14 +22,29 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'student_id',
+        'staff_id',
         'study_year',
         'department',
+        'position',
+        'contact_information',
+        'responsibilities',
         'email',
         'password',
         'profile_photo_path',
         'display_name',
         'nickname',
         'role',
+        'club_attachment_path',
+        'club_approval_status',
+        'club_approved_at',
+        'account_status',
+        'ban_reason',
+        'banned_at',
+        'appeal_status',
+        'appeal_message',
+        'appeal_review_note',
+        'appealed_at',
+        'appeal_reviewed_at',
         'bio',
     ];
 
@@ -52,6 +67,10 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'club_approved_at' => 'datetime',
+            'banned_at' => 'datetime',
+            'appealed_at' => 'datetime',
+            'appeal_reviewed_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -65,5 +84,15 @@ class User extends Authenticatable
     public function calendarEvents(): HasMany
     {
         return $this->hasMany(StudentCalendarEvent::class, 'student_id');
+    }
+
+    public function postings(): HasMany
+    {
+        return $this->hasMany(Posting::class, 'club_id');
+    }
+
+    public function eventsOrganized(): HasMany
+    {
+        return $this->hasMany(Event::class, 'club_id');
     }
 }

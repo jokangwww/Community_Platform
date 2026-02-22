@@ -97,6 +97,12 @@
         </div>
 
         <div class="card">
+            @if (session('status'))
+                <div style="background:#ecfdf3;border:1px solid #9fdcb8;color:#14532d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div style="background:#ffecec;border:1px solid #f5c2c2;color:#7f1d1d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
                     <strong>Please correct the following:</strong>
@@ -122,7 +128,7 @@
             </form>
 
                 <div class="link">
-                    <a href="#">Forgot password?</a>
+                    <a href="{{ route('password.request') }}">Forgot password?</a>
                 </div>
                 <div class="link">
                     New to the platform? <a href="{{ route('register') }}">Create an account</a>

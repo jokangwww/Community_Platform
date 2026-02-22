@@ -19,7 +19,16 @@ class TicketPurchase extends Model
         'ticket_number',
         'ticket_number_seq',
         'status',
+        'attended_at',
+        'attendance_marked_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'attended_at' => 'datetime',
+        ];
+    }
 
     public function event()
     {
@@ -29,5 +38,10 @@ class TicketPurchase extends Model
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    public function attendanceMarker()
+    {
+        return $this->belongsTo(User::class, 'attendance_marked_by');
     }
 }

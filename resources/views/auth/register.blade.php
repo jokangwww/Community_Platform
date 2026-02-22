@@ -159,7 +159,7 @@
 
         <div class="card">
             <h1>Create your account</h1>
-            <p>Join the community platform to access student services, events, and more.</p>
+            <p>Join the community platform to access student services, events, and more. We will send an OTP to verify your email after registration.</p>
 
             @if ($errors->any())
                 <div style="background:#ffecec;border:1px solid #f5c2c2;color:#7f1d1d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
@@ -172,27 +172,24 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('register.submit') }}">
+            <form method="POST" action="{{ route('register.submit') }}" enctype="multipart/form-data">
                 @csrf
+                @php
+                    $departmentOptions = $departments ?? collect();
+                @endphp
                 <div class="field">
                     <label for="name">Full name</label>
                     <input id="name" name="name" type="text" placeholder="e.g. Aisyah Lee" value="{{ old('name') }}" required>
                 </div>
 
-                <div class="field">
+                <div class="field" id="student-id-field">
                     <label for="student_id">Student / Staff ID</label>
                     <input id="student_id" name="student_id" type="text" placeholder="e.g. 21WMR12345" value="{{ old('student_id') }}">
                 </div>
 
-                <div class="grid">
-                    <div class="field">
-                        <label for="email">Email</label>
-                        <input id="email" name="email" type="email" placeholder="Your TAR UMT email" value="{{ old('email') }}" required>
-                    </div>
-                    <div class="field">
-                        <label for="phone">Phone number (optional)</label>
-                        <input id="phone" name="phone" type="tel" placeholder="01X-XXXXXXX" value="{{ old('phone') }}">
-                    </div>
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" placeholder="Your TAR UMT email" value="{{ old('email') }}" required>
                 </div>
 
                 <div class="grid">
@@ -226,6 +223,29 @@
                     </select>
                 </div>
 
+                <div class="field" id="department-field" style="display:none;">
+                    <label for="department">Department</label>
+                    <input
+                        id="department"
+                        name="department"
+                        type="text"
+                        list="department-options"
+                        value="{{ old('department') }}"
+                        placeholder="Type to find and select department"
+                    >
+                    <datalist id="department-options">
+                        @foreach ($departmentOptions as $department)
+                            <option value="{{ $department->name }}"></option>
+                        @endforeach
+                    </datalist>
+                </div>
+
+                <div class="field" id="club-attachment-field" style="display:none;">
+                    <label for="club_attachment">Official club supporting document</label>
+                    <input id="club_attachment" name="club_attachment" type="file" accept=".pdf,.jpg,.jpeg,.png">
+                    <div style="font-size:12px;color:#6a6a6a;margin-top:6px;">For Official Clubs only. Allowed: PDF/JPG/PNG, max 5MB.</div>
+                </div>
+
                 <label class="check">
                     <input type="checkbox" name="terms" value="1" {{ old('terms') ? 'checked' : '' }} required>
                     I agree to the platform terms and privacy notice.
@@ -246,6 +266,13 @@
             var bar = document.getElementById('strength-bar');
             var text = document.getElementById('strength-text');
             var hints = document.getElementById('strength-hints');
+            var roleSelect = document.getElementById('role');
+            var studentIdField = document.getElementById('student-id-field');
+            var studentIdInput = document.getElementById('student_id');
+            var departmentField = document.getElementById('department-field');
+            var departmentInput = document.getElementById('department');
+            var clubAttachmentField = document.getElementById('club-attachment-field');
+            var clubAttachmentInput = document.getElementById('club_attachment');
 
             function scorePassword(value) {
                 var score = 0;
@@ -291,6 +318,47 @@
 
             input.addEventListener('input', updateStrength);
             updateStrength();
+
+            function toggleRoleFields() {
+                var role = roleSelect ? roleSelect.value : '';
+                var isClub = role === 'club';
+                var isStudent = role === 'student';
+
+                if (studentIdField) {
+                    studentIdField.style.display = isClub ? 'none' : 'block';
+                }
+
+                if (studentIdInput) {
+                    studentIdInput.required = false;
+                    if (isClub) {
+                        studentIdInput.value = '';
+                    }
+                }
+
+                if (clubAttachmentField) {
+                    clubAttachmentField.style.display = isClub ? 'block' : 'none';
+                }
+
+                if (clubAttachmentInput) {
+                    clubAttachmentInput.required = isClub;
+                }
+
+                if (departmentField) {
+                    departmentField.style.display = isStudent ? 'block' : 'none';
+                }
+
+                if (departmentInput) {
+                    departmentInput.required = isStudent;
+                    if (!isStudent) {
+                        departmentInput.value = '';
+                    }
+                }
+            }
+
+            if (roleSelect) {
+                roleSelect.addEventListener('change', toggleRoleFields);
+                toggleRoleFields();
+            }
         })();
     </script>
 </body>

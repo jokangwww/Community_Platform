@@ -58,6 +58,24 @@
             border: 1px solid #ccc;
             background: #f7f7f7;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .pill-btn.icon-btn {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+        .pill-btn.icon-btn svg {
+            width: 20px;
+            height: 20px;
+            display: block;
         }
         .pill-btn:hover { background: #eee; }
         .layout {
@@ -206,6 +224,11 @@
         </a>
         <div class="user-area">
             <span>@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'User'))</span>
+            <a href="{{ route('club.profile') }}" class="pill-btn icon-btn" title="Profile" aria-label="Profile">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.3 0-6 2.1-6 4.6 0 .8.7 1.4 1.5 1.4h9c.8 0 1.5-.6 1.5-1.4C18 16.1 15.3 14 12 14Z" fill="currentColor"/>
+                </svg>
+            </a>
             <form method="POST" action="{{ route('logout') }}" style="margin:0;">
                 @csrf
                 <button type="submit" class="pill-btn">Log Out</button>
@@ -226,10 +249,8 @@
                 <li><a class="nav-link" href="{{ route('club.events.index') }}">- Event</a></li>
                 <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
                 <li><a class="nav-link" href="{{ route('club.tickets.index') }}">- E-Ticket</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'live-stream') }}">- Live Stream</a></li>
-                <li><a class="nav-link" href="{{ route('club.events.propose') }}">- Event Propose</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'lucky-draw') }}">- Lucky Draw</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'event-attendance') }}">- Event Attendance</a></li>
+                <li><a class="nav-link" href="{{ route('club.lucky-draw.index') }}">- Lucky Draw</a></li>
+                <li><a class="nav-link" href="{{ route('club.events.attendance') }}">- Event Attendance</a></li>
             </ul>
         </aside>
         <main class="content">

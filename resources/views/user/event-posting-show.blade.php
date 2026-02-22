@@ -124,6 +124,40 @@
         .posting-title {
             margin-bottom: 10px;
         }
+        .organizer-link {
+            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #1f1f1f;
+        }
+        .organizer-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid #cfcfcf;
+            background: #f0f4ff;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #4a4a4a;
+        }
+        .organizer-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .organizer-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .organizer-link:hover .organizer-name {
+            text-decoration: underline;
+        }
         .posting-footer-row {
             margin-top: 12px;
             display: flex;
@@ -166,6 +200,14 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
+        }
+        .posting-title-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            flex-wrap: wrap;
         }
         .status-badge {
             display: inline-flex;
@@ -187,6 +229,32 @@
             color: #a11919;
             border: 1px solid #f3c2bf;
         }
+        .status-none {
+            background: #f2f3f5;
+            color: #4a4a4a;
+            border: 1px solid #d0d4d9;
+        }
+        .status-outdated {
+            background: #ececec;
+            color: #4a4a4a;
+            border: 1px solid #cfcfcf;
+        }
+        .posting-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #4a4a4a;
+            margin-top: 8px;
+        }
+        .meta-pill {
+            border: 1px solid #d0d0d0;
+            border-radius: 999px;
+            padding: 2px 10px;
+            background: #fff;
+            font-weight: 500;
+            font-size: 11px;
+        }
         .register-btn {
             padding: 8px 14px;
             border-radius: 6px;
@@ -205,6 +273,21 @@
             border-color: #b0b0b0;
             color: #5a5a5a;
             cursor: not-allowed;
+        }
+        .lucky-draw-panel {
+            border: 1px solid #d6d6d6;
+            border-radius: 8px;
+            background: #fff;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #2f2f2f;
+        }
+        .lucky-draw-panel h4 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+        .lucky-draw-panel p {
+            margin: 4px 0;
         }
         .favorite-active svg path {
             fill: #d14b4b;
@@ -283,21 +366,65 @@
                 $limit = $posting->event->participant_limit ?? null;
                 $currentCount = $eventRegistrationCounts[$eventId] ?? 0;
                 $isFull = $limit && $currentCount >= $limit;
+                $isOutdated = $posting->outdated_at && $posting->outdated_at->lte(now());
+                $statusValue = $posting->status ?? 'open';
+                $statusClass = $statusValue === 'open'
+                    ? 'status-open'
+                    : ($statusValue === 'closed' ? 'status-closed' : 'status-none');
+                $showStatusBadge = in_array($statusValue, ['open', 'closed'], true);
             @endphp
             <div class="posting-desc">
+                @if ($posting->club && $posting->club->role === 'club')
+                    <a class="organizer-link" href="{{ route('user.clubs.show', $posting->club) }}" title="View club profile">
+                        <span class="organizer-avatar">
+                            @if ($posting->club->profile_photo_path)
+                                <img src="{{ asset('storage/' . $posting->club->profile_photo_path) }}" alt="{{ $posting->club->name }} profile photo">
+                            @else
+                                {{ strtoupper(substr($posting->club->name, 0, 1)) }}
+                            @endif
+                        </span>
+                        <span class="organizer-name">{{ $posting->club->display_name ?: $posting->club->name }}</span>
+                    </a>
+                @endif
                 <div class="posting-title">
                     <h3>{{ $posting->event->name ?? 'Event' }}</h3>
-                    <span class="status-badge {{ ($posting->status ?? 'open') === 'open' ? 'status-open' : 'status-closed' }}">
-                        {{ ucfirst($posting->status ?? 'open') }}
+                    @if ($showStatusBadge)
+                        <span class="status-badge {{ $statusClass }}">
+                            {{ ucfirst($statusValue) }}
+                        </span>
+                    @endif
+                    @if ($isOutdated)
+                        <span class="status-badge status-outdated">Outdated</span>
+                    @endif
+                    <span class="posting-title-meta">
+                        <span class="meta-pill">Posted: {{ optional($posting->created_at)->format('Y-m-d H:i') ?: '-' }}</span>
+                        @if ($posting->outdated_at)
+                            <span class="meta-pill">Outdated At: {{ optional($posting->outdated_at)->format('Y-m-d H:i') }}</span>
+                        @endif
                     </span>
                 </div>
                 <div>{{ $posting->description }}</div>
             </div>
+            @php
+                $draw = $posting->event?->luckyDraw;
+                $drawExcluded = $draw ? $draw->numbers->where('type', 'excluded')->pluck('number')->sort()->values()->all() : [];
+                $drawWinning = $draw ? $draw->numbers->where('type', 'winning')->pluck('number')->sort()->values()->all() : [];
+            @endphp
+            @if ($draw)
+                <div class="lucky-draw-panel">
+                    <h4>Lucky Draw Results</h4>
+                    <p><strong>Range:</strong> {{ $draw->range_start }} - {{ $draw->range_end }}</p>
+                    <p><strong>Excluded:</strong> {{ $drawExcluded ? implode(', ', $drawExcluded) : 'None' }}</p>
+                    <p><strong>Winning Numbers:</strong> {{ $drawWinning ? implode(', ', $drawWinning) : 'Not announced yet' }}</p>
+                </div>
+            @endif
             <div class="posting-footer-row">
                 <div>
                     @if (!empty($canRegister) && ($posting->status ?? 'open') === 'open')
                         @if ($isRegistered)
                             <button type="button" class="register-btn" disabled>Registered</button>
+                        @elseif ($isOutdated)
+                            <button type="button" class="register-btn" disabled>Outdated</button>
                         @elseif ($isFull)
                             <button type="button" class="register-btn" disabled>Full</button>
                         @else

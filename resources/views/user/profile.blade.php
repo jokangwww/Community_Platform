@@ -29,6 +29,34 @@
             padding: 16px;
             border-radius: 8px;
         }
+        .softskill-total {
+            margin-top: 10px;
+            border: 1px solid #cfd9ea;
+            background: #f4f8ff;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #24446f;
+        }
+        .softskill-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .softskill-table th,
+        .softskill-table td {
+            border-bottom: 1px solid #e6e6e6;
+            padding: 8px 6px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .softskill-table th {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
         .panel-title {
             font-size: 14px;
             font-weight: 600;
@@ -215,6 +243,7 @@
             $hasProfileErrors = $errors->has('name')
                 || $errors->has('display_name')
                 || $errors->has('role')
+                || $errors->has('department')
                 || $errors->has('email')
                 || $errors->has('bio');
         @endphp
@@ -266,6 +295,26 @@
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>
+                <div class="form-row" id="department-row">
+                    <label for="department">Department</label>
+                    <input
+                        id="department"
+                        name="department"
+                        type="text"
+                        list="department-options"
+                        value="{{ old('department', $user?->department ?? '') }}"
+                        placeholder="Type to find and select department"
+                        readonly
+                    >
+                    <datalist id="department-options">
+                        @foreach (($departments ?? collect()) as $department)
+                            <option value="{{ $department->name }}"></option>
+                        @endforeach
+                    </datalist>
+                    @error('department')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
             <div class="section-title" style="margin-top: 16px;">About the User</div>
             <div class="form-row full" style="margin-top: 10px;">
@@ -283,6 +332,38 @@
                 <div class="status-text" style="margin-top: 10px;">{{ session('profile_status') }}</div>
             @endif
         </form>
+        <div class="profile-panel">
+            <div class="section-title">Soft Skill Marks</div>
+            <div class="softskill-total">
+                Total Cumulative Marks: <strong>{{ (int) ($softSkillTotal ?? 0) }}</strong>
+            </div>
+            @if (($softSkillBreakdown ?? collect())->isEmpty())
+                <div class="status-text" style="margin-top: 10px; color: #4a4a4a;">No soft skill marks recorded yet.</div>
+            @else
+                <table class="softskill-table">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Participant</th>
+                            <th>Volunteer</th>
+                            <th>Position Rule</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($softSkillBreakdown as $item)
+                            <tr>
+                                <td>{{ $item['event_name'] }}</td>
+                                <td>{{ $item['participant_points'] }}</td>
+                                <td>{{ $item['volunteer_points'] }}</td>
+                                <td>{{ $item['volunteer_position'] ?: '-' }}</td>
+                                <td><strong>{{ $item['total_points'] }}</strong></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
     </div>
     <script>
         (function () {
@@ -293,6 +374,19 @@
             if (!editButton || !form || !actionBar || !cancelButton) return;
 
             const fields = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]'));
+            const roleField = document.getElementById('role');
+            const departmentRow = document.getElementById('department-row');
+            const departmentField = document.getElementById('department');
+
+            const toggleDepartment = () => {
+                if (!roleField || !departmentRow || !departmentField) return;
+                const isStudent = roleField.value === 'student';
+                departmentRow.style.display = isStudent ? 'flex' : 'none';
+                departmentField.required = isStudent;
+                if (!isStudent) {
+                    departmentField.value = '';
+                }
+            };
 
             const setEditable = (isEditable) => {
                 fields.forEach((field) => {
@@ -315,14 +409,20 @@
                         }
                     }
                 });
+                toggleDepartment();
                 actionBar.classList.toggle('is-visible', isEditable);
             };
 
             editButton.addEventListener('click', () => setEditable(true));
             cancelButton.addEventListener('click', () => setEditable(false));
+            if (roleField) {
+                roleField.addEventListener('change', toggleDepartment);
+            }
 
             if (form.dataset.startEdit === 'true') {
                 setEditable(true);
+            } else {
+                toggleDepartment();
             }
         })();
     </script>

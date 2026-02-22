@@ -101,7 +101,7 @@
         }
         .subevent-row {
             display: grid;
-            grid-template-columns: 1fr 170px 140px 140px auto;
+            grid-template-columns: 1fr 220px 170px 140px 140px auto;
             gap: 10px;
             align-items: center;
         }
@@ -172,13 +172,6 @@
             <label for="description">Event Description</label>
             <textarea id="description" name="description" required>{{ old('description') }}</textarea>
             @error('description')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
-        </div>
-        <div class="field">
-            <label for="category">Event Category</label>
-            <input id="category" name="category" type="text" value="{{ old('category') }}" required>
-            @error('category')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
@@ -263,6 +256,12 @@
                     @foreach (old('sub_event_title') as $index => $title)
                         <div class="subevent-row">
                             <input type="text" name="sub_event_title[]" value="{{ $title }}" placeholder="e.g. Registration day">
+                            <select name="sub_event_location_point_id[]">
+                                <option value="">Select location point</option>
+                                @foreach (($locationPointOptions ?? []) as $option)
+                                    <option value="{{ $option['id'] }}" @selected((string) old('sub_event_location_point_id.' . $index) === (string) $option['id'])>{{ $option['label'] }}</option>
+                                @endforeach
+                            </select>
                             <input type="date" name="sub_event_date[]" value="{{ old('sub_event_date.' . $index) }}">
                             <input type="time" name="sub_event_start_time[]" value="{{ old('sub_event_start_time.' . $index) }}">
                             <input type="time" name="sub_event_end_time[]" value="{{ old('sub_event_end_time.' . $index) }}">
@@ -284,6 +283,9 @@
             @error('sub_event_end_time.*')
                 <div class="error-text">{{ $message }}</div>
             @enderror
+            @error('sub_event_location_point_id.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
         </div>
         <div class="field">
             <label>Faculty limits</label>
@@ -291,13 +293,18 @@
                 @if (is_array(old('faculty_name')))
                     @foreach (old('faculty_name') as $index => $name)
                         <div class="faculty-row">
-                            <input type="text" name="faculty_name[]" value="{{ $name }}" placeholder="e.g. Faculty of Computing">
+                            <input type="text" name="faculty_name[]" list="department-options" value="{{ $name }}" placeholder="Type to find department">
                             <input type="number" name="faculty_limit[]" min="1" max="100000" value="{{ old('faculty_limit.' . $index) }}" placeholder="Limit">
                             <button type="button" class="faculty-remove">Remove</button>
                         </div>
                     @endforeach
                 @endif
             </div>
+            <datalist id="department-options">
+                @foreach (($departments ?? collect()) as $department)
+                    <option value="{{ $department->name }}"></option>
+                @endforeach
+            </datalist>
             <button type="button" id="faculty_add" class="faculty-add">Add faculty limit</button>
             @error('faculty_name.*')
                 <div class="error-text">{{ $message }}</div>
@@ -455,12 +462,13 @@
         (function () {
             var list = document.getElementById('subevent_list');
             var addBtn = document.getElementById('subevent_add');
+            var locationPointOptions = @json($locationPointOptions ?? []);
 
             if (!list || !addBtn) {
                 return;
             }
 
-            function makeRow(title, dateValue, startTimeValue, endTimeValue) {
+            function makeRow(title, locationPointId, dateValue, startTimeValue, endTimeValue) {
                 var row = document.createElement('div');
                 row.className = 'subevent-row';
 
@@ -469,6 +477,24 @@
                 titleInput.name = 'sub_event_title[]';
                 titleInput.placeholder = 'e.g. Registration day';
                 titleInput.value = title || '';
+
+                var locationSelect = document.createElement('select');
+                locationSelect.name = 'sub_event_location_point_id[]';
+
+                var emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'Select location point';
+                locationSelect.appendChild(emptyOption);
+
+                locationPointOptions.forEach(function (option) {
+                    var item = document.createElement('option');
+                    item.value = String(option.id);
+                    item.textContent = option.label;
+                    if (String(locationPointId || '') === String(option.id)) {
+                        item.selected = true;
+                    }
+                    locationSelect.appendChild(item);
+                });
 
                 var dateInput = document.createElement('input');
                 dateInput.type = 'date';
@@ -491,6 +517,7 @@
                 remove.textContent = 'Remove';
 
                 row.appendChild(titleInput);
+                row.appendChild(locationSelect);
                 row.appendChild(dateInput);
                 row.appendChild(startTimeInput);
                 row.appendChild(endTimeInput);
@@ -511,7 +538,7 @@
             }
 
             addBtn.addEventListener('click', function () {
-                list.appendChild(makeRow('', '', '', ''));
+                list.appendChild(makeRow('', '', '', '', ''));
                 wireRemoveButtons();
             });
 
@@ -546,7 +573,8 @@
                 var nameInput = document.createElement('input');
                 nameInput.type = 'text';
                 nameInput.name = 'faculty_name[]';
-                nameInput.placeholder = 'e.g. Faculty of Computing';
+                nameInput.placeholder = 'Type to find department';
+                nameInput.setAttribute('list', 'department-options');
                 nameInput.value = nameValue || '';
 
                 var limitInput = document.createElement('input');

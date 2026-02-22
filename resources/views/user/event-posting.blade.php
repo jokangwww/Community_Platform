@@ -29,6 +29,13 @@
             border-radius: 4px;
             font-size: 16px;
         }
+        .search-bar select {
+            padding: 8px 10px;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+        }
         .search-icon {
             display: inline-flex;
             align-items: center;
@@ -162,6 +169,40 @@
         .posting-title {
             margin-bottom: 10px;
         }
+        .organizer-link {
+            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #1f1f1f;
+        }
+        .organizer-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid #cfcfcf;
+            background: #f0f4ff;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #4a4a4a;
+        }
+        .organizer-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .organizer-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .organizer-link:hover .organizer-name {
+            text-decoration: underline;
+        }
         .posting-footer-row {
             margin-top: 10px;
             display: flex;
@@ -204,6 +245,14 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
+        }
+        .posting-title-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            flex-wrap: wrap;
         }
         .status-badge {
             display: inline-flex;
@@ -224,6 +273,32 @@
             background: #fce8e6;
             color: #a11919;
             border: 1px solid #f3c2bf;
+        }
+        .status-none {
+            background: #f2f3f5;
+            color: #4a4a4a;
+            border: 1px solid #d0d4d9;
+        }
+        .status-outdated {
+            background: #ececec;
+            color: #4a4a4a;
+            border: 1px solid #cfcfcf;
+        }
+        .posting-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #4a4a4a;
+            margin-top: 8px;
+        }
+        .meta-pill {
+            border: 1px solid #d0d0d0;
+            border-radius: 999px;
+            padding: 2px 10px;
+            background: #fff;
+            font-weight: 500;
+            font-size: 11px;
         }
         .register-btn {
             padding: 8px 14px;
@@ -290,20 +365,25 @@
 
     <div class="posting-header">
         <h2>Event Posting</h2>
-        <div class="search-bar">
-            <input type="text" placeholder="Search">
+        <form class="search-bar" method="GET" action="{{ url()->current() }}">
+            <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search">
+            <select name="lifecycle">
+                <option value="all" @selected(($filters['lifecycle'] ?? 'all') === 'all')>All</option>
+                <option value="current" @selected(($filters['lifecycle'] ?? 'all') === 'current')>Current</option>
+                <option value="outdated" @selected(($filters['lifecycle'] ?? 'all') === 'outdated')>Outdated</option>
+            </select>
             <span class="search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
                 </svg>
             </span>
-        </div>
+        </form>
     </div>
 
     <div class="posting-tabs">
-        <a href="{{ route('user.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
+        <a href="{{ route('user.event-posting', ['q' => $filters['q'] ?? '', 'lifecycle' => $filters['lifecycle'] ?? 'all']) }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
         <span>/</span>
-        <a href="{{ route('user.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
+        <a href="{{ route('user.event-posting.favorites', ['q' => $filters['q'] ?? '', 'lifecycle' => $filters['lifecycle'] ?? 'all']) }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
     </div>
 
     <div class="posting-list">
@@ -326,6 +406,12 @@
                     $limit = $posting->event->participant_limit ?? null;
                     $currentCount = $eventRegistrationCounts[$eventId] ?? 0;
                     $isFull = $limit && $currentCount >= $limit;
+                    $isOutdated = $posting->outdated_at && $posting->outdated_at->lte(now());
+                    $statusValue = $posting->status ?? 'open';
+                    $statusClass = $statusValue === 'open'
+                        ? 'status-open'
+                        : ($statusValue === 'closed' ? 'status-closed' : 'status-none');
+                    $showStatusBadge = in_array($statusValue, ['open', 'closed'], true);
                 @endphp
                 <div class="posting-card">
                     <div class="posting-media">
@@ -360,10 +446,33 @@
                     </div>
                     <div class="posting-body">
                         <div class="posting-desc">
+                            @if ($posting->club && $posting->club->role === 'club')
+                                <a class="organizer-link" href="{{ route('user.clubs.show', $posting->club) }}" title="View club profile">
+                                    <span class="organizer-avatar">
+                                        @if ($posting->club->profile_photo_path)
+                                            <img src="{{ asset('storage/' . $posting->club->profile_photo_path) }}" alt="{{ $posting->club->name }} profile photo">
+                                        @else
+                                            {{ strtoupper(substr($posting->club->name, 0, 1)) }}
+                                        @endif
+                                    </span>
+                                    <span class="organizer-name">{{ $posting->club->display_name ?: $posting->club->name }}</span>
+                                </a>
+                            @endif
                             <div class="posting-title">
                                 <h3>{{ $posting->event->name ?? 'Event' }}</h3>
-                                <span class="status-badge {{ ($posting->status ?? 'open') === 'open' ? 'status-open' : 'status-closed' }}">
-                                    {{ ucfirst($posting->status ?? 'open') }}
+                                @if ($showStatusBadge)
+                                    <span class="status-badge {{ $statusClass }}">
+                                        {{ ucfirst($statusValue) }}
+                                    </span>
+                                @endif
+                                @if ($isOutdated)
+                                    <span class="status-badge status-outdated">Outdated</span>
+                                @endif
+                                <span class="posting-title-meta">
+                                    <span class="meta-pill">Posted: {{ optional($posting->created_at)->format('Y-m-d H:i') ?: '-' }}</span>
+                                    @if ($posting->outdated_at)
+                                        <span class="meta-pill">Outdated At: {{ optional($posting->outdated_at)->format('Y-m-d H:i') }}</span>
+                                    @endif
                                 </span>
                             </div>
                             <div>{{ $posting->description }}</div>
@@ -373,6 +482,8 @@
                                 @if (!empty($canRegister) && ($posting->status ?? 'open') === 'open')
                                     @if ($isRegistered)
                                         <button type="button" class="register-btn" disabled>Registered</button>
+                                    @elseif ($isOutdated)
+                                        <button type="button" class="register-btn" disabled>Outdated</button>
                                     @elseif ($isFull)
                                         <button type="button" class="register-btn" disabled>Full</button>
                                     @else

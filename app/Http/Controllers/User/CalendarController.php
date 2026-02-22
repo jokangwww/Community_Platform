@@ -25,6 +25,8 @@ class CalendarController extends Controller
 
     private function syncEventToCalendar(User $student, Event $event, string $source): void
     {
+        $event->loadMissing('subEvents.locationPoint');
+
         $eventDate = $event->subEvents->pluck('event_date')->filter()->sort()->first()
             ?? $event->start_date
             ?? $event->end_date;
@@ -43,7 +45,7 @@ class CalendarController extends Controller
                 'event_date' => $eventDate,
                 'event_start_time' => $firstSubEvent?->start_time ?: null,
                 'event_end_time' => $firstSubEvent?->end_time ?: null,
-                'venue' => $event->venue ?: null,
+                'venue' => $firstSubEvent?->locationPoint?->name ?: ($event->venue ?: null),
                 'source' => $source,
             ]
         );
@@ -56,15 +58,14 @@ class CalendarController extends Controller
             return;
         }
 
-        $events = Event::with('subEvents')
+        $events = Event::with('subEvents.locationPoint')
             ->whereIn('id', $eventIds)
             ->get()
             ->keyBy('id');
 
         $registeredEventIds = EventRegistration::query()
-            ->join('postings', 'event_registrations.posting_id', '=', 'postings.id')
             ->where('event_registrations.student_id', $student->id)
-            ->pluck('postings.event_id')
+            ->pluck('event_registrations.event_id')
             ->filter()
             ->unique()
             ->values()
@@ -96,9 +97,8 @@ class CalendarController extends Controller
     private function joinedEventIds(User $student): array
     {
         $registeredEventIds = EventRegistration::query()
-            ->join('postings', 'event_registrations.posting_id', '=', 'postings.id')
             ->where('event_registrations.student_id', $student->id)
-            ->pluck('postings.event_id')
+            ->pluck('event_registrations.event_id')
             ->filter()
             ->unique()
             ->values()
@@ -128,6 +128,7 @@ class CalendarController extends Controller
                         'date' => $date,
                         'event_name' => $event->name,
                         'subevent_title' => $subEvent->title,
+                        'location' => $subEvent->locationPoint?->name ?: ($event->venue ?: 'Not set'),
                         'status' => $date ? ($date < $today ? 'passed' : 'not_passed') : 'unknown',
                     ]);
                 }
@@ -139,6 +140,7 @@ class CalendarController extends Controller
                 'date' => $date,
                 'event_name' => $event->name,
                 'subevent_title' => 'No subevent title',
+                'location' => $event->venue ?: 'Not set',
                 'status' => $date ? ($date < $today ? 'passed' : 'not_passed') : 'unknown',
             ]);
         }
@@ -189,7 +191,7 @@ class CalendarController extends Controller
         $calendarStart = $month->copy()->startOfWeek(Carbon::SUNDAY);
         $calendarEnd = $month->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
-        $entries = StudentCalendarEvent::with('event.subEvents')
+        $entries = StudentCalendarEvent::with('event.subEvents.locationPoint')
             ->where('student_id', $student->id)
             ->whereNotNull('event_date')
             ->whereBetween('event_date', [$calendarStart->toDateString(), $calendarEnd->toDateString()])
@@ -217,7 +219,7 @@ class CalendarController extends Controller
         $allJoinedEventIds = $this->joinedEventIds($student);
         $allJoinedEvents = $allJoinedEventIds === []
             ? collect()
-            : Event::with('subEvents')
+            : Event::with('subEvents.locationPoint')
                 ->whereIn('id', $allJoinedEventIds)
                 ->get();
 
