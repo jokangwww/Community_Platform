@@ -48,6 +48,24 @@
             border: 1px solid #ccc;
             background: #f7f7f7;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .pill-btn.icon-btn {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+        .pill-btn.icon-btn svg {
+            width: 20px;
+            height: 20px;
+            display: block;
         }
         .pill-btn:hover { background: #eee; }
         .layout {
@@ -178,6 +196,11 @@
         </a>
         <div class="user-area">
             <span>@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'Admin'))</span>
+            <a href="{{ route('admin.profile') }}" class="pill-btn icon-btn" title="Profile" aria-label="Profile">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.3 0-6 2.1-6 4.6 0 .8.7 1.4 1.5 1.4h9c.8 0 1.5-.6 1.5-1.4C18 16.1 15.3 14 12 14Z" fill="currentColor"/>
+                </svg>
+            </a>
             <form method="POST" action="{{ route('logout') }}" style="margin:0;">
                 @csrf
                 <button type="submit" class="pill-btn">Log Out</button>
@@ -196,12 +219,17 @@
                 <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
                 <li><a class="nav-link" href="{{ route('admin.event-proposals.index') }}">- Event Proposals</a></li>
                 <li><a class="nav-link" href="#">- Event Posting</a></li>
-                <li><a class="nav-link" href="#">- Location</a></li>
+                <li><a class="nav-link" href="{{ route('admin.locations.index') }}">- Location</a></li>
+                <li><a class="nav-link" href="{{ route('admin.departments.index') }}">- Departments</a></li>
+                <li><a class="nav-link" href="{{ route('admin.soft-skills.index') }}">- Soft Skill Points</a></li>
                 <li><a class="nav-link" href="#">- Feedback</a></li>
                 <li><a class="nav-link" href="#">- Live Stream</a></li>
                 <li><a class="nav-link" href="#">- Venue Booking</a></li>
                 <li><a class="nav-link" href="#">- Sponsorship</a></li>
-                <li><a class="nav-link" href="#">- User Manage</a></li>
+                <li><a class="nav-link" href="{{ route('admin.club-accounts.index') }}">- Club Account Approvals</a></li>
+                <li><a class="nav-link" href="{{ route('admin.student-accounts.index') }}">- Student Accounts</a></li>
+                <li><a class="nav-link" href="{{ route('admin.user-profiles.index') }}">- User Profile Corrections</a></li>
+                <li><a class="nav-link" href="{{ route('admin.profile') }}">- Profile</a></li>
                 <li><a class="nav-link" href="#">- Venue</a></li>
             </ul>
         </aside>

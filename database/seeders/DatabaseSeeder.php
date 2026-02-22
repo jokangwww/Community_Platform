@@ -23,16 +23,16 @@ class DatabaseSeeder extends Seeder
             'name' => 'Admin User',
             'email' => 'admin@gmail.com',
             'role' => 'admin',
+            'staff_id' => 'ADMIN-001',
+            'position' => 'System Admin',
             'password' => $password,
             'email_verified_at' => now(),
         ]);
 
-        DB::table('admins')->insert([
-            'admin_id' => $admin->id,
-            'staff_id' => 'ADMIN-001',
-            'position' => 'System Admin',
-            'created_at' => now(),
-            'updated_at' => now(),
+        DB::table('departments')->insertOrIgnore([
+            ['name' => 'General', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Finance Department', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Computer Science Department', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $club = User::factory()->create([
@@ -66,7 +66,6 @@ class DatabaseSeeder extends Seeder
             'club_id' => 2,
             'name' => 'Testing',
             'description' => 'This is used for testing.',
-            'category' => 'Testing',
             'logo_path' => null,
             'attachment_path' => null,
             'created_at' => now(),

@@ -21,6 +21,7 @@
             margin-bottom: 6px;
         }
         .form-row input[type="text"],
+        .form-row input[type="datetime-local"],
         .form-row select,
         .form-row textarea {
             width: 100%;
@@ -102,8 +103,18 @@
             <select id="status" name="status" required>
                 <option value="open" @selected(old('status', 'open') === 'open')>Open</option>
                 <option value="closed" @selected(old('status') === 'closed')>Closed</option>
+                <option value="none" @selected(old('status') === 'none')>None</option>
             </select>
             @error('status')
+                <div class="error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <div class="form-row">
+            <label for="outdated_at">Outdated At (optional)</label>
+            <input id="outdated_at" name="outdated_at" type="datetime-local" value="{{ old('outdated_at') }}">
+            <div class="help-text">Set when this posting should become outdated.</div>
+            @error('outdated_at')
                 <div class="error">{{ $message }}</div>
             @enderror
         </div>

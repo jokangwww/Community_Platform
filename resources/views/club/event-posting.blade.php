@@ -33,6 +33,13 @@
             max-width: 360px;
             width: 100%;
         }
+        .search-bar select {
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: #fff;
+        }
         .search-bar button {
             padding: 8px 12px;
             border-radius: 6px;
@@ -184,6 +191,40 @@
         .posting-title {
             margin-bottom: 10px;
         }
+        .organizer-link {
+            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #1f1f1f;
+        }
+        .organizer-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid #cfcfcf;
+            background: #f0f4ff;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #4a4a4a;
+        }
+        .organizer-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .organizer-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .organizer-link:hover .organizer-name {
+            text-decoration: underline;
+        }
         .posting-meta {
             display: flex;
             align-items: center;
@@ -197,12 +238,21 @@
             border-radius: 999px;
             padding: 2px 10px;
             background: #fff;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 11px;
         }
         .posting-title {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
+        }
+        .posting-title-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            flex-wrap: wrap;
         }
         .status-badge {
             display: inline-flex;
@@ -223,6 +273,16 @@
             background: #fce8e6;
             color: #a11919;
             border: 1px solid #f3c2bf;
+        }
+        .status-none {
+            background: #f2f3f5;
+            color: #4a4a4a;
+            border: 1px solid #d0d4d9;
+        }
+        .status-outdated {
+            background: #ececec;
+            color: #4a4a4a;
+            border: 1px solid #cfcfcf;
         }
         .posting-actions {
             display: flex;
@@ -258,10 +318,6 @@
         .posting-actions svg {
             width: 26px;
             height: 26px;
-        }
-        .favorite-active svg path {
-            fill: #d14b4b;
-            stroke: #d14b4b;
         }
         .share-toast {
             position: fixed;
@@ -318,7 +374,12 @@
         <div class="posting-topbar-row">
             <h2>Posting</h2>
             <form class="search-bar" action="{{ url()->current() }}" method="GET">
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search">
+                <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search">
+                <select name="lifecycle">
+                    <option value="all" @selected(($filters['lifecycle'] ?? 'all') === 'all')>All</option>
+                    <option value="current" @selected(($filters['lifecycle'] ?? 'all') === 'current')>Current</option>
+                    <option value="outdated" @selected(($filters['lifecycle'] ?? 'all') === 'outdated')>Outdated</option>
+                </select>
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -326,11 +387,9 @@
 
     <div class="posting-subbar">
         <div class="posting-tabs">
-            <a href="{{ route('club.event-posting') }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
+            <a href="{{ route('club.event-posting', ['q' => $filters['q'] ?? '', 'lifecycle' => $filters['lifecycle'] ?? 'all']) }}" class="{{ $activeTab === 'all' ? 'active' : '' }}">All</a>
             <span>/</span>
-            <a href="{{ route('club.event-posting.mine') }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
-            <span>/</span>
-            <a href="{{ route('club.event-posting.favorites') }}" class="{{ $activeTab === 'favorites' ? 'active' : '' }}">Favorites</a>
+            <a href="{{ route('club.event-posting.mine', ['q' => $filters['q'] ?? '', 'lifecycle' => $filters['lifecycle'] ?? 'all']) }}" class="{{ $activeTab === 'mine' ? 'active' : '' }}">My Posting</a>
         </div>
         <a class="new-posting" href="{{ route('club.event-posting.create') }}">New Posting +</a>
     </div>
@@ -349,7 +408,12 @@
         @else
             @foreach ($postings as $posting)
                 @php
-                    $isFavorited = in_array($posting->id, $favoriteIds ?? [], true);
+                    $isOutdated = $posting->outdated_at && $posting->outdated_at->lte(now());
+                    $statusValue = $posting->status ?? 'open';
+                    $statusClass = $statusValue === 'open'
+                        ? 'status-open'
+                        : ($statusValue === 'closed' ? 'status-closed' : 'status-none');
+                    $showStatusBadge = in_array($statusValue, ['open', 'closed'], true);
                 @endphp
                 <div class="posting-card">
                     <div class="posting-media">
@@ -384,10 +448,33 @@
                     </div>
                     <div class="posting-body">
                         <div class="posting-desc">
+                            @if ($activeTab === 'all' && $posting->club && $posting->club->role === 'club')
+                                <a class="organizer-link" href="{{ route('club.clubs.show', $posting->club) }}" title="View club profile">
+                                    <span class="organizer-avatar">
+                                        @if ($posting->club->profile_photo_path)
+                                            <img src="{{ asset('storage/' . $posting->club->profile_photo_path) }}" alt="{{ $posting->club->name }} profile photo">
+                                        @else
+                                            {{ strtoupper(substr($posting->club->name, 0, 1)) }}
+                                        @endif
+                                    </span>
+                                    <span class="organizer-name">{{ $posting->club->display_name ?: $posting->club->name }}</span>
+                                </a>
+                            @endif
                             <div class="posting-title">
                                 <h3>{{ $posting->event->name ?? 'Event' }}</h3>
-                                <span class="status-badge {{ ($posting->status ?? 'open') === 'open' ? 'status-open' : 'status-closed' }}">
-                                    {{ ucfirst($posting->status ?? 'open') }}
+                                @if ($showStatusBadge)
+                                    <span class="status-badge {{ $statusClass }}">
+                                        {{ ucfirst($statusValue) }}
+                                    </span>
+                                @endif
+                                @if ($isOutdated)
+                                    <span class="status-badge status-outdated">Outdated</span>
+                                @endif
+                                <span class="posting-title-meta">
+                                    <span class="meta-pill">Posted: {{ optional($posting->created_at)->format('Y-m-d H:i') ?: '-' }}</span>
+                                    @if ($posting->outdated_at)
+                                        <span class="meta-pill">Outdated At: {{ optional($posting->outdated_at)->format('Y-m-d H:i') }}</span>
+                                    @endif
                                 </span>
                             </div>
                             <div>{{ $posting->description }}</div>
@@ -409,14 +496,6 @@
                                     </button>
                                 </form>
                             @else
-                                <form method="POST" action="{{ route('club.event-posting.favorite', $posting) }}">
-                                    @csrf
-                                    <button type="submit" title="Favorite" aria-label="Favorite" class="{{ $isFavorited ? 'favorite-active' : '' }}">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                            <path d="M12 20.4l-1.2-1.1C6 14.9 3 12 3 8.6 3 6.1 5 4 7.5 4c1.4 0 2.7.6 3.5 1.7C11.8 4.6 13.1 4 14.5 4 17 4 19 6.1 19 8.6c0 3.4-3 6.3-7.8 10.7L12 20.4z" fill="none" stroke="#111" stroke-width="1.6"/>
-                                        </svg>
-                                    </button>
-                                </form>
                                 <button type="button" class="share-btn" title="Share" aria-label="Share" data-share-url="{{ route('event-posting.show', $posting) }}">
                                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                         <path d="M18 8a3 3 0 1 0-2.8-4H15a3 3 0 0 0 .2 1.1L8.6 9.2a3 3 0 0 0-1.6-.5 3 3 0 1 0 1.6 5.5l6.6 4.1A3 3 0 1 0 16 16.1l-6.6-4.1A3 3 0 0 0 9.2 11l6.6-4.1A3 3 0 0 0 18 8z" fill="#111"/>

@@ -23,9 +23,8 @@ class JoinedEventController extends Controller
     private function joinedEventIds(User $student): array
     {
         $registeredEventIds = EventRegistration::query()
-            ->join('postings', 'event_registrations.posting_id', '=', 'postings.id')
             ->where('event_registrations.student_id', $student->id)
-            ->pluck('postings.event_id')
+            ->pluck('event_registrations.event_id')
             ->filter()
             ->unique()
             ->values()

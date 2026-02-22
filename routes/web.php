@@ -1,13 +1,31 @@
 <?php
 
 use App\Http\Controllers\Admin\EventProposalController as AdminEventProposalController;
+use App\Http\Controllers\Admin\ClubAccountApprovalController;
+use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\LocationManagementController;
+use App\Http\Controllers\Admin\SoftSkillController as AdminSoftSkillController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Admin\StudentAccountController;
+use App\Http\Controllers\Admin\UserProfileCorrectionController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\RegistrationOtpController;
 use App\Http\Controllers\Club\EventController;
 use App\Http\Controllers\Club\PostingController;
 use App\Http\Controllers\Club\ProfileController as ClubProfileController;
 use App\Http\Controllers\Club\RecruitmentController;
 use App\Http\Controllers\Club\TicketController as ClubTicketController;
+use App\Http\Controllers\Club\LuckyDrawController as ClubLuckyDrawController;
+use App\Http\Controllers\EventStreamController;
 use App\Http\Controllers\User\CalendarController as UserCalendarController;
+use App\Http\Controllers\User\AttendanceController as UserAttendanceController;
+use App\Http\Controllers\User\LocationController as UserLocationController;
+use App\Http\Controllers\User\LiveStreamController as UserLiveStreamController;
+use App\Http\Controllers\User\LuckyDrawController as UserLuckyDrawController;
+use App\Http\Controllers\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\User\AppealController as UserAppealController;
 use App\Http\Controllers\User\JoinedEventController as UserJoinedEventController;
+use App\Http\Controllers\User\ClubProfileController as UserClubProfileController;
 use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController;
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TicketController as UserTicketController;
@@ -15,7 +33,6 @@ use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
@@ -24,6 +41,11 @@ Route::get('/', function () {
 })->name('root');
 
 Route::middleware(['auth', 'role:student'])->group(function () {
+    Route::get('/student/appeal', [UserAppealController::class, 'show'])
+        ->name('student.appeal.show');
+    Route::post('/student/appeal', [UserAppealController::class, 'submit'])
+        ->name('student.appeal.submit');
+
     Route::get('/home', function () {
         return view('user.home');
     })->name('home');
@@ -268,8 +290,22 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ->name('user.recruitment.apply');
     Route::get('/events/calendar', [UserCalendarController::class, 'index'])
         ->name('user.calendar');
+    Route::get('/events/location', [UserLocationController::class, 'index'])
+        ->name('user.location');
+    Route::get('/events/live-stream', [UserLiveStreamController::class, 'index'])
+        ->name('user.live-stream');
+    Route::get('/events/lucky-draw', [UserLuckyDrawController::class, 'index'])
+        ->name('user.lucky-draw');
+    Route::get('/events/attendance', [UserAttendanceController::class, 'index'])
+        ->name('user.attendance');
     Route::get('/events/joined-events', [UserJoinedEventController::class, 'index'])
         ->name('user.joined-events');
+    Route::get('/notifications', [UserNotificationController::class, 'index'])
+        ->name('user.notifications');
+    Route::post('/notifications/read-all', [UserNotificationController::class, 'markAllAsRead'])
+        ->name('user.notifications.read-all');
+    Route::get('/clubs/{club}', [UserClubProfileController::class, 'show'])
+        ->name('user.clubs.show');
     Route::get('/events/{section}', function (string $section) {
         $title = Str::title(str_replace('-', ' ', $section));
 
@@ -284,11 +320,12 @@ Route::get('/event-posting/{posting}', function (Posting $posting) {
         abort(403);
     }
 
-    $posting->load(['event', 'images']);
+    $posting->load(['club', 'event.luckyDraw.numbers', 'images']);
 
     if ($user->role === 'club') {
         return view('club.event-posting-show', [
             'posting' => $posting,
+            'streamViewerCount' => $posting->event?->activeStreamViewerCount() ?? 0,
         ]);
     }
 
@@ -301,6 +338,9 @@ Route::get('/event-posting/{posting}', function (Posting $posting) {
         'favoriteIds' => $favoriteIds,
     ]);
 })->middleware('auth')->name('event-posting.show');
+Route::post('/events/{event}/stream/heartbeat', [EventStreamController::class, 'heartbeat'])
+    ->middleware('auth')
+    ->name('events.stream.heartbeat');
 Route::view('/login', 'auth.login')->name('login');
 Route::post('/login', function (Request $request) {
     $credentials = $request->validate([
@@ -311,6 +351,26 @@ Route::post('/login', function (Request $request) {
     if (Auth::attempt($credentials, true)) {
         $request->session()->regenerate();
         $user = Auth::user();
+        if ($user instanceof User && $user->role === 'club' && $user->club_approval_status !== 'approved') {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            $clubStatus = (string) ($user->club_approval_status ?? 'pending');
+            $clubError = $clubStatus === 'rejected'
+                ? 'Your club account request was rejected by admin.'
+                : 'Your club account is pending admin approval.';
+
+            return back()->withErrors([
+                'email' => $clubError,
+            ])->onlyInput('email');
+        }
+        if ($user instanceof User && $user->role === 'student' && $user->account_status === 'banned') {
+            return redirect()
+                ->route('student.appeal.show')
+                ->withErrors([
+                    'email' => 'Your student account has been banned. Please submit an appeal form.',
+                ]);
+        }
         if ($user instanceof User && $user->role === 'admin') {
             return redirect()->intended(route('admin.home'));
         }
@@ -325,12 +385,24 @@ Route::post('/login', function (Request $request) {
     ])->onlyInput('email');
 })->name('login.submit');
 
+Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])
+    ->name('password.request');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])
+    ->name('password.email');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
+    ->name('password.reset.form');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])
+    ->name('password.update');
+
 Route::get('/club', function () {
     return view('club.home');
 })->middleware(['auth', 'role:club'])->name('club.home');
 Route::get('/club/profile', [ClubProfileController::class, 'show'])
     ->middleware(['auth', 'role:club'])
     ->name('club.profile');
+Route::get('/club/clubs/{club}', [UserClubProfileController::class, 'show'])
+    ->middleware(['auth', 'role:club'])
+    ->name('club.clubs.show');
 Route::put('/club/profile', [ClubProfileController::class, 'update'])
     ->middleware(['auth', 'role:club'])
     ->name('club.profile.update');
@@ -343,6 +415,18 @@ Route::post('/club/profile/password', [ClubProfileController::class, 'updatePass
 Route::get('/admin', function () {
     return view('admin.home');
 })->middleware(['auth', 'role:admin'])->name('admin.home');
+Route::get('/admin/profile', [AdminProfileController::class, 'show'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.profile');
+Route::put('/admin/profile', [AdminProfileController::class, 'update'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.profile.update');
+Route::post('/admin/profile/photo', [AdminProfileController::class, 'updatePhoto'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.profile.photo');
+Route::post('/admin/profile/password', [AdminProfileController::class, 'updatePassword'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.profile.password');
 Route::get('/admin/event-proposals', [AdminEventProposalController::class, 'index'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-proposals.index');
@@ -352,6 +436,75 @@ Route::post('/admin/event-proposals/{event}/approve', [AdminEventProposalControl
 Route::post('/admin/event-proposals/{event}/reject', [AdminEventProposalController::class, 'reject'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-proposals.reject');
+Route::get('/admin/club-accounts', [ClubAccountApprovalController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.club-accounts.index');
+Route::get('/admin/club-accounts/{user}/attachment', [ClubAccountApprovalController::class, 'downloadAttachment'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.club-accounts.attachment');
+Route::post('/admin/club-accounts/{user}/approve', [ClubAccountApprovalController::class, 'approve'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.club-accounts.approve');
+Route::post('/admin/club-accounts/{user}/reject', [ClubAccountApprovalController::class, 'reject'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.club-accounts.reject');
+Route::get('/admin/student-accounts', [StudentAccountController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.student-accounts.index');
+Route::post('/admin/student-accounts/{user}/ban', [StudentAccountController::class, 'ban'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.student-accounts.ban');
+Route::post('/admin/student-accounts/{user}/unban', [StudentAccountController::class, 'unban'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.student-accounts.unban');
+Route::post('/admin/student-accounts/{user}/appeal/approve', [StudentAccountController::class, 'approveAppeal'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.student-accounts.appeal.approve');
+Route::post('/admin/student-accounts/{user}/appeal/reject', [StudentAccountController::class, 'rejectAppeal'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.student-accounts.appeal.reject');
+Route::get('/admin/user-profiles', [UserProfileCorrectionController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.user-profiles.index');
+Route::get('/admin/user-profiles/{user}/edit', [UserProfileCorrectionController::class, 'edit'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.user-profiles.edit');
+Route::put('/admin/user-profiles/{user}', [UserProfileCorrectionController::class, 'update'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.user-profiles.update');
+Route::get('/admin/locations', [LocationManagementController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.index');
+Route::get('/admin/departments', [DepartmentController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.departments.index');
+Route::post('/admin/departments', [DepartmentController::class, 'store'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.departments.store');
+Route::delete('/admin/departments/{department}', [DepartmentController::class, 'destroy'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.departments.destroy');
+Route::get('/admin/soft-skills', [AdminSoftSkillController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.soft-skills.index');
+Route::post('/admin/soft-skills/apply-all', [AdminSoftSkillController::class, 'updateAll'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.soft-skills.apply-all');
+Route::post('/admin/soft-skills/{event}', [AdminSoftSkillController::class, 'update'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.soft-skills.update');
+Route::post('/admin/locations/maps', [LocationManagementController::class, 'storeMap'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.maps.store');
+Route::delete('/admin/locations/maps/{locationMap}', [LocationManagementController::class, 'destroyMap'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.maps.destroy');
+Route::post('/admin/locations/maps/{locationMap}/points', [LocationManagementController::class, 'storePoint'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.points.store');
+Route::delete('/admin/locations/maps/{locationMap}/points/{point}', [LocationManagementController::class, 'destroyPoint'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.locations.points.destroy');
 Route::get('/club/event-posting', [PostingController::class, 'index'])
     ->middleware(['auth', 'role:club'])
     ->name('club.event-posting');
@@ -384,12 +537,22 @@ Route::delete('/club/event-posting/{posting}', [PostingController::class, 'destr
     ->name('club.event-posting.destroy');
 Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
-    Route::view('/events/propose', 'club.events.propose')->name('club.events.propose');
+    Route::get('/events/attendance', [EventController::class, 'attendance'])->name('club.events.attendance');
     Route::get('/events/create', [EventController::class, 'create'])->name('club.events.create');
     Route::post('/events', [EventController::class, 'store'])->name('club.events.store');
+    Route::get('/events/{event}/attendance', [EventController::class, 'attendanceShow'])->name('club.events.attendance.show');
     Route::get('/events/{event}', [EventController::class, 'show'])->name('club.events.show');
     Route::get('/events/{event}/edit', [EventController::class, 'edit'])->name('club.events.edit');
     Route::put('/events/{event}', [EventController::class, 'update'])->name('club.events.update');
+    Route::post('/events/{event}/stream', [EventController::class, 'updateStream'])->name('club.events.stream.update');
+    Route::post('/events/{event}/attendance/register', [EventController::class, 'markRegistrationAttendance'])
+        ->name('club.events.attendance.register');
+    Route::post('/events/{event}/attendance/registrations/{registration}', [EventController::class, 'markRegistrationAttendanceRow'])
+        ->name('club.events.attendance.register.row');
+    Route::post('/events/{event}/attendance/ticket', [EventController::class, 'markTicketAttendance'])
+        ->name('club.events.attendance.ticket');
+    Route::post('/events/{event}/attendance/tickets/{ticketPurchase}', [EventController::class, 'markTicketAttendanceRow'])
+        ->name('club.events.attendance.ticket.row');
     Route::post('/events/committee/validate', [EventController::class, 'validateCommittee'])
         ->name('club.events.committee.validate');
     Route::get('/tickets', [ClubTicketController::class, 'index'])->name('club.tickets.index');
@@ -404,33 +567,20 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::get('/recruitment/{recruitment}/edit', [RecruitmentController::class, 'edit'])->name('club.recruitment.edit');
     Route::put('/recruitment/{recruitment}', [RecruitmentController::class, 'update'])->name('club.recruitment.update');
     Route::delete('/recruitment/{recruitment}', [RecruitmentController::class, 'destroy'])->name('club.recruitment.destroy');
+    Route::get('/lucky-draw', [ClubLuckyDrawController::class, 'index'])->name('club.lucky-draw.index');
+    Route::post('/lucky-draw/{event}', [ClubLuckyDrawController::class, 'update'])->name('club.lucky-draw.update');
+    Route::post('/lucky-draw/{event}/draw-one', [ClubLuckyDrawController::class, 'drawOne'])->name('club.lucky-draw.draw-one');
 });
 
-Route::view('/register', 'auth.register')->name('register');
-Route::post('/register', function (Request $request) {
-    $validated = $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'student_id' => ['nullable', 'string', 'max:255', 'unique:users,student_id'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-        'password' => ['required', 'string', 'min:8', 'confirmed'],
-        'role' => ['required', 'in:student,staff,alumni,club'],
-        'terms' => ['accepted'],
-    ]);
-
-    $user = User::create([
-        'name' => trim($validated['name']),
-        'student_id' => $validated['student_id'] ?? null,
-        'email' => $validated['email'],
-        'password' => Hash::make($validated['password']),
-        'role' => $validated['role'],
-    ]);
-
-    Auth::login($user);
-
-    $request->session()->regenerate();
-
-    return redirect()->route('home');
-})->name('register.submit');
+Route::get('/register', [RegistrationOtpController::class, 'showRegisterForm'])->name('register');
+Route::post('/register', [RegistrationOtpController::class, 'register'])
+    ->name('register.submit');
+Route::get('/register/verify-otp', [RegistrationOtpController::class, 'showVerifyForm'])
+    ->name('register.verify.notice');
+Route::post('/register/verify-otp', [RegistrationOtpController::class, 'verify'])
+    ->name('register.verify.submit');
+Route::post('/register/verify-otp/resend', [RegistrationOtpController::class, 'resend'])
+    ->name('register.verify.resend');
 
 Route::post('/logout', function (Request $request) {
     Auth::logout();

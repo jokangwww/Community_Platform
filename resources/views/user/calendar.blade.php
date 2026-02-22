@@ -209,18 +209,22 @@
                     <div class="day-number">{{ $day['day'] }}</div>
                     @foreach ($dayEntries as $entry)
                         @php
-                            $subTitles = $entry->event?->subEvents
+                            $subItems = $entry->event?->subEvents
                                 ?->filter(fn ($subEvent) => (string) $subEvent->event_date === $day['date'])
-                                ->pluck('title')
+                                ->map(fn ($subEvent) => [
+                                    'title' => $subEvent->title,
+                                    'location' => $subEvent->locationPoint?->name ?: ($entry->venue ?: 'Not set'),
+                                ])
                                 ->filter()
                                 ->values()
                                 ?? collect();
                         @endphp
-                        @if ($subTitles->isNotEmpty())
-                            @foreach ($subTitles as $subTitle)
-                                <div class="event-chip" title="Event: {{ $entry->event_name }} | Title: {{ $subTitle }}">
+                        @if ($subItems->isNotEmpty())
+                            @foreach ($subItems as $subItem)
+                                <div class="event-chip" title="Event: {{ $entry->event_name }} | Title: {{ $subItem['title'] }} | Location: {{ $subItem['location'] }}">
                                     <div class="event-line">Event: {{ $entry->event_name }}</div>
-                                    <div class="event-line">Title: {{ $subTitle }}</div>
+                                    <div class="event-line">Title: {{ $subItem['title'] }}</div>
+                                    <div class="event-line">Location: {{ $subItem['location'] }}</div>
                                     <span class="calendar-source">({{ $entry->source === 'ticket' ? 'Ticket' : 'Register' }})</span>
                                 </div>
                             @endforeach
@@ -228,6 +232,7 @@
                             <div class="event-chip" title="{{ $entry->event_name }} (No subevent title)">
                                 <div class="event-line">Event: {{ $entry->event_name }}</div>
                                 <div class="event-line">Title: No subevent title</div>
+                                <div class="event-line">Location: {{ $entry->venue ?: 'Not set' }}</div>
                                 <span class="calendar-source">({{ $entry->source === 'ticket' ? 'Ticket' : 'Register' }})</span>
                             </div>
                         @endif
@@ -263,6 +268,7 @@
                             <th>Date</th>
                             <th>Event Name</th>
                             <th>Subevent Title</th>
+                            <th>Location</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -272,6 +278,7 @@
                                 <td>{{ $row['date'] ?: 'TBA' }}</td>
                                 <td>{{ $row['event_name'] }}</td>
                                 <td>{{ $row['subevent_title'] }}</td>
+                                <td>{{ $row['location'] }}</td>
                                 <td>
                                     @if ($row['status'] === 'passed')
                                         Passed

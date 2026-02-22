@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\PostingImage;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Posting extends Model
 {
@@ -15,8 +16,16 @@ class Posting extends Model
         'event_id',
         'description',
         'status',
+        'outdated_at',
         'poster_path',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'outdated_at' => 'datetime',
+        ];
+    }
 
     public function images()
     {
@@ -38,6 +47,11 @@ class Posting extends Model
         return $this->belongsTo(Event::class);
     }
 
+    public function club(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'club_id');
+    }
+
     public function favoritedBy()
     {
         return $this->belongsToMany(User::class, 'posting_favorites')
@@ -46,6 +60,6 @@ class Posting extends Model
 
     public function registrations()
     {
-        return $this->hasMany(EventRegistration::class);
+        return $this->hasMany(EventRegistration::class, 'event_id', 'event_id');
     }
 }

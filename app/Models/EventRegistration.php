@@ -10,17 +10,31 @@ class EventRegistration extends Model
     use HasFactory;
 
     protected $fillable = [
-        'posting_id',
+        'event_id',
         'student_id',
+        'attended_at',
+        'attendance_marked_by',
     ];
 
-    public function posting()
+    protected function casts(): array
     {
-        return $this->belongsTo(Posting::class);
+        return [
+            'attended_at' => 'datetime',
+        ];
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class);
     }
 
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    public function attendanceMarker()
+    {
+        return $this->belongsTo(User::class, 'attendance_marked_by');
     }
 }

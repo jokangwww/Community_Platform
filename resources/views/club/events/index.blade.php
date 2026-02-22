@@ -33,6 +33,13 @@
             max-width: 360px;
             width: 100%;
         }
+        .events-search select {
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: #fff;
+        }
         .events-search button {
             padding: 8px 12px;
             border-radius: 6px;
@@ -161,15 +168,6 @@
             margin: 0 0 6px;
             color: #4a4a4a;
         }
-        .event-tag {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 999px;
-            background: #e4e4e4;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-        }
         .empty-state {
             margin-top: 20px;
             padding: 24px;
@@ -200,6 +198,11 @@
             <h2>Manage Event</h2>
             <form class="events-search" action="{{ url()->current() }}" method="GET">
                 <input type="search" name="q" value="{{ request('q') }}" placeholder="Search">
+                <select name="approval_status">
+                    <option value="" @selected(($filters['approval_status'] ?? '') === '')>All</option>
+                    <option value="approved" @selected(($filters['approval_status'] ?? '') === 'approved')>Approved</option>
+                    <option value="rejected" @selected(($filters['approval_status'] ?? '') === 'rejected')>Rejected</option>
+                </select>
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -207,8 +210,6 @@
     <div class="events-subbar">
         <div class="events-tabs">
             <a class="active" href="{{ route('club.events.index') }}">My Event</a>
-            <span class="separator">/</span>
-            <a href="{{ route('club.events.propose') }}">Propose</a>
         </div>
         <a class="apply-btn" href="{{ route('club.events.create') }}">New Event +</a>
     </div>
@@ -242,7 +243,6 @@
                             </span>
                         </h3>
                         <p>{{ $event->description }}</p>
-                        <span class="event-tag">{{ $event->category }}</span>
                     </div>
                 </a>
             @endforeach

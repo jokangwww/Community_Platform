@@ -17,7 +17,7 @@ class TicketController extends Controller
 {
     private function syncCalendarEntry($student, Event $event): void
     {
-        $event->loadMissing('subEvents');
+        $event->loadMissing('subEvents.locationPoint');
         $eventDate = $event->subEvents->pluck('event_date')->filter()->sort()->first()
             ?? $event->start_date
             ?? $event->end_date;
@@ -36,7 +36,7 @@ class TicketController extends Controller
                 'event_date' => $eventDate,
                 'event_start_time' => $firstSubEvent?->start_time ?: null,
                 'event_end_time' => $firstSubEvent?->end_time ?: null,
-                'venue' => $event->venue ?: null,
+                'venue' => $firstSubEvent?->locationPoint?->name ?: ($event->venue ?: null),
                 'source' => 'ticket',
             ]
         );

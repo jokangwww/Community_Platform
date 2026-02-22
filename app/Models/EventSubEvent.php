@@ -12,8 +12,19 @@ class EventSubEvent extends Model
     protected $fillable = [
         'event_id',
         'title',
+        'location_point_id',
         'event_date',
         'start_time',
         'end_time',
     ];
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class);
+    }
+
+    public function locationPoint()
+    {
+        return $this->belongsTo(LocationPoint::class, 'location_point_id');
+    }
 }
