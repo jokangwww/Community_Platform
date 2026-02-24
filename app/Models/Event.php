@@ -29,6 +29,7 @@ class Event extends Model
         'attachment_path',
         'live_stream_url',
         'live_stream_started_at',
+        'soft_skill_category_id',
     ];
 
     protected function casts(): array
@@ -42,6 +43,11 @@ class Event extends Model
     {
         return $this->belongsToMany(User::class, 'event_committees')
             ->withTimestamps();
+    }
+
+    public function committeePositions(): HasMany
+    {
+        return $this->hasMany(EventCommitteePosition::class)->with('user')->orderBy('position_name');
     }
 
     public function subEvents()
@@ -97,6 +103,11 @@ class Event extends Model
     public function streamViewers(): HasMany
     {
         return $this->hasMany(EventStreamViewer::class);
+    }
+
+    public function softSkillCategory(): BelongsTo
+    {
+        return $this->belongsTo(SoftSkillCategory::class, 'soft_skill_category_id');
     }
 
     public function getLiveStreamEmbedUrlAttribute(): ?string

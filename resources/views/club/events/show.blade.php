@@ -119,6 +119,70 @@
             padding: 18px 20px;
             background: #fff;
         }
+        .committee-position-panel {
+            margin-top: 18px;
+            border: 1px solid #d6d6d6;
+            border-radius: 10px;
+            padding: 18px 20px;
+            background: #fff;
+            display: grid;
+            gap: 10px;
+        }
+        .committee-position-panel h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .committee-position-help {
+            font-size: 13px;
+            color: #4a4a4a;
+        }
+        .committee-position-list {
+            display: grid;
+            gap: 8px;
+        }
+        .committee-position-row {
+            display: grid;
+            grid-template-columns: 220px 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .committee-position-row input,
+        .committee-position-row select {
+            border: 1px solid #cfcfcf;
+            border-radius: 6px;
+            padding: 9px 10px;
+            font-size: 14px;
+            background: #fff;
+        }
+        .committee-position-row button,
+        .committee-position-add,
+        .committee-position-save {
+            border: 1px solid #1f1f1f;
+            background: #fff;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .committee-position-add {
+            width: fit-content;
+            margin-top: 8px;
+        }
+        .committee-position-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .committee-position-actions .committee-position-add {
+            margin-top: 0;
+        }
+        @media (max-width: 900px) {
+            .committee-position-row {
+                grid-template-columns: 1fr;
+            }
+        }
         .stream-panel {
             margin-top: 18px;
             border: 1px solid #d6d6d6;
@@ -148,6 +212,9 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            margin-top: 8px;
+            justify-content: flex-start;
+            align-items: center;
         }
         .stream-actions button {
             border: 1px solid #1f1f1f;
@@ -155,6 +222,7 @@
             border-radius: 6px;
             padding: 8px 14px;
             cursor: pointer;
+            min-width: 138px;
         }
         .stream-meta {
             font-size: 13px;
@@ -344,6 +412,75 @@
                 </div>
             </form>
         </div>
+        <div class="committee-position-panel">
+            <h3>Committee Positions</h3>
+            <div class="committee-position-help">
+                Set event-specific committee/volunteer positions by entering committee member student ID and position name.
+            </div>
+            @php
+                $committeePositions = $event->committeePositions ?? collect();
+                $adminPositionOptions = $event->softSkillCategory?->positionRules?->pluck('position_name')->values()->all() ?? [];
+            @endphp
+            <form method="POST" action="{{ route('club.events.committee-positions.update', $event) }}">
+                @csrf
+                <div class="committee-position-list" id="committee_position_list">
+                    @if (is_array(old('committee_position_student_id')))
+                        @foreach (old('committee_position_student_id') as $index => $studentId)
+                            <div class="committee-position-row">
+                                <input type="text" name="committee_position_student_id[]" value="{{ $studentId }}" placeholder="Student ID">
+                                <select name="committee_position_name[]">
+                                    <option value="">Select position</option>
+                                    @foreach ($adminPositionOptions as $positionOption)
+                                        <option value="{{ $positionOption }}" @selected(old('committee_position_name.' . $index) === $positionOption)>{{ $positionOption }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="committee-position-remove">Remove</button>
+                            </div>
+                        @endforeach
+                    @elseif ($committeePositions->isNotEmpty())
+                        @foreach ($committeePositions as $assignment)
+                            <div class="committee-position-row">
+                                <input type="text" name="committee_position_student_id[]" value="{{ $assignment->user?->student_id }}" placeholder="Student ID">
+                                <select name="committee_position_name[]">
+                                    <option value="">Select position</option>
+                                    @foreach ($adminPositionOptions as $positionOption)
+                                        <option value="{{ $positionOption }}" @selected($assignment->position_name === $positionOption)>{{ $positionOption }}</option>
+                                    @endforeach
+                                    @if ($assignment->position_name && ! in_array($assignment->position_name, $adminPositionOptions, true))
+                                        <option value="{{ $assignment->position_name }}" selected>{{ $assignment->position_name }} (Current)</option>
+                                    @endif
+                                </select>
+                                <button type="button" class="committee-position-remove">Remove</button>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="committee-position-row">
+                            <input type="text" name="committee_position_student_id[]" placeholder="Student ID">
+                            <select name="committee_position_name[]">
+                                <option value="">Select position</option>
+                                @foreach ($adminPositionOptions as $positionOption)
+                                    <option value="{{ $positionOption }}">{{ $positionOption }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="committee-position-remove">Remove</button>
+                        </div>
+                    @endif
+                </div>
+                @if (empty($adminPositionOptions))
+                    <div class="registration-empty">No admin soft skill category / position rules set for this event yet. Ask admin to assign category and rules first.</div>
+                @endif
+                @error('committee_position_student_id.*')
+                    <div class="registration-empty">{{ $message }}</div>
+                @enderror
+                @error('committee_position_name.*')
+                    <div class="registration-empty">{{ $message }}</div>
+                @enderror
+                <div class="committee-position-actions">
+                    <button type="button" class="committee-position-add" id="committee_position_add">Add Position Rule</button>
+                    <button type="submit" class="committee-position-save">Save Committee Positions</button>
+                </div>
+            </form>
+        </div>
         <div class="registration-panel">
             <div class="registration-header">
                 <h3>Registrations</h3>
@@ -373,4 +510,47 @@
             @endif
         </div>
     </div>
+    <script>
+        (function () {
+            const list = document.getElementById('committee_position_list');
+            const addBtn = document.getElementById('committee_position_add');
+            const positionOptions = @json($adminPositionOptions ?? []);
+            if (!list || !addBtn) {
+                return;
+            }
+
+            const bindRemove = () => {
+                list.querySelectorAll('.committee-position-remove').forEach((btn) => {
+                    if (btn.dataset.bound) return;
+                    btn.dataset.bound = 'true';
+                    btn.addEventListener('click', () => {
+                        const rows = list.querySelectorAll('.committee-position-row');
+                        if (rows.length <= 1) {
+                            rows[0]?.querySelectorAll('input').forEach((input) => input.value = '');
+                            rows[0]?.querySelectorAll('select').forEach((select) => select.value = '');
+                            return;
+                        }
+                        btn.closest('.committee-position-row')?.remove();
+                    });
+                });
+            };
+
+            addBtn.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'committee-position-row';
+                let optionsHtml = '<option value=\"\">Select position</option>';
+                positionOptions.forEach((position) => {
+                    optionsHtml += '<option value=\"' + String(position).replace(/\"/g, '&quot;') + '\">' + String(position) + '</option>';
+                });
+                row.innerHTML =
+                    '<input type="text" name="committee_position_student_id[]" placeholder="Student ID">' +
+                    '<select name="committee_position_name[]">' + optionsHtml + '</select>' +
+                    '<button type="button" class="committee-position-remove">Remove</button>';
+                list.appendChild(row);
+                bindRemove();
+            });
+
+            bindRemove();
+        })();
+    </script>
 @endsection

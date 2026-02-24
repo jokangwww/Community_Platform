@@ -155,6 +155,56 @@ class EventController extends Controller
         }
     }
 
+    private function storeCommitteePositions(Event $event, array $studentIds, array $positionNames): void
+    {
+        $max = max(count($studentIds), count($positionNames));
+        $rows = [];
+
+        $committeeMemberIds = $event->committeeMembers()->pluck('users.id', 'users.student_id');
+        $allowedPositionNames = $event->softSkillCategory?->positionRules
+            ? $event->softSkillCategory->positionRules->pluck('position_name')->map(fn ($name) => trim((string) $name))->all()
+            : [];
+        $allowedPositionMap = array_fill_keys(array_map('strtolower', array_filter($allowedPositionNames)), true);
+        for ($index = 0; $index < $max; $index++) {
+            $studentId = trim((string) ($studentIds[$index] ?? ''));
+            $positionName = trim((string) ($positionNames[$index] ?? ''));
+
+            $hasStudent = $studentId !== '';
+            $hasPosition = $positionName !== '';
+            if (! $hasStudent && ! $hasPosition) {
+                continue;
+            }
+            if ($hasStudent xor $hasPosition) {
+                throw ValidationException::withMessages([
+                    'committee_position_student_id.' . $index => 'Please fill both student ID and position name.',
+                ]);
+            }
+
+            if ($allowedPositionMap !== [] && ! isset($allowedPositionMap[strtolower($positionName)])) {
+                throw ValidationException::withMessages([
+                    'committee_position_name.' . $index => 'Position "' . $positionName . '" is not in admin soft skill position rules for this event.',
+                ]);
+            }
+
+            $userId = $committeeMemberIds[$studentId] ?? null;
+            if (! $userId) {
+                throw ValidationException::withMessages([
+                    'committee_position_student_id.' . $index => 'Student ID ' . $studentId . ' is not in this event committee list.',
+                ]);
+            }
+
+            $rows[$userId] = [
+                'user_id' => (int) $userId,
+                'position_name' => $positionName,
+            ];
+        }
+
+        $event->committeePositions()->delete();
+        foreach (array_values($rows) as $row) {
+            $event->committeePositions()->create($row);
+        }
+    }
+
     private function venueOptions(): array
     {
         return LocationPoint::query()
@@ -289,6 +339,8 @@ class EventController extends Controller
 
         $event->load([
             'committeeMembers',
+            'committeePositions.user',
+            'softSkillCategory.positionRules',
             'subEvents.locationPoint',
             'facultyLimits',
             'postings',
@@ -300,6 +352,30 @@ class EventController extends Controller
             'event' => $event,
             'registrations' => $registrations,
         ]);
+    }
+
+    public function updateCommitteePositions(Request $request, Event $event)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'committee_position_student_id' => ['nullable', 'array'],
+            'committee_position_student_id.*' => ['nullable', 'string', 'max:255'],
+            'committee_position_name' => ['nullable', 'array'],
+            'committee_position_name.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $event->load('committeeMembers');
+        $this->storeCommitteePositions(
+            $event,
+            $validated['committee_position_student_id'] ?? [],
+            $validated['committee_position_name'] ?? []
+        );
+
+        return back()->with('status', 'Committee positions updated.');
     }
 
     public function attendanceShow(Event $event): View

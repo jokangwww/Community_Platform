@@ -251,6 +251,8 @@
                 <li><a class="nav-link" href="{{ route('club.tickets.index') }}">- E-Ticket</a></li>
                 <li><a class="nav-link" href="{{ route('club.lucky-draw.index') }}">- Lucky Draw</a></li>
                 <li><a class="nav-link" href="{{ route('club.events.attendance') }}">- Event Attendance</a></li>
+                <li><a class="nav-link" href="{{ route('club.venue-bookings.index') }}">- Venue Booking</a></li>
+                <li><a class="nav-link" href="{{ route('club.vendor-booth-applications.index') }}">- Vendor Applications</a></li>
             </ul>
         </aside>
         <main class="content">

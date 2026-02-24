@@ -133,6 +133,9 @@
                 <div class="link">
                     New to the platform? <a href="{{ route('register') }}">Create an account</a>
                 </div>
+                <div class="link">
+                    Vendor only? <a href="{{ route('vendor.register') }}">Register as vendor</a>
+                </div>
         </div>
 
         <div class="bottom-bar"></div>

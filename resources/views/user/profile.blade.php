@@ -57,6 +57,9 @@
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
+        .softskill-scroll {
+            overflow-x: auto;
+        }
         .panel-title {
             font-size: 14px;
             font-weight: 600;
@@ -337,31 +340,60 @@
             <div class="softskill-total">
                 Total Cumulative Marks: <strong>{{ (int) ($softSkillTotal ?? 0) }}</strong>
             </div>
+            <div style="margin-top: 8px;">
+                <a href="{{ route('profile.soft-skill-certificate') }}" class="action-btn" style="width: auto; display: inline-block;">
+                    View Soft Skill Certificate
+                </a>
+            </div>
+            @php
+                $elementTotals = $softSkillElementTotals ?? ['cs' => 0, 'ctps' => 0, 'ts' => 0, 'll' => 0, 'kk' => 0, 'em' => 0, 'ls' => 0];
+            @endphp
+            <div class="softskill-total" style="margin-top:8px;">
+                CS: <strong>{{ $elementTotals['cs'] ?? 0 }}</strong> |
+                CTPS: <strong>{{ $elementTotals['ctps'] ?? 0 }}</strong> |
+                TS: <strong>{{ $elementTotals['ts'] ?? 0 }}</strong> |
+                LL: <strong>{{ $elementTotals['ll'] ?? 0 }}</strong> |
+                KK: <strong>{{ $elementTotals['kk'] ?? 0 }}</strong> |
+                EM: <strong>{{ $elementTotals['em'] ?? 0 }}</strong> |
+                LS: <strong>{{ $elementTotals['ls'] ?? 0 }}</strong>
+            </div>
             @if (($softSkillBreakdown ?? collect())->isEmpty())
                 <div class="status-text" style="margin-top: 10px; color: #4a4a4a;">No soft skill marks recorded yet.</div>
             @else
-                <table class="softskill-table">
-                    <thead>
-                        <tr>
-                            <th>Event</th>
-                            <th>Participant</th>
-                            <th>Volunteer</th>
-                            <th>Position Rule</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($softSkillBreakdown as $item)
+                <div class="softskill-scroll">
+                    <table class="softskill-table">
+                        <thead>
                             <tr>
-                                <td>{{ $item['event_name'] }}</td>
-                                <td>{{ $item['participant_points'] }}</td>
-                                <td>{{ $item['volunteer_points'] }}</td>
-                                <td>{{ $item['volunteer_position'] ?: '-' }}</td>
-                                <td><strong>{{ $item['total_points'] }}</strong></td>
+                                <th>Event</th>
+                                <th>Position</th>
+                                <th>CS</th>
+                                <th>CTPS</th>
+                                <th>TS</th>
+                                <th>LL</th>
+                                <th>KK</th>
+                                <th>EM</th>
+                                <th>LS</th>
+                                <th>Total</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($softSkillBreakdown as $item)
+                                <tr>
+                                    <td>{{ $item['event_name'] }}</td>
+                                    <td>{{ $item['volunteer_position'] ?: 'Participant / N/A' }}</td>
+                                    <td>{{ $item['scores']['cs'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['ctps'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['ts'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['ll'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['kk'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['em'] ?? 0 }}</td>
+                                    <td>{{ $item['scores']['ls'] ?? 0 }}</td>
+                                    <td><strong>{{ $item['total_points'] }}</strong></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </div>
     </div>

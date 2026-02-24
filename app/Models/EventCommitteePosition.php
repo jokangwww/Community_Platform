@@ -5,16 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class EventSoftSkillSetting extends Model
+class EventCommitteePosition extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'event_id',
-        'participant_points',
-        'volunteer_base_points',
+        'user_id',
+        'position_name',
     ];
 
     public function event(): BelongsTo
@@ -22,9 +21,8 @@ class EventSoftSkillSetting extends Model
         return $this->belongsTo(Event::class);
     }
 
-    public function positionPoints(): HasMany
+    public function user(): BelongsTo
     {
-        return $this->hasMany(EventSoftSkillPositionPoint::class, 'event_soft_skill_setting_id')
-            ->orderBy('position_name');
+        return $this->belongsTo(User::class);
     }
 }

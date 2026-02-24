@@ -4,41 +4,66 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\EventSoftSkillSetting;
+use App\Models\SoftSkillCategory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SoftSkillController extends Controller
 {
-    private function parsePositionRows(array $positions, array $points): array
-    {
-        $max = max(count($positions), count($points));
-        $rows = [];
-        for ($index = 0; $index < $max; $index++) {
-            $name = trim((string) ($positions[$index] ?? ''));
-            $pointValue = $points[$index] ?? null;
-            $hasName = $name !== '';
-            $hasPoints = $pointValue !== null && $pointValue !== '';
+    private const ELEMENTS = ['cs', 'ctps', 'ts', 'll', 'kk', 'em', 'ls'];
 
-            if (! $hasName && ! $hasPoints) {
+    private function parseElementArray(array $validated, string $prefix): array
+    {
+        $result = [];
+        foreach (self::ELEMENTS as $element) {
+            $result[$element] = (int) ($validated[$prefix . '_' . $element] ?? 0);
+        }
+
+        return $result;
+    }
+
+    private function parsePositionRuleRows(array $input): array
+    {
+        $names = $input['rule_position_name'] ?? [];
+        $elementArrays = [];
+        foreach (self::ELEMENTS as $element) {
+            $elementArrays[$element] = $input['rule_' . $element] ?? [];
+        }
+
+        $max = count($names);
+        foreach ($elementArrays as $values) {
+            $max = max($max, count($values));
+        }
+
+        $rows = [];
+        for ($i = 0; $i < $max; $i++) {
+            $name = trim((string) ($names[$i] ?? ''));
+            $hasAnyValue = false;
+            $scores = [];
+            foreach (self::ELEMENTS as $element) {
+                $raw = $elementArrays[$element][$i] ?? null;
+                $hasValue = $raw !== null && $raw !== '';
+                $hasAnyValue = $hasAnyValue || $hasValue;
+                if ($hasValue && (!is_numeric((string) $raw) || (int) $raw < 0 || (int) $raw > 3)) {
+                    throw ValidationException::withMessages([
+                        'rule_' . $element . '.' . $i => strtoupper($element) . ' score must be between 0 and 3.',
+                    ]);
+                }
+                $scores[$element] = $hasValue ? (int) $raw : 0;
+            }
+
+            if ($name === '' && ! $hasAnyValue) {
                 continue;
             }
-            if ($hasName xor $hasPoints) {
+            if ($name === '') {
                 throw ValidationException::withMessages([
-                    'position_name.' . $index => 'Please fill both position name and points.',
-                ]);
-            }
-            if (! is_numeric((string) $pointValue) || (int) $pointValue < 0) {
-                throw ValidationException::withMessages([
-                    'position_points.' . $index => 'Position points must be 0 or more.',
+                    'rule_position_name.' . $i => 'Position name is required when scores are entered.',
                 ]);
             }
 
-            $rows[] = [
-                'position_name' => $name,
-                'points' => (int) $pointValue,
-            ];
+            $rows[] = array_merge(['position_name' => $name], $scores);
         }
 
         return collect($rows)
@@ -52,7 +77,7 @@ class SoftSkillController extends Controller
         $keyword = trim((string) $request->query('q', ''));
 
         $events = Event::query()
-            ->with(['club', 'softSkillSetting.positionPoints'])
+            ->with(['club', 'softSkillCategory'])
             ->where('approval_status', 'approved')
             ->when($keyword !== '', function ($query) use ($keyword) {
                 $query->where(function ($inner) use ($keyword) {
@@ -66,81 +91,110 @@ class SoftSkillController extends Controller
             ->latest()
             ->get();
 
+        $categories = SoftSkillCategory::query()
+            ->with('positionRules')
+            ->orderBy('name')
+            ->get();
+
         return view('admin.soft-skill-settings', [
             'events' => $events,
+            'categories' => $categories,
             'filters' => ['q' => $keyword],
         ]);
     }
 
-    public function update(Request $request, Event $event)
+    public function storeCategory(Request $request)
     {
         $validated = $request->validate([
-            'participant_points' => ['required', 'integer', 'min:0', 'max:1000'],
-            'volunteer_base_points' => ['required', 'integer', 'min:0', 'max:1000'],
-            'position_name' => ['nullable', 'array'],
-            'position_name.*' => ['nullable', 'string', 'max:255'],
-            'position_points' => ['nullable', 'array'],
-            'position_points.*' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'name' => ['required', 'string', 'max:255', 'unique:soft_skill_categories,name'],
+            'participant_cs' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ctps' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ts' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ll' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_kk' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_em' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ls' => ['required', 'integer', 'min:0', 'max:3'],
+            'rule_position_name' => ['nullable', 'array'],
+            'rule_position_name.*' => ['nullable', 'string', 'max:255'],
+            'rule_cs' => ['nullable', 'array'],
+            'rule_ctps' => ['nullable', 'array'],
+            'rule_ts' => ['nullable', 'array'],
+            'rule_ll' => ['nullable', 'array'],
+            'rule_kk' => ['nullable', 'array'],
+            'rule_em' => ['nullable', 'array'],
+            'rule_ls' => ['nullable', 'array'],
         ]);
 
-        $rows = $this->parsePositionRows(
-            $validated['position_name'] ?? [],
-            $validated['position_points'] ?? []
-        );
+        $category = SoftSkillCategory::create([
+            'name' => trim($validated['name']),
+            ...$this->parseElementArray($validated, 'participant'),
+        ]);
 
-        /** @var EventSoftSkillSetting $setting */
-        $setting = EventSoftSkillSetting::query()->updateOrCreate(
-            ['event_id' => $event->id],
-            [
-                'participant_points' => (int) $validated['participant_points'],
-                'volunteer_base_points' => (int) $validated['volunteer_base_points'],
-            ]
-        );
-
-        $setting->positionPoints()->delete();
-        foreach ($rows as $row) {
-            $setting->positionPoints()->create($row);
+        foreach ($this->parsePositionRuleRows($validated) as $row) {
+            $category->positionRules()->create($row);
         }
 
-        return back()->with('status', 'Soft skill points updated for event: ' . $event->name);
+        return back()->with('status', 'Soft skill category created: ' . $category->name);
     }
 
-    public function updateAll(Request $request)
+    public function updateCategory(Request $request, SoftSkillCategory $category)
     {
         $validated = $request->validate([
-            'participant_points' => ['required', 'integer', 'min:0', 'max:1000'],
-            'volunteer_base_points' => ['required', 'integer', 'min:0', 'max:1000'],
-            'position_name' => ['nullable', 'array'],
-            'position_name.*' => ['nullable', 'string', 'max:255'],
-            'position_points' => ['nullable', 'array'],
-            'position_points.*' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('soft_skill_categories', 'name')->ignore($category->id)],
+            'participant_cs' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ctps' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ts' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ll' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_kk' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_em' => ['required', 'integer', 'min:0', 'max:3'],
+            'participant_ls' => ['required', 'integer', 'min:0', 'max:3'],
+            'rule_position_name' => ['nullable', 'array'],
+            'rule_position_name.*' => ['nullable', 'string', 'max:255'],
+            'rule_cs' => ['nullable', 'array'],
+            'rule_ctps' => ['nullable', 'array'],
+            'rule_ts' => ['nullable', 'array'],
+            'rule_ll' => ['nullable', 'array'],
+            'rule_kk' => ['nullable', 'array'],
+            'rule_em' => ['nullable', 'array'],
+            'rule_ls' => ['nullable', 'array'],
         ]);
 
-        $rows = $this->parsePositionRows(
-            $validated['position_name'] ?? [],
-            $validated['position_points'] ?? []
-        );
+        $category->update([
+            'name' => trim($validated['name']),
+            ...$this->parseElementArray($validated, 'participant'),
+        ]);
 
-        $events = Event::query()
-            ->where('approval_status', 'approved')
-            ->get(['id', 'name']);
-
-        foreach ($events as $event) {
-            /** @var EventSoftSkillSetting $setting */
-            $setting = EventSoftSkillSetting::query()->updateOrCreate(
-                ['event_id' => $event->id],
-                [
-                    'participant_points' => (int) $validated['participant_points'],
-                    'volunteer_base_points' => (int) $validated['volunteer_base_points'],
-                ]
-            );
-
-            $setting->positionPoints()->delete();
-            foreach ($rows as $row) {
-                $setting->positionPoints()->create($row);
-            }
+        $category->positionRules()->delete();
+        foreach ($this->parsePositionRuleRows($validated) as $row) {
+            $category->positionRules()->create($row);
         }
 
-        return back()->with('status', 'Soft skill schema applied to all approved events (' . $events->count() . ').');
+        return back()->with('status', 'Soft skill category updated: ' . $category->name);
+    }
+
+    public function assignEventCategory(Request $request, Event $event)
+    {
+        $validated = $request->validate([
+            'soft_skill_category_id' => ['nullable', 'integer', 'exists:soft_skill_categories,id'],
+        ]);
+
+        $event->update([
+            'soft_skill_category_id' => $validated['soft_skill_category_id'] ?? null,
+        ]);
+
+        return back()->with('status', 'Event category updated for: ' . $event->name);
+    }
+
+    public function applyCategoryToAll(Request $request)
+    {
+        $validated = $request->validate([
+            'soft_skill_category_id' => ['required', 'integer', 'exists:soft_skill_categories,id'],
+        ]);
+
+        $count = Event::query()
+            ->where('approval_status', 'approved')
+            ->update(['soft_skill_category_id' => (int) $validated['soft_skill_category_id']]);
+
+        return back()->with('status', 'Category applied to all approved events (' . $count . ').');
     }
 }

@@ -11,13 +11,13 @@ class EventSoftSkillPositionPoint extends Model
     use HasFactory;
 
     protected $fillable = [
-        'setting_id',
+        'event_soft_skill_setting_id',
         'position_name',
         'points',
     ];
 
     public function setting(): BelongsTo
     {
-        return $this->belongsTo(EventSoftSkillSetting::class, 'setting_id');
+        return $this->belongsTo(EventSoftSkillSetting::class, 'event_soft_skill_setting_id');
     }
 }

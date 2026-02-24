@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Event;
+use App\Models\EventCommitteePosition;
 use App\Models\EventRegistration;
 use App\Models\TicketPurchase;
 use App\Models\User;
@@ -19,6 +20,8 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    private const ELEMENTS = ['cs', 'ctps', 'ts', 'll', 'kk', 'em', 'ls'];
+
     public function show(): View
     {
         /** @var User $user */
@@ -30,6 +33,31 @@ class ProfileController extends Controller
             'departments' => Department::query()->orderBy('name')->get(['name']),
             'softSkillBreakdown' => $softSkill['breakdown'],
             'softSkillTotal' => $softSkill['total'],
+            'softSkillElementTotals' => $softSkill['element_totals'],
+        ]);
+    }
+
+    public function certificate(): View
+    {
+        /** @var User $user */
+        $user = request()->user();
+        $softSkill = $this->softSkillSummary($user);
+        $totals = $softSkill['element_totals'];
+
+        $isQualified = ((int) ($totals['cs'] ?? 0) >= 5)
+            && ((int) ($totals['ctps'] ?? 0) >= 5)
+            && ((int) ($totals['ts'] ?? 0) >= 5)
+            && ((int) ($totals['ll'] ?? 0) >= 5)
+            && ((int) ($totals['kk'] ?? 0) >= 3)
+            && ((int) ($totals['em'] ?? 0) >= 5)
+            && ((int) ($totals['ls'] ?? 0) >= 5);
+
+        return view('user.soft-skill-certificate', [
+            'student' => $user,
+            'softSkillTotal' => $softSkill['total'],
+            'softSkillElementTotals' => $totals,
+            'softSkillQualified' => $isQualified,
+            'generatedAt' => now(),
         ]);
     }
 
@@ -63,55 +91,83 @@ class ProfileController extends Controller
             return [
                 'breakdown' => collect(),
                 'total' => 0,
+                'element_totals' => array_fill_keys(self::ELEMENTS, 0),
             ];
         }
 
         $participantMap = array_fill_keys($participantEventIds, true);
         $volunteerMap = array_fill_keys($volunteerEventIds, true);
-        $studentPosition = trim((string) ($user->position ?? ''));
+        $committeePositionMap = EventCommitteePosition::query()
+            ->where('user_id', $user->id)
+            ->whereIn('event_id', $eventIds)
+            ->pluck('position_name', 'event_id')
+            ->map(fn ($name) => trim((string) $name))
+            ->all();
 
         $events = Event::query()
-            ->with('softSkillSetting.positionPoints')
+            ->with(['softSkillCategory.positionRules'])
             ->whereIn('id', $eventIds)
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $breakdown = $events->map(function (Event $event) use ($participantMap, $volunteerMap, $studentPosition) {
-            $setting = $event->softSkillSetting;
-            $participantPoints = isset($participantMap[$event->id])
-                ? (int) ($setting->participant_points ?? 0)
-                : 0;
+        $breakdown = $events->map(function (Event $event) use ($participantMap, $volunteerMap, $committeePositionMap) {
+            $category = $event->softSkillCategory;
+            $participantScores = array_fill_keys(self::ELEMENTS, 0);
+            if (isset($participantMap[$event->id]) && $category) {
+                foreach (self::ELEMENTS as $element) {
+                    $participantScores[$element] = (int) ($category->{'participant_' . $element} ?? 0);
+                }
+            }
 
-            $volunteerPoints = 0;
+            $volunteerScores = array_fill_keys(self::ELEMENTS, 0);
             $appliedPosition = null;
             if (isset($volunteerMap[$event->id])) {
-                $volunteerPoints = (int) ($setting->volunteer_base_points ?? 0);
+                $eventPosition = trim((string) ($committeePositionMap[$event->id] ?? ''));
 
-                if ($setting && $studentPosition !== '') {
-                    $match = $setting->positionPoints
-                        ->first(function ($item) use ($studentPosition) {
-                            return strcasecmp((string) $item->position_name, $studentPosition) === 0;
+                if ($category && $eventPosition !== '') {
+                    $match = $category->positionRules
+                        ->first(function ($item) use ($eventPosition) {
+                            return strcasecmp((string) $item->position_name, $eventPosition) === 0;
                         });
 
                     if ($match) {
-                        $volunteerPoints = (int) $match->points;
+                        foreach (self::ELEMENTS as $element) {
+                            $volunteerScores[$element] = (int) ($match->{$element} ?? 0);
+                        }
                         $appliedPosition = (string) $match->position_name;
+                    } else {
+                        $appliedPosition = $eventPosition;
                     }
                 }
             }
 
-            return [
+            $totals = [];
+            foreach (self::ELEMENTS as $element) {
+                $totals[$element] = $participantScores[$element] + $volunteerScores[$element];
+            }
+
+            return array_merge([
                 'event_name' => $event->name,
-                'participant_points' => $participantPoints,
-                'volunteer_points' => $volunteerPoints,
                 'volunteer_position' => $appliedPosition,
-                'total_points' => $participantPoints + $volunteerPoints,
-            ];
+                'total_points' => array_sum($totals),
+            ], [
+                'participant_scores' => $participantScores,
+                'volunteer_scores' => $volunteerScores,
+                'scores' => $totals,
+            ]);
         });
+
+        $elementTotals = array_fill_keys(self::ELEMENTS, 0);
+        foreach ($breakdown as $item) {
+            foreach (self::ELEMENTS as $element) {
+                $elementTotals[$element] += (int) ($item['scores'][$element] ?? 0);
+            }
+        }
 
         return [
             'breakdown' => $breakdown,
             'total' => (int) $breakdown->sum('total_points'),
+            'element_totals' => $elementTotals,
         ];
     }
 
