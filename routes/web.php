@@ -37,6 +37,7 @@ use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TicketController as UserTicketController;
 use App\Http\Controllers\Vendor\VendorBoothController;
+use App\Http\Controllers\Buddy\AdminController;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -65,6 +66,16 @@ Route::middleware(['auth', 'role:student'])->group(function () {
 Route::get('/buddy-programme', function () {
     return view('buddy-programme');
 })->name('buddy-programme');
+
+// Forum Routes
+Route::get('/forum', function () {
+    return view('forum');
+})->name('forum');
+
+// Polls Routes
+Route::get('/poll-petition', function () {
+    return view('poll-petition');
+})->name('poll-petition');
 
 // Buddy Programme API Routes
 Route::prefix('api/buddy')->name('buddy.')->group(function () {

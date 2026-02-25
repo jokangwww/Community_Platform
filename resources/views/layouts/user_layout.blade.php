@@ -248,6 +248,8 @@
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
                 <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
+                <li><a class="nav-link" href="{{ route('forum') }}">- Forum</a></li>
+                <li><a class="nav-link" href="{{ route('poll-petition') }}">- Polls & Petitions</a></li>
                 <li><a class="nav-link" href="{{ route('user.event-posting') }}">- Event Posting</a></li>
                 <li><a class="nav-link" href="{{ route('user.recruitment') }}">- Recruitment</a></li>
                 <li><a class="nav-link" href="{{ route('user.calendar') }}">- Calendar</a></li>
