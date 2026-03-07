@@ -263,40 +263,41 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
         
         // Generate activities from classroom data
         const newActivities: Activity[] = [];
-        
-        // Add recent materials
-        (data.materials || []).slice(0, 3).forEach((material: any) => {
-          newActivities.push({
-            id: `material-${material.id}`,
-            type: 'material',
-            title: 'New Study Material',
-            description: material.name,
-            timestamp: material.uploadedDate,
-            icon: 'FileText',
-            color: 'blue'
-          });
-        });
-        
-        // Add recent quizzes (only those not attempted and within 1 week)
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        
+
+        // Add recent materials (only within 1 week)
+        (data.materials || [])
+          .filter((m: any) => new Date(m.uploadedDate) >= oneWeekAgo)
+          .slice(0, 3)
+          .forEach((material: any) => {
+            newActivities.push({
+              id: `material-${material.id}`,
+              type: 'material',
+              title: 'New Study Material',
+              description: material.name,
+              timestamp: material.uploadedDate,
+              icon: 'FileText',
+              color: 'blue'
+            });
+          });
+
+        // Add quizzes assigned within 1 week (regardless of attempt status)
         (data.quizzes || [])
-          .filter((q: any) => q.status === 'open' && !q.hasAttempted)
           .filter((q: any) => new Date(q.createdDate) >= oneWeekAgo)
           .slice(0, 3)
           .forEach((quiz: any) => {
             newActivities.push({
               id: `quiz-${quiz.id}`,
               type: 'quiz',
-              title: 'New Quiz Available',
+              title: 'New Quiz Assigned',
               description: quiz.title,
               timestamp: quiz.createdDate,
               icon: 'Award',
               color: 'purple'
             });
           });
-        
+
         // Add recent assignments (only those not submitted and within 1 week)
         (data.assignments || [])
           .filter((a: any) => !a.hasSubmitted)
@@ -314,9 +315,10 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
             });
           });
 
-        // Add graded assignment notifications
+        // Add graded assignment notifications (only within 1 week of submission)
         (data.assignments || [])
           .filter((a: any) => a.hasSubmitted && a.submission?.marks !== null && a.submission?.marks !== undefined)
+          .filter((a: any) => new Date(a.submission?.submittedDate ?? a.createdDate) >= oneWeekAgo)
           .slice(0, 3)
           .forEach((assignment: any) => {
             newActivities.push({

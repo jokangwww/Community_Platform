@@ -23,7 +23,6 @@
                 'role' => $user->role,
                 'student_id' => $user->student_id,
                 'is_admin' => $user->role === 'admin',
-                'muted_until' => $user->muted_until?->toISOString(),
             ] : null);
         @endphp;
         window.initialTab = 'polls';

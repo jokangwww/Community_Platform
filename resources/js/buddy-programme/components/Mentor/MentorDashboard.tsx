@@ -223,6 +223,26 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
               }
             });
 
+            // Quiz attempt notifications (within 1 week)
+            (classroomData.quizzes || []).forEach((quiz: any) => {
+              if ((quiz.attemptsCount ?? 0) > 0) {
+                const latestAt = quiz.latestAttemptAt
+                  ? new Date(quiz.latestAttemptAt + 'T00:00:00')
+                  : new Date();
+                if (latestAt >= oneWeekAgoDate) {
+                  classroomNotifs.push({
+                    id: `quiz-attempt-${quiz.id}`,
+                    message: `Quiz "${quiz.title}": ${quiz.attemptsCount} attempt(s) received`,
+                    timestamp: quiz.latestAttemptAt
+                      ? quiz.latestAttemptAt + 'T00:00:00'
+                      : new Date().toISOString(),
+                    type: 'info',
+                    read: false,
+                  });
+                }
+              }
+            });
+
             if (classroomNotifs.length > 0) {
               setNotifications(prev => [...classroomNotifs, ...prev]);
             }

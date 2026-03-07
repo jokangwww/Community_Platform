@@ -92,15 +92,6 @@ class PollController extends Controller
     public function store(Request $request): JsonResponse
     {
         $userId = Auth::id();
-        $user = Auth::user();
-
-        // Check if user is muted
-        if ($user->muted_until && $user->muted_until->isFuture()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Your account is muted until ' . $user->muted_until->format('d M Y') . '. You cannot create polls during this period.',
-            ], 403);
-        }
 
         // Check cooldown: one poll every 7 days
         $lastPoll = Poll::where('user_id', $userId)

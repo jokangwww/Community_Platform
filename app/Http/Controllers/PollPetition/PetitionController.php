@@ -69,15 +69,6 @@ class PetitionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $userId = Auth::id();
-        $user = Auth::user();
-
-        // Check if user is muted
-        if ($user->muted_until && $user->muted_until->isFuture()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Your account is muted until ' . $user->muted_until->format('d M Y') . '. You cannot create petitions during this period.',
-            ], 403);
-        }
 
         // Check monthly limit
         $hasActivePetitionThisMonth = Petition::where('user_id', $userId)

@@ -412,7 +412,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 900, lineHeight: '1.2', color: '#111827' }}>Buddy Programme</h1>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 500, lineHeight: '1.2', color: '#111827' }}>Buddy Programme</h1>
               <p className="text-sm text-gray-600">Mentor-Mentee Matching System</p>
             </div>
             
@@ -444,7 +444,7 @@ export default function App() {
                 {/* Semester info */}
                 {!isAdmin && registrationStatus?.status === 'active' && registrationStatus?.has_active_match && semesterInfo && (
                   <div className="flex flex-col px-4 py-2">
-                    <h1 style={{ fontSize: '2rem', fontWeight: 900, lineHeight: '1.2', color: '#111827' }}>{semesterInfo.academic_year} &nbsp; Semester {semesterInfo.semester}</h1>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 500, lineHeight: '1.2', color: '#111827' }}>{semesterInfo.academic_year} &nbsp; Semester {semesterInfo.semester}</h1>
                     <p className="text-sm text-gray-600">{semesterInfo.start_date} &mdash; {semesterInfo.end_date}</p>
                   </div>
                 )}
