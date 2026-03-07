@@ -217,6 +217,8 @@
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
                 <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
+                <li><a class="nav-link" href="{{ route('admin.forum') }}">- Forum</a></li>
+                <li><a class="nav-link" href="{{ route('admin.poll-petition') }}">- Poll & Petition</a></li>
                 <li><a class="nav-link" href="{{ route('admin.event-proposals.index') }}">- Event Proposals</a></li>
                 <li><a class="nav-link" href="{{ route('admin.event-postings.index') }}">- Event Posting</a></li>
                 <li><a class="nav-link" href="{{ route('admin.locations.index') }}">- Location</a></li>

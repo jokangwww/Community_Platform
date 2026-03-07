@@ -26,6 +26,7 @@ interface Poll {
   hasVoted: boolean;
   isExpired: boolean;
   usefulnessScore?: number;
+  hasRated?: boolean;
   targetCriteria?: {
     faculty?: string;
     yearOfStudy?: string;
@@ -44,7 +45,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVoteViewProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [hasRated, setHasRated] = useState(false);
+  const [hasRated, setHasRated] = useState(poll.hasRated ?? false);
 
   const handleVote = () => {
     if (selectedOption && !poll.hasVoted && !poll.isExpired) {
@@ -109,7 +110,7 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2">
+          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2 cursor-pointer">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Polls
           </Button>
@@ -210,7 +211,7 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
                   <div
                     key={option.id}
                     onClick={() => setSelectedOption(option.id)}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    className={`p-4 rounded-lg border-2 transition-all ${
                       selectedOption === option.id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
@@ -234,7 +235,7 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
                 <Button 
                   onClick={handleVote} 
                   disabled={!selectedOption}
-                  className="w-full mt-4"
+                  className="w-full mt-4 cursor-pointer"
                 >
                   Submit Vote
                 </Button>
@@ -282,7 +283,7 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
                         <Button
                           onClick={() => handleRating(true)}
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 cursor-pointer"
                         >
                           <ThumbsUp className="h-4 w-4 mr-2" />
                           Yes
@@ -290,7 +291,7 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
                         <Button
                           onClick={() => handleRating(false)}
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 cursor-pointer"
                         >
                           <ThumbsDown className="h-4 w-4 mr-2" />
                           No

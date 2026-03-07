@@ -7,6 +7,7 @@ use App\Models\BuddyParticipant;
 use App\Models\BuddyMatch;
 use App\Models\BuddySession;
 use App\Models\BuddySetting;
+use App\Models\BuddySemesterSetting;
 use App\Models\BuddyEvaluation;
 use App\Models\BuddyTestimonial;
 use Illuminate\Http\JsonResponse;
@@ -174,10 +175,10 @@ class AdminController extends Controller
                     'mentorName' => $session->match->mentor->full_name ?? 'Unknown',
                     'menteeName' => $session->match->mentee->full_name ?? 'Unknown',
                     'mentorCheckInTime' => $session->mentor_check_in 
-                        ? Carbon::parse($session->mentor_check_in)->format('Y-m-d H:i') 
-                        : '',
+                        ? Carbon::parse($session->mentor_check_in)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i') 
+                        : null,
                     'menteeCheckInTime' => $session->mentee_check_in 
-                        ? Carbon::parse($session->mentee_check_in)->format('Y-m-d H:i') 
+                        ? Carbon::parse($session->mentee_check_in)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i') 
                         : '',
                     'groupSubject' => $session->match->subject->name ?? 'General',
                     'status' => $status,
@@ -338,6 +339,56 @@ class AdminController extends Controller
                 'key' => $key,
                 'value' => $value
             ]
+        ]);
+    }
+
+    /**
+     * Get the active semester setting
+     */
+    public function getSemesterSetting(): JsonResponse
+    {
+        $semester = BuddySemesterSetting::getActiveSemester();
+
+        return response()->json([
+            'success' => true,
+            'data' => $semester ? $semester->toSettingsArray() : null,
+        ]);
+    }
+
+    /**
+     * Create or update the semester setting
+     */
+    public function saveSemesterSetting(Request $request): JsonResponse
+    {
+        $request->validate([
+            'academic_year' => 'required|string',
+            'semester' => 'required|integer|in:1,2,3',
+            'duration_type' => 'required|string|in:long,short',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after:start_date',
+        ]);
+
+        $totalWeeks = $request->duration_type === 'long' ? 14 : 7;
+
+        // Deactivate all existing semester settings
+        BuddySemesterSetting::where('is_active', true)->update(['is_active' => false]);
+
+        // Create new active semester setting
+        $semester = BuddySemesterSetting::create([
+            'academic_year' => $request->academic_year,
+            'semester' => $request->semester,
+            'duration_type' => $request->duration_type,
+            'total_weeks' => $totalWeeks,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'is_active' => true,
+            'updated_by' => auth()->id(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Semester setting saved successfully',
+            'data' => $semester->toSettingsArray(),
         ]);
     }
 

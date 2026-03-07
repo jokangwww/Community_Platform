@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Image as ImageIcon
 } from "lucide-react";
+import { PetitionAllSupportersView } from "./PetitionAllSupportersView";
 
 interface Petition {
   id: string;
@@ -50,6 +51,7 @@ interface PetitionViewProps {
 export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps) {
   const [supportComment, setSupportComment] = useState("");
   const [showCommentBox, setShowCommentBox] = useState(false);
+  const [showAllSupporters, setShowAllSupporters] = useState(false);
 
   const handleSupport = () => {
     if (!petition.hasSupported) {
@@ -66,11 +68,21 @@ export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps)
     return <FileText className="h-4 w-4" />;
   };
 
+  if (showAllSupporters) {
+    return (
+      <PetitionAllSupportersView
+        petitionTitle={petition.title}
+        supporters={petition.supporters}
+        onBack={() => setShowAllSupporters(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2">
+          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2 cursor-pointer">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Petitions
           </Button>
@@ -221,7 +233,7 @@ export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps)
                         {supportComment.length}/500 characters
                       </p>
                       <div className="flex gap-2">
-                        <Button onClick={handleSupport} className="flex-1">
+                        <Button onClick={handleSupport} className="flex-1 cursor-pointer">
                           <Heart className="h-4 w-4 mr-2" />
                           Support
                         </Button>
@@ -238,14 +250,14 @@ export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps)
                     </>
                   ) : (
                     <>
-                      <Button onClick={handleSupport} className="w-full">
+                      <Button onClick={handleSupport} className="w-full cursor-pointer">
                         <Heart className="h-4 w-4 mr-2" />
                         Support Petition
                       </Button>
                       <Button 
                         onClick={() => setShowCommentBox(true)} 
                         variant="outline" 
-                        className="w-full"
+                        className="w-full cursor-pointer"
                       >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         Support with Comment
@@ -268,9 +280,21 @@ export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps)
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Recent Supporters
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Recent Supporters
+                </div>
+                {petition.supporters.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllSupporters(true)}
+                    className="text-sm text-primary hover:text-primary/80 cursor-pointer"
+                  >
+                    View All
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>

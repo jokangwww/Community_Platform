@@ -54,6 +54,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectCode, setNewSubjectCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [skillSearch, setSkillSearch] = useState('');
   const searchRef = useRef<HTMLDivElement>(null);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -69,7 +70,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
         const response = await fetch('/api/buddy/skills');
         if (response.ok) {
           const data = await response.json();
-          setSkills(data);
+          setSkills(data.data || []);
         }
       } catch (error) {
         console.error('Failed to fetch skills:', error);
@@ -102,7 +103,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
         const response = await fetch(`/api/buddy/subjects/search?q=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data);
+          setSearchResults(data.data || []);
           setShowDropdown(true);
         }
       } catch (error) {
@@ -177,9 +178,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
       });
 
       if (response.ok) {
-        const newSubject = await response.json();
+        const result = await response.json();
+        const newSubject = result.data || result;
         setSelectedSubject(newSubject);
-        setSearchQuery(newSubject.display_name);
+        setSearchQuery(newSubject.display_name || newSubject.name);
         setShowAddNew(false);
         setNewSubjectName('');
         setNewSubjectCode('');
@@ -379,7 +381,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
           {/* <button
             onClick={onBack}
-            className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
           >
             Back to Role Selection
           </button> */}
@@ -392,7 +394,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     <div className="max-w-3xl mx-auto">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Role Selection
@@ -418,7 +420,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                   errors.fullName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your full name"
@@ -440,7 +442,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.studentId}
                   onChange={(e) => handleInputChange('studentId', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.studentId ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 24WMR00123"
@@ -464,7 +466,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   max="4.0"
                   value={formData.cgpa}
                   onChange={(e) => handleInputChange('cgpa', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.cgpa ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 4.00"
@@ -489,7 +491,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               <select
                 value={formData.faculty}
                 onChange={(e) => handleInputChange('faculty', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                   errors.faculty ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -515,7 +517,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.course}
                   onChange={(e) => handleInputChange('course', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.course ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Computer Science"
@@ -535,7 +537,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 <select
                   value={formData.yearOfStudy}
                   onChange={(e) => handleInputChange('yearOfStudy', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.yearOfStudy ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -592,7 +594,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   setSelectionType('subject');
                   setSelectedSkill(null);
                 }}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 font-medium border-b-2 transition-colors cursor-pointer ${
                   selectionType === 'subject'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -606,8 +608,9 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   setSelectionType('skill');
                   setSelectedSubject(null);
                   setSearchQuery('');
+                  setSkillSearch('');
                 }}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 font-medium border-b-2 transition-colors cursor-pointer ${
                   selectionType === 'skill'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -620,24 +623,26 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
             {/* Subject Search (Autocomplete) */}
             {selectionType === 'subject' && (
               <div ref={searchRef} className="relative">
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setSelectedSubject(null);
-                    }}
-                    onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.subject ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Search by subject name or code (e.g., BMCS2203 Data Structures)"
-                  />
-                  {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 animate-spin" />
-                  )}
+                <div className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSelectedSubject(null);
+                      }}
+                      onFocus={() => (searchQuery?.length ?? 0) >= 2 && setShowDropdown(true)}
+                      className={`w-full h-11 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.subject ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Search by subject name or code (e.g., BMCS2203 Data Structures)"
+                    />
+                    {isSearching && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                    )}
+                  </div>
                 </div>
 
                 {/* Search Results Dropdown */}
@@ -650,7 +655,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                             key={subject.id}
                             type="button"
                             onClick={() => handleSelectSubject(subject)}
-                            className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center justify-between"
+                            className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center justify-between cursor-pointer"
                           >
                             <span>{subject.display_name}</span>
                             {subject.code && (
@@ -661,7 +666,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                         <button
                           type="button"
                           onClick={handleAddNewSubject}
-                          className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2 cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
                           Add "{searchQuery}" as new subject
@@ -671,7 +676,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                       <button
                         type="button"
                         onClick={handleAddNewSubject}
-                        className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
                         Add "{searchQuery}" as new subject
@@ -695,7 +700,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                         setSelectedSubject(null);
                         setSearchQuery('');
                       }}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-600 hover:text-blue-800 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -732,7 +737,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                           type="button"
                           onClick={handleCreateNewSubject}
                           disabled={isCreating || !newSubjectName.trim()}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                         >
                           {isCreating ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -748,7 +753,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                             setNewSubjectName('');
                             setNewSubjectCode('');
                           }}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -759,28 +764,49 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               </div>
             )}
 
-            {/* Skill Selection (Radio Buttons) */}
+            {/* Skill Selection (Radio Buttons with Search) */}
             {selectionType === 'skill' && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {skills.map((skill) => (
-                  <label
-                    key={skill.id}
-                    className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedSkill?.id === skill.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="skill"
-                      checked={selectedSkill?.id === skill.id}
-                      onChange={() => handleSelectSkill(skill)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-700">{skill.name}</span>
-                  </label>
-                ))}
+              <div className="space-y-3">
+                {/* Skill search bar matching subject search style */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={skillSearch}
+                    onChange={(e) => setSkillSearch(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Search skills..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {skills
+                    .filter(s => !skillSearch || s.name.toLowerCase().includes(skillSearch.toLowerCase()))
+                    .map((skill) => (
+                    <label
+                      key={skill.id}
+                      className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedSkill?.id === skill.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="skill"
+                        checked={selectedSkill?.id === skill.id}
+                        onChange={() => handleSelectSkill(skill)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">{skill.name}</span>
+                    </label>
+                  ))}
+                  {skills.length > 0 && skillSearch && skills.filter(s => s.name.toLowerCase().includes(skillSearch.toLowerCase())).length === 0 && (
+                    <p className="col-span-full text-gray-500 text-sm text-center py-4">No skills match "{skillSearch}"</p>
+                  )}
+                  {skills.length === 0 && (
+                    <p className="col-span-full text-gray-500 text-sm text-center py-4">Loading skills...</p>
+                  )}
+                </div>
               </div>
             )}
             
@@ -842,7 +868,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   <button
                     type="button"
                     onClick={() => setUploadedFile(null)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -873,14 +899,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               type="button"
               onClick={onBack}
               disabled={isLoading}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
               {isLoading ? (
                 <>

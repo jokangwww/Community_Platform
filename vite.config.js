@@ -12,7 +12,8 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/buddy-programme/main.tsx',
                 'resources/js/forum/main.tsx',
-                'resources/js/poll-petition/main.tsx'
+                'resources/js/poll-petition/main.tsx',
+                'resources/js/forum-polls/admin-main.tsx'
             ],
             refresh: true,
         }),

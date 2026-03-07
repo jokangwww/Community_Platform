@@ -24,6 +24,13 @@ type View = 'register' | 'admin' | 'matching' | 'waitlist';
 type Role = 'mentor' | 'mentee' | null;
 
 // Auth user from Laravel
+interface SemesterSetting {
+  academic_year: string;
+  semester: number;
+  start_date: string;
+  end_date: string;
+}
+
 interface AuthUser {
   id: number;
   name: string;
@@ -71,33 +78,35 @@ export default function App() {
   // Registration status check
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus | null>(null);
-  const [studentIdInput, setStudentIdInput] = useState(authUser?.student_id || '');
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
 
   // Registration settings
   const [isRegistrationEnabled, setIsRegistrationEnabled] = useState<boolean | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isEvaluationEnabled, setIsEvaluationEnabled] = useState(false);
+  const [semesterInfo, setSemesterInfo] = useState<SemesterSetting | null>(null);
 
-  // Fetch settings on load (for non-admin users)
+  // Fetch settings on load (always — header needs semester info for all roles)
   useEffect(() => {
-    if (!isAdmin) {
-      fetchSettings();
-    }
+    fetchSettings();
   }, [isAdmin]);
 
-  // Auto-check status if user has student_id and is not admin
+  // Auto-check status for all authenticated non-admin users (resolved from auth session in middleware)
   useEffect(() => {
-    if (!isAdmin && authUser?.student_id && !hasCheckedStatus) {
-      checkRegistrationStatus(authUser.student_id);
+    if (!isAdmin && !hasCheckedStatus) {
+      checkRegistrationStatus();
     }
-  }, [authUser, isAdmin]);
+  }, [isAdmin]);
 
   const fetchSettings = async () => {
     try {
       setIsLoadingSettings(true);
-      const response = await fetch('/api/buddy/admin/settings');
-      const result = await response.json();
+      const [settingsResponse, semesterResponse] = await Promise.all([
+        fetch('/api/buddy/admin/settings'),
+        fetch('/api/buddy/semester-info'),  // auth-only, no admin required
+      ]);
+      const result = await settingsResponse.json();
+      const semResult = await semesterResponse.json();
       
       if (result.success && result.data) {
         // The API returns settings as an object with registration_open key
@@ -108,6 +117,10 @@ export default function App() {
         const evaluationEnabled = result.data.evaluation_enabled;
         setIsEvaluationEnabled(evaluationEnabled === true || evaluationEnabled === 1);
       }
+      
+      if (semResult.success && semResult.data) {
+        setSemesterInfo(semResult.data);
+      }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
       setIsRegistrationEnabled(true); // Default to enabled if fetch fails
@@ -116,34 +129,23 @@ export default function App() {
     }
   };
 
-  const checkRegistrationStatus = async (studentId: string) => {
+  const checkRegistrationStatus = async () => {
     try {
       setIsCheckingStatus(true);
-      const response = await fetch(`/api/buddy/status?student_id=${encodeURIComponent(studentId)}`);
+      const response = await fetch('/api/buddy/status');
       const result = await response.json();
       
       if (result.success) {
         setRegistrationStatus(result.data);
-        setHasCheckedStatus(true);
       }
+      // Always mark checked regardless of outcome so user isn't stuck on loading
+      setHasCheckedStatus(true);
     } catch (err) {
       console.error('Failed to check registration status:', err);
+      setHasCheckedStatus(true);
     } finally {
       setIsCheckingStatus(false);
     }
-  };
-
-  const handleCheckStatus = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (studentIdInput.trim()) {
-      checkRegistrationStatus(studentIdInput.trim());
-    }
-  };
-
-  const handleResetStatus = () => {
-    setRegistrationStatus(null);
-    setHasCheckedStatus(false);
-    setStudentIdInput('');
   };
 
   const handleRoleSelect = (role: Role) => {
@@ -171,38 +173,13 @@ export default function App() {
       );
     }
 
-    // Step 1: Ask for student ID to check status
+    // Step 1: Show loading while auto-checking status
     if (!hasCheckedStatus) {
       return (
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <Users className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Buddy Programme</h2>
-            <p className="text-gray-600 mb-6">Enter your Student ID to check your registration status or register for the programme</p>
-            
-            <form onSubmit={handleCheckStatus} className="space-y-4">
-              <input
-                type="text"
-                value={studentIdInput}
-                onChange={(e) => setStudentIdInput(e.target.value)}
-                placeholder="Enter your Student ID (e.g., 24WMR00123)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                disabled={!studentIdInput.trim() || isCheckingStatus}
-                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isCheckingStatus ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Checking...
-                  </>
-                ) : (
-                  'Continue'
-                )}
-              </button>
-            </form>
+            <Loader2 className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
+            <p className="text-gray-600">{isCheckingStatus ? 'Checking your registration status...' : 'Loading...'}</p>
           </div>
         </div>
       );
@@ -215,7 +192,7 @@ export default function App() {
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <MentorDashboard 
-              studentId={registrationStatus.student_id || studentIdInput} 
+              studentId={registrationStatus.student_id || authUser?.student_id || ''} 
             />
           </Suspense>
         );
@@ -223,7 +200,7 @@ export default function App() {
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <MenteeDashboard 
-              studentId={registrationStatus.student_id || studentIdInput}
+              studentId={registrationStatus.student_id || authUser?.student_id || ''}
             />
           </Suspense>
         );
@@ -268,7 +245,7 @@ export default function App() {
             <div className="mt-6">
               <button
                 onClick={() => window.location.href = '/home'}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 Back to Home
               </button>
@@ -352,7 +329,7 @@ export default function App() {
             <div className="mt-6 flex gap-3 justify-center">
               <button
                 onClick={() => window.location.href = '/home'}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 Back to Home
               </button>
@@ -398,7 +375,7 @@ export default function App() {
             <div className="mt-6">
               <button
                 onClick={() => window.location.href = '/home'}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 Back to Home
               </button>
@@ -435,15 +412,15 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-gray-900">Buddy Programme</h1>
-              <p className="text-gray-600">Mentor-Mentee Matching System</p>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 900, lineHeight: '1.2', color: '#111827' }}>Buddy Programme</h1>
+              <p className="text-sm text-gray-600">Mentor-Mentee Matching System</p>
             </div>
             
             <div className="flex items-center gap-4">
               {/* View Switcher */}
               <div className="flex gap-2">
-                {/* Show Register button only for non-admin users */}
-                {!isAdmin && (
+                {/* Show Register button only for non-admin users not yet on the dashboard */}
+                {!isAdmin && !(registrationStatus?.status === 'active' && registrationStatus?.has_active_match) && (
                   <button
                     onClick={() => {
                       setCurrentView('register');
@@ -452,17 +429,24 @@ export default function App() {
                       // Reset status check when navigating to register
                       setRegistrationStatus(null);
                       setHasCheckedStatus(false);
-                      setStudentIdInput(authUser?.student_id || '');
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentView === 'register'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
                     <Users className="w-4 h-4" />
                     Register
                   </button>
+                )}
+
+                {/* Semester info */}
+                {!isAdmin && registrationStatus?.status === 'active' && registrationStatus?.has_active_match && semesterInfo && (
+                  <div className="flex flex-col px-4 py-2">
+                    <h1 style={{ fontSize: '2rem', fontWeight: 900, lineHeight: '1.2', color: '#111827' }}>{semesterInfo.academic_year} &nbsp; Semester {semesterInfo.semester}</h1>
+                    <p className="text-sm text-gray-600">{semesterInfo.start_date} &mdash; {semesterInfo.end_date}</p>
+                  </div>
                 )}
 
                 {/* Admin-only navigation buttons */}
@@ -473,7 +457,7 @@ export default function App() {
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                         currentView === 'matching'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-300 cursor-pointer'
                       }`}
                     >
                       <UserCheck className="w-4 h-4" />
@@ -484,7 +468,7 @@ export default function App() {
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                         currentView === 'waitlist'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-300 cursor-pointer'
                       }`}
                     >
                       <Clock className="w-4 h-4" />
@@ -495,7 +479,7 @@ export default function App() {
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                         currentView === 'admin'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-300 cursor-pointer'
                       }`}
                     >
                       <Settings className="w-4 h-4" />

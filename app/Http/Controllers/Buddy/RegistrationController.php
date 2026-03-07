@@ -170,11 +170,12 @@ class RegistrationController extends Controller
             $studentId = Auth::user()->student_id;
         }
 
+        // If still no student_id, return not-registered (user hasn't set up a student ID)
         if (!$studentId) {
             return response()->json([
-                'success' => false,
-                'message' => 'Student ID is required'
-            ], 400);
+                'success' => true,
+                'data' => ['registered' => false]
+            ]);
         }
 
         $participant = BuddyParticipant::with('subject')

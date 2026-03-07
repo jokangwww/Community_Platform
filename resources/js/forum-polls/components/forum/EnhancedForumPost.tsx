@@ -13,20 +13,21 @@ import {
   Check,
   Flag,
   Paperclip,
-  ChevronDown,
-  ChevronUp,
   Smile,
   Award,
-  MoreVertical
+  MoreVertical,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+import { ReportDialog } from "../shared/ReportDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { ReportDialog } from "../shared/ReportDialog";
 
 export interface ForumPost {
   id: string;
@@ -111,6 +112,10 @@ interface EnhancedForumPostProps {
   onReact?: (targetId: string, emoji: string) => void;
   onReply?: (targetId: string, content: string, mentions: string[]) => void;
   onReport?: (targetId: string, reason: string) => void;
+  onEditPost?: (postId: string, data: { title: string; content: string }) => void;
+  onDeletePost?: (postId: string) => void;
+  onEditComment?: (commentId: string, content: string) => void;
+  onDeleteComment?: (commentId: string) => void;
   isAuthor: boolean;
 }
 
@@ -126,23 +131,36 @@ export function EnhancedForumPost({
   onReact,
   onReply,
   onReport,
+  onEditPost,
+  onDeletePost,
+  onEditComment,
+  onDeleteComment,
   isAuthor
 }: EnhancedForumPostProps) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [reportTarget, setReportTarget] = useState<string | null>(null);
-  const [reportReason, setReportReason] = useState("");
+  const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'answer' | 'comment'; id: string } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [answerToAccept, setAnswerToAccept] = useState<string | null>(null);
 
+  // Edit post state
+  const [editingPost, setEditingPost] = useState(false);
+  const [editPostTitle, setEditPostTitle] = useState(post.title);
+  const [editPostContent, setEditPostContent] = useState(post.content);
+
+  // Edit comment state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'post' | 'comment'; id: string } | null>(null);
+
   const isQA = post.category.type === 'academic-qa';
-  const sortedAnswers = [...answers].sort((a, b) => {
-    if (a.isAccepted) return -1;
-    if (b.isAccepted) return 1;
-    return (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
-  });
+  // Keep the order as fetched from the server (sorted by accepted + vote score)
+  // Answers will be re-sorted on next page load, not immediately after voting
+  const sortedAnswers = answers;
 
   const handleReply = (targetId: string) => {
     if (!replyContent.trim()) return;
@@ -155,17 +173,16 @@ export function EnhancedForumPost({
     setReplyTo(null);
   };
 
-  const handleReport = () => {
-    if (reportTarget && reportReason.trim()) {
-      onReport?.(reportTarget, reportReason);
+  const handleReport = (reason: string, details: string) => {
+    if (reportTarget) {
+      onReport?.(reportTarget.id, `${reason}: ${details}`);
       setShowReportDialog(false);
       setReportTarget(null);
-      setReportReason("");
     }
   };
 
   const renderAnswer = (answer: Answer) => (
-    <Card key={answer.id} className={`p-4 ${answer.isAccepted ? 'border-green-500 border-2' : ''}`}>
+    <Card key={answer.id} className={`p-4 cursor-pointer ${answer.isAccepted ? 'border-green-500 border-2' : ''}`}>
       {answer.isAccepted && (
         <div className="flex items-center gap-2 mb-3 text-green-600">
           <Check className="h-5 w-5" />
@@ -197,7 +214,7 @@ export function EnhancedForumPost({
             <Button
               size="sm"
               variant="outline"
-              className="mt-2"
+              className="mt-2 cursor-pointer"
               onClick={() => {
                 setAnswerToAccept(answer.id);
                 setShowAcceptDialog(true);
@@ -246,7 +263,7 @@ export function EnhancedForumPost({
                 key={reaction.emoji}
                 size="sm"
                 variant={reaction.userReacted ? 'default' : 'outline'}
-                className="h-7 text-xs"
+                className="h-7 text-xs cursor-pointer"
                 onClick={() => onReact?.(answer.id, reaction.emoji)}
               >
                 {reaction.emoji} {reaction.count}
@@ -278,16 +295,25 @@ export function EnhancedForumPost({
               </div>
             )}
 
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setReportTarget(answer.id);
-                setShowReportDialog(true);
-              }}
-            >
-              <Flag className="h-4 w-4" />
-            </Button>
+            {answer.author.id !== currentUserId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
+                  <MoreVertical className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[#2c3138] border-gray-700">
+                  <DropdownMenuItem
+                    className="text-gray-300 hover:text-white cursor-pointer"
+                    onClick={() => {
+                      setReportTarget({ type: 'answer', id: answer.id });
+                      setShowReportDialog(true);
+                    }}
+                  >
+                    <Flag className="h-4 w-4 mr-2" />
+                    Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
@@ -295,7 +321,7 @@ export function EnhancedForumPost({
   );
 
   const renderComment = (comment: Comment, depth: number = 0) => (
-    <div key={comment.id} className={`${depth > 0 ? 'ml-8 mt-2' : 'mt-2'}`}>
+    <div key={comment.id} className={` cursor-pointer ${depth > 0 ? 'ml-8 mt-2' : 'mt-2'}`}>
       <Card className="p-3">
         <div className="flex items-start gap-3">
           <Avatar className="h-7 w-7">
@@ -312,7 +338,26 @@ export function EnhancedForumPost({
               )}
               <span className="text-xs text-muted-foreground">{comment.createdAt}</span>
             </div>
-            <p className="text-sm mb-2">{comment.content}</p>
+            {editingCommentId === comment.id ? (
+              <div className="space-y-2 mb-2">
+                <Textarea
+                  value={editCommentContent}
+                  onChange={(e) => setEditCommentContent(e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={!editCommentContent.trim()} onClick={() => { onEditComment?.(comment.id, editCommentContent); setEditingCommentId(null); }}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingCommentId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm mb-2">{comment.content}</p>
+            )}
             
             {/* Mentions */}
             {comment.mentions.length > 0 && (
@@ -332,7 +377,7 @@ export function EnhancedForumPost({
                   key={reaction.emoji}
                   size="sm"
                   variant={reaction.userReacted ? 'default' : 'outline'}
-                  className="h-6 text-xs"
+                  className="h-6 text-xs cursor-pointer"
                   onClick={() => onReact?.(comment.id, reaction.emoji)}
                 >
                   {reaction.emoji} {reaction.count}
@@ -341,22 +386,57 @@ export function EnhancedForumPost({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 text-xs"
+                className="h-6 text-xs cursor-pointer"
                 onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
               >
                 Reply
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6"
-                onClick={() => {
-                  setReportTarget(comment.id);
-                  setShowReportDialog(true);
-                }}
-              >
-                <Flag className="h-3 w-3" />
-              </Button>
+              {comment.author.id !== currentUserId && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center h-6 w-6 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
+                    <MoreVertical className="h-3 w-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-[#2c3138] border-gray-700">
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-red-300 cursor-pointer"
+                      onClick={() => {
+                        setReportTarget({ type: 'comment', id: comment.id });
+                        setShowReportDialog(true);
+                      }}
+                    >
+                      <Flag className="h-4 w-4 mr-2" />
+                      Report
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {comment.author.id === currentUserId && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center h-6 w-6 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
+                    <MoreVertical className="h-3 w-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-[#2c3138] border-gray-700">
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-white cursor-pointer"
+                      onClick={() => {
+                        setEditingCommentId(comment.id);
+                        setEditCommentContent(comment.content);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-700" />
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-red-300 cursor-pointer"
+                      onClick={() => setDeleteTarget({ type: 'comment', id: comment.id })}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
 
             {/* Reply form */}
@@ -389,44 +469,73 @@ export function EnhancedForumPost({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 cursor-pointer">
       {/* Main post header */}
-      <Card className="p-6">
-        <div className="flex items-start gap-4 mb-4">
-          <Avatar className="h-10 w-10">
+      <Card className="p-6 cursor-pointer">
+        <div className="flex items-start gap-4 mb-4 cursor-pointer">
+          <Avatar className="h-10 w-10 cursor-pointer">
             <AvatarFallback>{post.author.nickname[0]}</AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{post.author.nickname}</span>
+          <div className="flex-1 cursor-pointer">
+            <div className="flex items-center justify-between mb-1 cursor-pointer">
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="font-semibold cursor-pointer">{post.author.nickname}</span>
                 {post.author.isVerifiedMentor && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    <Award className="h-3 w-3" />
+                  <Badge variant="secondary" className="flex items-center gap-1 cursor-pointer">
+                    <Award className="h-3 w-3 cursor-pointer" />
                     Verified Mentor
                   </Badge>
                 )}
                 <Badge variant="outline">{post.category.name}</Badge>
-                <span className="text-xs text-muted-foreground">{post.createdAt}</span>
+                <span className="text-xs text-muted-foreground cursor-pointer">{post.createdAt}</span>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              {post.author.id !== currentUserId && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
                     <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setReportTarget(post.id);
-                      setShowReportDialog(true);
-                    }}
-                  >
-                    <Flag className="h-4 w-4 mr-2" />
-                    Report
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-[#2c3138] border-gray-700">
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-red-300 cursor-pointer"
+                      onClick={() => {
+                        setReportTarget({ type: 'post', id: post.id });
+                        setShowReportDialog(true);
+                      }}
+                    >
+                      <Flag className="h-4 w-4 mr-2" />
+                      Report
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {post.author.id === currentUserId && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
+                    <MoreVertical className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-[#2c3138] border-gray-700">
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-white cursor-pointer"
+                      onClick={() => {
+                        setEditPostTitle(post.title);
+                        setEditPostContent(post.content);
+                        setEditingPost(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-700" />
+                    <DropdownMenuItem
+                      className="text-gray-300 hover:text-red-300 cursor-pointer"
+                      onClick={() => setDeleteTarget({ type: 'post', id: post.id })}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             <h2 className="text-xl mb-2">{post.title}</h2>
             <p className="text-sm text-muted-foreground mb-3">{post.content}</p>
@@ -446,21 +555,28 @@ export function EnhancedForumPost({
             {post.attachments && post.attachments.length > 0 && (
               <div className="space-y-2 mb-3">
                 {post.attachments.map(attachment => (
-                  <div key={attachment.id} className="flex items-center gap-2 text-sm">
+                  <button
+                    key={attachment.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(attachment.url, '_blank');
+                    }}
+                    className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-400 hover:underline cursor-pointer"
+                  >
                     <Paperclip className="h-4 w-4" />
                     <span>{attachment.name}</span>
                     <span className="text-muted-foreground">({attachment.size})</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
 
             {/* Stats */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
+              {/* <div className="flex items-center gap-1">
                 <Eye className="h-4 w-4" />
                 {post.views}
-              </div>
+              </div> */}
               <div className="flex items-center gap-1">
                 <Heart className={post.isLiked ? "h-4 w-4 fill-red-500 text-red-500" : "h-4 w-4"} />
                 {post.likes}
@@ -506,35 +622,19 @@ export function EnhancedForumPost({
             placeholder={isQA ? "Write your answer..." : "Write a comment... (use @username to mention)"}
             rows={4}
           />
-          <Button className="mt-2" onClick={() => handleReply(post.id)}>
+          <Button className="mt-2 cursor-pointer" onClick={() => handleReply(post.id)}>
             {isQA ? 'Post Answer' : 'Post Comment'}
           </Button>
         </Card>
       </div>
 
       {/* Report dialog */}
-      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Report Content</DialogTitle>
-            <DialogDescription>Please describe why you're reporting this content...</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              placeholder="Please describe why you're reporting this content..."
-              rows={4}
-            />
-            <div className="flex gap-2">
-              <Button onClick={handleReport}>Submit Report</Button>
-              <Button variant="outline" onClick={() => setShowReportDialog(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReportDialog
+        isOpen={showReportDialog}
+        onClose={() => { setShowReportDialog(false); setReportTarget(null); }}
+        onReport={handleReport}
+        content={reportTarget}
+      />
 
       {/* Accept answer dialog */}
       <Dialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
@@ -545,16 +645,16 @@ export function EnhancedForumPost({
               Are you sure you want to mark this as the accepted answer? This will highlight it as the best solution to your question.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-4 cursor-pointer">
+            <p className="text-sm text-muted-foreground cursor-pointer">
               Only one answer can be accepted at a time. You can change the accepted answer later if needed.
             </p>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end cursor-pointer">
               <Button variant="outline" onClick={() => setShowAcceptDialog(false)}>
                 Cancel
               </Button>
               <Button 
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 cursor-pointer"
                 onClick={() => {
                   onAcceptAnswer?.(answerToAccept!);
                   setShowAcceptDialog(false);
@@ -564,6 +664,79 @@ export function EnhancedForumPost({
                 Accept Answer
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Post Dialog */}
+      <Dialog open={editingPost} onOpenChange={setEditingPost}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Post</DialogTitle>
+            <DialogDescription>Update your post title and content.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Title</label>
+              <Textarea
+                value={editPostTitle}
+                onChange={(e) => setEditPostTitle(e.target.value)}
+                className="min-h-[40px] resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Content</label>
+              <Textarea
+                value={editPostContent}
+                onChange={(e) => setEditPostContent(e.target.value)}
+                className="min-h-[120px] resize-none"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setEditingPost(false)} className="cursor-pointer">
+                Cancel
+              </Button>
+              <Button
+                disabled={!editPostTitle.trim() || !editPostContent.trim()}
+                onClick={() => {
+                  onEditPost?.(post.id, { title: editPostTitle, content: editPostContent });
+                  setEditingPost(false);
+                }}
+                className="cursor-pointer"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {deleteTarget?.type === 'post' ? 'Post' : 'Comment'}</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this {deleteTarget?.type}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="cursor-pointer">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (deleteTarget?.type === 'post') {
+                  onDeletePost?.(deleteTarget.id);
+                } else if (deleteTarget?.type === 'comment') {
+                  onDeleteComment?.(deleteTarget.id);
+                }
+                setDeleteTarget(null);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+            >
+              Delete
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -213,7 +213,7 @@ export function UserDashboardPanel({
                       e.stopPropagation();
                       onShare(concern.type, concern.id);
                     }}>
-                      <Share2 className="h-3 w-3" />
+                      <Share2 className="h-3 w-3 cursor-pointer" />
                     </Button>
                   </div>
                 </div>
@@ -227,13 +227,13 @@ export function UserDashboardPanel({
       <Card>
         <CardHeader>
           <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 cursor-pointer">
               <TabsTrigger value="polls">
-                <BarChart3 className="h-4 w-4 mr-2" />
+                <BarChart3 className="h-4 w-4 mr-2 cursor-pointer" />
                 My Polls
               </TabsTrigger>
               <TabsTrigger value="petitions">
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="h-4 w-4 mr-2 cursor-pointer" />
                 My Petitions
               </TabsTrigger>
             </TabsList>
@@ -241,8 +241,8 @@ export function UserDashboardPanel({
         </CardHeader>
         <CardContent>
           {activeTab === 'polls' && (
-            <Tabs defaultValue="created" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3">
+            <Tabs defaultValue="created" className="space-y-4 cursor-pointer">
+              <TabsList className="grid w-full grid-cols-3 cursor-pointer">
                 <TabsTrigger value="created">
                   Created ({createdPolls.length})
                 </TabsTrigger>
@@ -250,22 +250,22 @@ export function UserDashboardPanel({
                   Participated ({participatedPolls.length})
                 </TabsTrigger>
                 <TabsTrigger value="bookmarked">
-                  <Bookmark className="h-3 w-3 mr-1" />
+                  <Bookmark className="h-3 w-3 mr-1 cursor-pointer" />
                   Saved ({bookmarkedPolls.length})
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="created" className="space-y-3">
+              <TabsContent value="created" className="space-y-3 cursor-pointer">
                 {createdPolls.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <div className="text-center py-8 text-muted-foreground cursor-pointer">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50 cursor-pointer" />
                     <p>You haven't created any polls yet</p>
                   </div>
                 ) : (
                   createdPolls.map(poll => (
                     <div 
                       key={poll.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                     >
                       <div className="flex-1">
                         <h4 className="mb-2">{poll.title}</h4>

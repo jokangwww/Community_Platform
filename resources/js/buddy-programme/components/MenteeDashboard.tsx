@@ -51,11 +51,11 @@ interface Notification {
 
 interface Activity {
   id: string;
-  type: 'evaluation' | 'material' | 'quiz' | 'assignment';
+  type: 'evaluation' | 'material' | 'quiz' | 'assignment' | 'vote';
   title: string;
   description: string;
   timestamp: string;
-  icon: 'MessageSquare' | 'FileText' | 'Award' | 'CheckCircle';
+  icon: 'MessageSquare' | 'FileText' | 'Award' | 'CheckCircle' | 'Vote';
   color: string;
 }
 
@@ -72,7 +72,6 @@ interface MenteeDashboardProps {
 
 export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardProps) {
   const [studentId, setStudentId] = useState(propStudentId || '');
-  const [inputStudentId, setInputStudentId] = useState('');
   const [user, setUser] = useState<User | null>(null);
 
   // Format date to DD-MMM-YYYY
@@ -109,12 +108,14 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
       setIsLoading(true);
       setError(null);
 
-      const [response, settingsResponse] = await Promise.all([
+      const [response, settingsResponse, scheduleResponse] = await Promise.all([
         fetch(`/api/buddy/user/dashboard?student_id=${encodeURIComponent(studentId)}`),
-        fetch('/api/buddy/admin/settings')
+        fetch('/api/buddy/admin/settings'),
+        fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}`),
       ]);
       const result = await response.json();
       const settingsResult = await settingsResponse.json();
+      const scheduleResult = await scheduleResponse.json();
 
       if (result.success) {
         const data = result.data;
@@ -128,7 +129,13 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
         if (data.pairing?.id) {
           setMatchId(data.pairing.id);
           // Fetch classroom data to get pending quizzes/assignments
-          fetchClassroomStats(data.pairing.id);
+          const slotData = scheduleResult?.success ? scheduleResult.data : null;
+          fetchClassroomStats(
+            data.pairing.id,
+            slotData?.slotsPublished === true,
+            slotData?.hasVoted === true,
+            slotData?.isScheduled === true,
+          );
         }
         
         // Set settings if successful and handle evaluation status
@@ -229,7 +236,12 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
     }
   };
 
-  const fetchClassroomStats = async (matchId: string) => {
+  const fetchClassroomStats = async (
+    matchId: string,
+    slotsPublished = false,
+    hasVoted = false,
+    isScheduled = false,
+  ) => {
     try {
       const response = await fetch(`/api/buddy/classroom/${matchId}`, {
         headers: studentId ? { 'X-Student-ID': studentId } : {},
@@ -301,10 +313,40 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
               color: 'green'
             });
           });
-        
+
+        // Add graded assignment notifications
+        (data.assignments || [])
+          .filter((a: any) => a.hasSubmitted && a.submission?.marks !== null && a.submission?.marks !== undefined)
+          .slice(0, 3)
+          .forEach((assignment: any) => {
+            newActivities.push({
+              id: `graded-${assignment.id}`,
+              type: 'assignment',
+              title: 'Assignment Graded',
+              description: `${assignment.title}: ${assignment.submission.marks}/${assignment.totalMarks} marks`,
+              timestamp: assignment.submission?.submittedDate ?? assignment.createdDate,
+              icon: 'Award',
+              color: 'blue'
+            });
+          });
+
         // Sort by timestamp (most recent first)
         newActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setActivities(newActivities.slice(0, 5));
+
+        // Prepend voting notification if slots are published and mentee hasn't voted yet
+        if (slotsPublished && !hasVoted && !isScheduled) {
+          newActivities.unshift({
+            id: 'voting-open',
+            type: 'vote',
+            title: 'Time Slots Available for Voting',
+            description: 'Your mentor has published meeting time slots. Go to Schedule Meeting to vote.',
+            timestamp: new Date().toISOString(),
+            icon: 'Vote',
+            color: 'purple',
+          });
+        }
+
+        setActivities(newActivities.slice(0, 6));
       }
     } catch (err) {
       console.error('Failed to fetch classroom stats:', err);
@@ -312,43 +354,6 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
   };
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
-
-  const handleStudentIdSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputStudentId.trim()) {
-      setStudentId(inputStudentId.trim());
-    }
-  };
-
-  // Show student ID input if not provided
-  if (!studentId) {
-    return (
-      <div className="max-w-md mx-auto">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <Users className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-gray-900 text-xl font-semibold mb-2">Access Your Dashboard</h2>
-          <p className="text-gray-600 mb-6">Enter your Student ID to view your Buddy Programme dashboard</p>
-          
-          <form onSubmit={handleStudentIdSubmit} className="space-y-4">
-            <input
-              type="text"
-              value={inputStudentId}
-              onChange={(e) => setInputStudentId(e.target.value)}
-              placeholder="Enter your Student ID (e.g., 24WMR00123)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={!inputStudentId.trim()}
-              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              View Dashboard
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -366,14 +371,8 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
         <p className="text-red-800">{error || 'User not found'}</p>
         <div className="flex gap-3 justify-center mt-4">
           <button
-            onClick={() => setStudentId('')}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-          >
-            Try Different ID
-          </button>
-          <button
             onClick={fetchDashboardData}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
           >
             Retry
           </button>
@@ -462,7 +461,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -473,7 +472,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'schedule'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -484,7 +483,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           </button>
           <button
             onClick={() => setActiveTab('attendance')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'attendance'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -495,7 +494,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           </button>
           <button
             onClick={() => setActiveTab('classroom')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'classroom'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -507,7 +506,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           {evaluationEnabled && (
             <button
               onClick={() => setActiveTab('evaluation')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
                 activeTab === 'evaluation'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -627,6 +626,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
                           {activity.icon === 'FileText' && <FileText className={`w-5 h-5 ${activity.color === 'blue' ? 'text-blue-600' : 'text-gray-600'}`} />}
                           {activity.icon === 'Award' && <Award className={`w-5 h-5 ${activity.color === 'purple' ? 'text-purple-600' : 'text-gray-600'}`} />}
                           {activity.icon === 'CheckCircle' && <CheckCircle className={`w-5 h-5 ${activity.color === 'green' ? 'text-green-600' : 'text-gray-600'}`} />}
+                          {activity.icon === 'Vote' && <Vote className={`w-5 h-5 ${activity.color === 'purple' ? 'text-purple-600' : 'text-gray-600'}`} />}
                           {activity.icon === 'MessageSquare' && <MessageSquare className={`w-5 h-5 ${activity.color === 'amber' ? 'text-amber-600' : 'text-gray-600'}`} />}
                         </div>
                         <div className="flex-1">
@@ -731,13 +731,13 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedMeeting(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleAttendanceSubmit(selectedMeeting.id)}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
               >
                 Verify Attendance
               </button>

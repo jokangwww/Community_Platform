@@ -215,7 +215,7 @@ export function CreateForumPost({ categories, onCreatePost, onCancel }: CreateFo
                   #{tag}
                   <button
                     onClick={() => handleRemoveHashtag(tag)}
-                    className="ml-1 hover:text-red-500"
+                    className="ml-1 hover:text-red-500 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -239,7 +239,7 @@ export function CreateForumPost({ categories, onCreatePost, onCancel }: CreateFo
           <Button
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full"
+            className="w-full cursor-pointer"
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload Files
@@ -273,10 +273,10 @@ export function CreateForumPost({ categories, onCreatePost, onCancel }: CreateFo
 
         {/* Action buttons */}
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={onCancel} size="lg" className="px-8">
+          <Button variant="outline" onClick={onCancel} size="lg" className="px-8 cursor-pointer">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} size="lg" className="px-8">
+          <Button onClick={handleSubmit} size="lg" className="px-8 cursor-pointer">
             {isQA ? 'Post Question' : 'Create Discussion'}
           </Button>
         </div>

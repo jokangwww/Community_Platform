@@ -9,6 +9,7 @@ use App\Models\BuddySchedule;
 use App\Models\BuddySession;
 use App\Models\BuddyTimeSlot;
 use App\Models\BuddyTimeSlotVote;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -115,7 +116,6 @@ class UserController extends Controller
             }
 
             // Use actual session count when stored total_sessions is 0 or null
-            // (seeded data may have total_sessions=0 even with real session records)
             $totalSessions = ($match->total_sessions > 0) ? $match->total_sessions : count($sessionRecords);
             $completedSessions = ($match->completed_sessions > 0) ? $match->completed_sessions : $completedSessions;
         }
@@ -237,9 +237,9 @@ class UserController extends Controller
                 if ($session->status === 'pending' && !$session->mentee_check_in) {
                     $sessionDateStr = $session->session_date->format('Y-m-d');
                     $sessionEndTime = $session->session_end_time ?? '23:59:59';
-                    $sessionDeadline = \Carbon\Carbon::parse($sessionDateStr . ' ' . $sessionEndTime);
+                    $sessionDeadline = \Carbon\Carbon::parse($sessionDateStr . ' ' . $sessionEndTime, 'Asia/Kuala_Lumpur');
                     
-                    if (now()->gt($sessionDeadline)) {
+                    if (now('Asia/Kuala_Lumpur')->gt($sessionDeadline)) {
                         $session->status = 'missed';
                         $session->save();
                     }
@@ -253,8 +253,8 @@ class UserController extends Controller
                     'topic' => $session->topic ?? 'Session',
                     'description' => $session->description,
                     'status' => $session->status,
-                    'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->format('Y-m-d H:i:s') : null,
-                    'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->format('Y-m-d H:i:s') : null,
+                    'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
+                    'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
                     'notes' => $session->notes,
                 ];
             });
@@ -313,9 +313,9 @@ class UserController extends Controller
             $sessionDateStr = $session->session_date->format('Y-m-d');
             $sessionEndTime = $session->session_end_time ?? '23:59:59';
             
-            // Combine date and end time to create deadline
-            $sessionDeadline = \Carbon\Carbon::parse($sessionDateStr . ' ' . $sessionEndTime);
-            $now = now();
+            // Combine date and end time to create deadline (use local timezone since session times are stored in MYT)
+            $sessionDeadline = \Carbon\Carbon::parse($sessionDateStr . ' ' . $sessionEndTime, 'Asia/Kuala_Lumpur');
+            $now = now('Asia/Kuala_Lumpur');
             
             // If current time is past session end time, mark as missed/absent
             if ($now->gt($sessionDeadline)) {
@@ -358,8 +358,8 @@ class UserController extends Controller
             'data' => [
                 'sessionId' => $session->id,
                 'status' => $session->status,
-                'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->format('Y-m-d H:i:s') : null,
-                'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->format('Y-m-d H:i:s') : null,
+                'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
+                'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
             ]
         ]);
     }
@@ -387,7 +387,7 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Get active match
+        // Get active match(es): mentor may have multiple (one per mentee)
         $matchQuery = $participant->role === 'mentor'
             ? BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
@@ -398,7 +398,13 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentee');
               });
 
-        $match = $matchQuery->where('status', 'active')->first();
+        if ($participant->role === 'mentor') {
+            $allMatches = $matchQuery->where('status', 'active')->get();
+            $match = $allMatches->first();
+        } else {
+            $match = $matchQuery->where('status', 'active')->first();
+            $allMatches = $match ? collect([$match]) : collect();
+        }
 
         if (!$match) {
             return response()->json([
@@ -412,11 +418,86 @@ class UserController extends Controller
             ]);
         }
 
-        // Get time slots with vote counts
-        $timeSlots = BuddyTimeSlot::where('match_id', $match->id)
+        $allMatchIds = $allMatches->pluck('id');
+
+        // Get time slots from the first match as the template, then aggregate votes across all matches
+        $templateSlots = BuddyTimeSlot::where('match_id', $match->id)
             ->withCount('votes')
-            ->get()
-            ->map(function ($slot) {
+            ->get();
+
+        // --- Auto-sync for mentees whose match has no slots yet (pre-fix data case) ---
+        // If this mentee's match has no time slots but the mentor has published slots in
+        // another match, copy those published slots here so the mentee can vote.
+        if ($participant->role === 'mentee' && $templateSlots->isEmpty()) {
+            $mentorId = $match->mentor_id; // BuddyParticipant ID of the mentor
+
+            // Find a sibling match (same mentor) that already has published slots
+            $siblingMatchIds = BuddyMatch::where('mentor_id', $mentorId)
+                ->where('status', 'active')
+                ->where('id', '!=', $match->id)
+                ->pluck('id');
+
+            $sourceMatchId = BuddyTimeSlot::whereIn('match_id', $siblingMatchIds)
+                ->where('is_published', true)
+                ->value('match_id');
+
+            if ($sourceMatchId) {
+                $sourceSlots = BuddyTimeSlot::where('match_id', $sourceMatchId)
+                    ->where('is_published', true)
+                    ->get();
+
+                foreach ($sourceSlots as $sourceSlot) {
+                    BuddyTimeSlot::firstOrCreate(
+                        [
+                            'match_id'   => $match->id,
+                            'day'        => $sourceSlot->day,
+                            'start_time' => $sourceSlot->start_time,
+                            'end_time'   => $sourceSlot->end_time,
+                        ],
+                        ['is_published' => true]
+                    );
+                }
+
+                // Ensure a voting BuddySchedule record exists for this match
+                BuddySchedule::updateOrCreate(
+                    ['match_id' => $match->id],
+                    [
+                        'day' => '',
+                        'start_time' => '00:00:00',
+                        'end_time' => '00:00:00',
+                        'status' => 'voting',
+                    ]
+                );
+
+                // Refresh templateSlots now that the slots have been copied
+                $templateSlots = BuddyTimeSlot::where('match_id', $match->id)
+                    ->withCount('votes')
+                    ->get();
+            }
+        }
+        // --- End auto-sync ---
+
+        if ($participant->role === 'mentor' && $allMatches->count() > 1) {
+            // Aggregate votes from equivalent slots across all mentor's matches
+            $timeSlots = $templateSlots->map(function ($slot) use ($allMatchIds) {
+                $totalVotes = BuddyTimeSlot::whereIn('match_id', $allMatchIds)
+                    ->where('day', $slot->day)
+                    ->where('start_time', $slot->start_time)
+                    ->where('end_time', $slot->end_time)
+                    ->withCount('votes')
+                    ->get()
+                    ->sum('votes_count');
+                return [
+                    'id' => (string)$slot->id,
+                    'day' => $slot->day,
+                    'startTime' => $slot->formatted_start_time,
+                    'endTime' => $slot->formatted_end_time,
+                    'votes' => $totalVotes,
+                    'status' => $slot->is_published ? 'voting' : 'pending',
+                ];
+            });
+        } else {
+            $timeSlots = $templateSlots->map(function ($slot) {
                 return [
                     'id' => (string)$slot->id,
                     'day' => $slot->day,
@@ -426,6 +507,7 @@ class UserController extends Controller
                     'status' => $slot->is_published ? 'voting' : 'pending',
                 ];
             });
+        }
 
         // Check if current participant has voted
         $hasVoted = BuddyTimeSlotVote::whereHas('timeSlot', function ($query) use ($match) {
@@ -446,8 +528,8 @@ class UserController extends Controller
             ];
         }
 
-        // Check if slots are published (for mentee voting)
-        $slotsPublished = BuddyTimeSlot::where('match_id', $match->id)
+        // Check if slots are published (across any of the mentor's matches, or the mentee's match)
+        $slotsPublished = BuddyTimeSlot::whereIn('match_id', $allMatchIds)
             ->where('is_published', true)
             ->exists();
 
@@ -493,23 +575,26 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Get active match
-        $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
+        // Get ALL active matches for this mentor
+        $matches = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
-            ->first();
+            ->get();
 
-        if (!$match) {
+        if ($matches->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active match found'
             ], 404);
         }
 
-        // Check if slots are already published
-        $slotsPublished = BuddyTimeSlot::where('match_id', $match->id)
+        // Use first match to check published/duplicate state (all matches share same slots)
+        $firstMatch = $matches->first();
+
+        // Check if slots are already published on any match
+        $slotsPublished = BuddyTimeSlot::whereIn('match_id', $matches->pluck('id'))
             ->where('is_published', true)
             ->exists();
 
@@ -520,8 +605,8 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Check for duplicate time slot
-        $duplicateExists = BuddyTimeSlot::where('match_id', $match->id)
+        // Check for duplicate time slot on the first match
+        $duplicateExists = BuddyTimeSlot::where('match_id', $firstMatch->id)
             ->where('day', $request->day)
             ->where('start_time', $request->start_time)
             ->where('end_time', $request->end_time)
@@ -534,22 +619,29 @@ class UserController extends Controller
             ], 400);
         }
 
-        $timeSlot = BuddyTimeSlot::create([
-            'match_id' => $match->id,
-            'day' => $request->day,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'is_published' => false,
-        ]);
+        // Create the time slot for ALL active matches so every mentee can see and vote
+        $firstSlot = null;
+        foreach ($matches as $match) {
+            $slot = BuddyTimeSlot::create([
+                'match_id' => $match->id,
+                'day' => $request->day,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'is_published' => false,
+            ]);
+            if (!$firstSlot) {
+                $firstSlot = $slot;
+            }
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Time slot added successfully',
             'data' => [
-                'id' => (string)$timeSlot->id,
-                'day' => $timeSlot->day,
-                'startTime' => $timeSlot->formatted_start_time,
-                'endTime' => $timeSlot->formatted_end_time,
+                'id' => (string)$firstSlot->id,
+                'day' => $firstSlot->day,
+                'startTime' => $firstSlot->formatted_start_time,
+                'endTime' => $firstSlot->formatted_end_time,
                 'votes' => 0,
                 'status' => 'pending',
             ]
@@ -588,15 +680,15 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Verify ownership through match
-        $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
+        // Verify ownership through any active match
+        $matchIds = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
-            ->first();
+            ->pluck('id');
 
-        if (!$match || $timeSlot->match_id !== $match->id) {
+        if ($matchIds->isEmpty() || !$matchIds->contains($timeSlot->match_id)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Not authorized to remove this time slot'
@@ -610,7 +702,12 @@ class UserController extends Controller
             ], 400);
         }
 
-        $timeSlot->delete();
+        // Delete the equivalent slot (same day/time) from ALL mentor's active matches
+        BuddyTimeSlot::whereIn('match_id', $matchIds)
+            ->where('day', $timeSlot->day)
+            ->where('start_time', $timeSlot->start_time)
+            ->where('end_time', $timeSlot->end_time)
+            ->delete();
 
         return response()->json([
             'success' => true,
@@ -636,43 +733,69 @@ class UserController extends Controller
             ], 403);
         }
 
-        $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
+        $matches = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
-            ->first();
+            ->get();
 
-        if (!$match) {
+        if ($matches->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active match found'
             ], 404);
         }
 
-        $slots = BuddyTimeSlot::where('match_id', $match->id)->get();
+        // Check that at least one match has unpublished slots
+        $hasSlots = BuddyTimeSlot::whereIn('match_id', $matches->pluck('id'))->exists();
 
-        if ($slots->isEmpty()) {
+        if (!$hasSlots) {
             return response()->json([
                 'success' => false,
                 'message' => 'No time slots to publish'
             ], 400);
         }
 
-        // Publish all slots
-        BuddyTimeSlot::where('match_id', $match->id)
-            ->update(['is_published' => true]);
+        // Step 1: Find the template match – the first match that already has slots
+        $templateSlots = collect();
+        foreach ($matches as $m) {
+            $s = BuddyTimeSlot::where('match_id', $m->id)->get();
+            if ($s->isNotEmpty()) {
+                $templateSlots = $s;
+                break;
+            }
+        }
 
-        // Create schedule record in voting status
-        BuddySchedule::updateOrCreate(
-            ['match_id' => $match->id],
-            [
-                'day' => '',
-                'start_time' => '00:00:00',
-                'end_time' => '00:00:00',
-                'status' => 'voting',
-            ]
-        );
+        // Step 2: For every match that has NO slots, copy the template slots into it.
+        //         Then publish all slots and create a BuddySchedule voting record.
+        foreach ($matches as $match) {
+            $existing = BuddyTimeSlot::where('match_id', $match->id)->count();
+            if ($existing === 0) {
+                foreach ($templateSlots as $tSlot) {
+                    BuddyTimeSlot::create([
+                        'match_id'   => $match->id,
+                        'day'        => $tSlot->day,
+                        'start_time' => $tSlot->start_time,
+                        'end_time'   => $tSlot->end_time,
+                        'is_published' => false,
+                    ]);
+                }
+            }
+
+            BuddyTimeSlot::where('match_id', $match->id)
+                ->update(['is_published' => true]);
+
+            BuddySchedule::updateOrCreate(
+                ['match_id' => $match->id],
+                [
+                    'day' => '',
+                    'start_time' => '00:00:00',
+                    'end_time' => '00:00:00',
+                    'status' => 'voting',
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -681,13 +804,14 @@ class UserController extends Controller
     }
 
     /**
-     * Vote on a time slot (mentee only)
+     * Vote on time slots (mentee only) – supports multiple slot selections
      */
     public function voteTimeSlot(Request $request): JsonResponse
     {
         $request->validate([
             'student_id' => 'required|string',
-            'slot_id' => 'required|integer',
+            'slot_ids'   => 'required|array|min:1',
+            'slot_ids.*' => 'integer',
         ]);
 
         $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
@@ -706,16 +830,7 @@ class UserController extends Controller
             ], 403);
         }
 
-        $timeSlot = BuddyTimeSlot::find($request->slot_id);
-
-        if (!$timeSlot || !$timeSlot->is_published) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Time slot not found or not available for voting'
-            ], 404);
-        }
-
-        // Verify participant is matched to this slot's match
+        // Verify participant is matched
         $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentee');
@@ -723,11 +838,11 @@ class UserController extends Controller
             ->where('status', 'active')
             ->first();
 
-        if (!$match || $timeSlot->match_id !== $match->id) {
+        if (!$match) {
             return response()->json([
                 'success' => false,
-                'message' => 'Not authorized to vote on this time slot'
-            ], 403);
+                'message' => 'No active match found'
+            ], 404);
         }
 
         // Check if already voted on any slot for this match
@@ -744,15 +859,30 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Record vote
-        BuddyTimeSlotVote::create([
-            'time_slot_id' => $timeSlot->id,
-            'participant_id' => $participant->id,
-        ]);
+        // Validate all requested slots belong to this match and are published
+        $slots = BuddyTimeSlot::whereIn('id', $request->slot_ids)
+            ->where('match_id', $match->id)
+            ->where('is_published', true)
+            ->get();
+
+        if ($slots->count() !== count($request->slot_ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'One or more time slots are invalid or not available for voting'
+            ], 400);
+        }
+
+        // Record a vote for each selected slot
+        foreach ($slots as $slot) {
+            BuddyTimeSlotVote::create([
+                'time_slot_id'   => $slot->id,
+                'participant_id' => $participant->id,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Vote recorded successfully'
+            'message' => 'Votes recorded successfully'
         ]);
     }
 
@@ -774,55 +904,186 @@ class UserController extends Controller
             ], 403);
         }
 
-        $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
+        $matches = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
-            ->first();
+            ->get();
 
-        if (!$match) {
+        if ($matches->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No active match found'
             ], 404);
         }
 
-        // Find slot with most votes
-        $winningSlot = BuddyTimeSlot::where('match_id', $match->id)
-            ->where('is_published', true)
-            ->withCount('votes')
-            ->orderBy('votes_count', 'desc')
-            ->first();
+        $firstMatch = $matches->first();
+        $allMatchIds = $matches->pluck('id');
 
-        if (!$winningSlot) {
+        // Find winning slot by aggregating votes across all matches' equivalent slots
+        // Use first match slots as template, sum votes from all matches for each day/time
+        $templateSlots = BuddyTimeSlot::where('match_id', $firstMatch->id)
+            ->where('is_published', true)
+            ->get();
+
+        if ($templateSlots->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No time slots available'
             ], 400);
         }
 
-        // Update or create confirmed schedule
-        $schedule = BuddySchedule::updateOrCreate(
-            ['match_id' => $match->id],
-            [
-                'selected_slot_id' => $winningSlot->id,
-                'day' => $winningSlot->day,
-                'start_time' => $winningSlot->start_time,
-                'end_time' => $winningSlot->end_time,
-                'total_votes' => $winningSlot->votes_count,
-                'status' => 'confirmed',
-            ]
-        );
+        $bestSlot = null;
+        $bestVotes = -1;
+        foreach ($templateSlots as $template) {
+            $totalVotes = BuddyTimeSlot::whereIn('match_id', $allMatchIds)
+                ->where('day', $template->day)
+                ->where('start_time', $template->start_time)
+                ->where('end_time', $template->end_time)
+                ->withCount('votes')
+                ->get()
+                ->sum('votes_count');
+            if ($totalVotes > $bestVotes) {
+                $bestVotes = $totalVotes;
+                $bestSlot = $template;
+            }
+        }
+
+        if (!$bestSlot) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No time slots available'
+            ], 400);
+        }
+
+        $dayOfWeek = $bestSlot->day;
+        $startTime  = $bestSlot->start_time;
+        $endTime    = $bestSlot->end_time;
+        $totalSessionsCreated = 0;
+
+        // Determine session range from active semester setting
+        $semesterSetting = BuddySemesterSetting::getActiveSemester();
+        if ($semesterSetting) {
+            $semStart = \Carbon\Carbon::parse($semesterSetting->start_date, 'Asia/Kuala_Lumpur');
+            $semEnd   = \Carbon\Carbon::parse($semesterSetting->end_date, 'Asia/Kuala_Lumpur');
+            $totalWeeks = $semesterSetting->total_weeks;
+        } else {
+            // Fallback: start from next occurrence of the day, 14 weeks
+            $semStart = \Carbon\Carbon::now('Asia/Kuala_Lumpur');
+            $semEnd   = \Carbon\Carbon::now('Asia/Kuala_Lumpur')->addWeeks(14);
+            $totalWeeks = 14;
+        }
+
+        // Find first occurrence of the scheduled day on or after semester start
+        $firstSessionDate = $semStart->copy();
+        while ($firstSessionDate->format('l') !== $dayOfWeek) {
+            $firstSessionDate->addDay();
+        }
+
+        // Confirm schedule and create sessions for ALL matches
+        foreach ($matches as $match) {
+            // Delete all existing PENDING sessions so we can cleanly regenerate
+            // from the current semester setting (fixes stale 7-session / wrong-date data)
+            BuddySession::where('match_id', $match->id)
+                ->where('status', 'pending')
+                ->delete();
+
+            // Find the equivalent winning slot for this specific match
+            $winningSlot = BuddyTimeSlot::where('match_id', $match->id)
+                ->where('day', $dayOfWeek)
+                ->where('start_time', $startTime)
+                ->where('end_time', $endTime)
+                ->first();
+
+            BuddySchedule::updateOrCreate(
+                ['match_id' => $match->id],
+                [
+                    'selected_slot_id' => $winningSlot ? $winningSlot->id : null,
+                    'day' => $dayOfWeek,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'total_votes' => $bestVotes,
+                    'status' => 'confirmed',
+                ]
+            );
+
+            // Create sessions for each week within semester range
+            for ($week = 0; $week < $totalWeeks; $week++) {
+                $sessionDate = $firstSessionDate->copy()->addWeeks($week);
+                // Stop if session date exceeds semester end date
+                if ($sessionDate->gt($semEnd)) {
+                    break;
+                }
+                $existing = BuddySession::where('match_id', $match->id)
+                    ->where('session_date', $sessionDate->format('Y-m-d'))
+                    ->first();
+                if (!$existing) {
+                    BuddySession::create([
+                        'match_id' => $match->id,
+                        'session_date' => $sessionDate->format('Y-m-d'),
+                        'session_time' => $startTime,
+                        'session_end_time' => $endTime,
+                        'topic' => 'Week ' . ($week + 1) . ' Session',
+                        'status' => 'pending',
+                    ]);
+                    $totalSessionsCreated++;
+                }
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Schedule confirmed successfully',
+            'message' => "Schedule confirmed successfully. {$totalSessionsCreated} weekly sessions created.",
             'data' => [
-                'day' => $schedule->day,
-                'time' => $schedule->formatted_time,
-                'totalVotes' => $schedule->total_votes,
+                'day' => $dayOfWeek,
+                'time' => date('H:i', strtotime($startTime)) . ' - ' . date('H:i', strtotime($endTime)),
+                'totalVotes' => $bestVotes,
+                'sessionsCreated' => $totalSessionsCreated,
             ]
+        ]);
+    }
+
+    /**
+     * Reset all votes for the match so mentees can vote again (mentor only)
+     */
+    public function resetVotes(Request $request): JsonResponse
+    {
+        $request->validate([
+            'student_id' => 'required|string',
+        ]);
+
+        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+
+        if (!$participant || $participant->role !== 'mentor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only mentors can reset votes'
+            ], 403);
+        }
+
+        $allMatchIds = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
+                $query->where('buddy_match_participants.participant_id', $participant->id)
+                      ->where('buddy_match_participants.role', 'mentor');
+            })
+            ->where('status', 'active')
+            ->pluck('id');
+
+        if ($allMatchIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active match found'
+            ], 404);
+        }
+
+        // Delete all votes for ALL mentor matches' time slots
+        BuddyTimeSlotVote::whereHas('timeSlot', function ($query) use ($allMatchIds) {
+            $query->whereIn('match_id', $allMatchIds);
+        })->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Votes reset successfully. Mentees can now vote again.'
         ]);
     }
 
@@ -865,6 +1126,7 @@ class UserController extends Controller
         // Build mentees list with attendance data
         $mentees = [];
         $allMeetings = [];
+        $meetingsMap  = [];
         $allAttendanceRecords = [];
         $uniqueSessionIds = []; // Track unique sessions to avoid double-counting
         $totalCompletedSessions = 0;
@@ -895,7 +1157,7 @@ class UserController extends Controller
                 // Calculate attendance rate for this mentee based on match sessions
                 $attendanceRate = $totalSessionsForMatch > 0 
                     ? round(($completedSessionsForMatch / $totalSessionsForMatch) * 100) 
-                    : 100;
+                    : 0;
 
                 $mentees[] = [
                     'id' => (string)$mentee->id,
@@ -919,24 +1181,30 @@ class UserController extends Controller
                         'status' => $session->mentee_check_in ? 'present' : 'absent',
                         'mentorCheckedIn' => $session->mentor_check_in !== null,
                     ];
+                }
+            }
 
-                    // Add to meetings list
-                    $allMeetings[] = [
+            // Add meetings once per DATE using keyed map to avoid duplicates across same-date sessions
+            foreach ($sessions as $session) {
+                $dateKey = $session->session_date->format('Y-m-d');
+                if (!isset($meetingsMap[$dateKey])) {
+                    $meetingsMap[$dateKey] = [
                         'id' => (string)$session->id,
                         'matchId' => (string)$match->id,
-                        'menteeId' => (string)$mentee->id,
-                        'menteeName' => $mentee->full_name,
                         'subject' => $match->subject ? $match->subject->name : 'Session',
                         'date' => $session->session_date->format('Y-m-d'),
                         'time' => $session->session_time,
                         'topic' => $session->topic ?? 'Session',
+                        'description' => $session->description,
                         'status' => $session->status,
-                        'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->format('Y-m-d H:i:s') : null,
-                        'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->format('Y-m-d H:i:s') : null,
+                        'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
+                        'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
                     ];
                 }
             }
         }
+
+        $allMeetings = array_values($meetingsMap);
 
         // Sort meetings by date descending
         usort($allMeetings, function($a, $b) {
@@ -961,14 +1229,21 @@ class UserController extends Controller
             $mentorSubjects = [$mentor->subject->name];
         }
 
-        // Get confirmed weekly schedules for all matches
+        // Get confirmed weekly schedules for all matches — deduplicate by day+time
         $weeklySchedules = [];
+        $scheduleSeen = []; // key: "day|start_time|end_time" — only emit one entry per unique schedule
         foreach ($matches as $match) {
             $confirmedSchedule = BuddySchedule::where('match_id', $match->id)
                 // ->where('status', 'confirmed')
                 ->first();
             
             if ($confirmedSchedule) {
+                $dedupeKey = $confirmedSchedule->day . '|' . $confirmedSchedule->start_time . '|' . $confirmedSchedule->end_time;
+                if (isset($scheduleSeen[$dedupeKey])) {
+                    continue; // same day+time already emitted
+                }
+                $scheduleSeen[$dedupeKey] = true;
+
                 $mentee = $match->mentee;
                 $weeklySchedules[] = [
                     'matchId' => (string)$match->id,
@@ -997,7 +1272,7 @@ class UserController extends Controller
                 'subjects' => $mentorSubjects,
             ],
             'mentees' => $mentees,
-            'meetings' => array_values($allMeetings),
+            'meetings' => $allMeetings,
             'upcomingMeetings' => array_values($upcomingMeetings),
             'weeklySchedules' => $weeklySchedules,
             'attendanceRecords' => $allAttendanceRecords,
@@ -1018,16 +1293,16 @@ class UserController extends Controller
 
     /**
      * Submit attendance for a session (mentor marking mentee attendance)
+     * The mentor selects an existing auto-created session and optionally updates its topic/description
      */
     public function submitMentorAttendance(Request $request): JsonResponse
     {
         try {
             $request->validate([
                 'student_id' => 'required|string',
-                'session_date' => 'required|date',
-                'session_topic' => 'required|string',
-                'session_time' => 'nullable|string',
-                'session_end_time' => 'nullable|string',
+                'session_id' => 'required|integer',
+                'session_topic' => 'nullable|string',
+                'session_description' => 'nullable|string',
                 'attendance' => 'required|array',
             ]);
 
@@ -1042,71 +1317,62 @@ class UserController extends Controller
                 ], 404);
             }
 
-            // Get all active matches for this mentor via pivot table
-            $matchesCollection = BuddyMatch::whereHas('participants', function ($query) use ($mentor) {
-                    $query->where('buddy_match_participants.participant_id', $mentor->id)
-                          ->where('buddy_match_participants.role', 'mentor');
-                })
-                ->where('status', 'active')
-                ->with('mentees')
-                ->get();
-            
-            // Build a map of mentee_id => match for easy lookup
-            $matches = [];
-            foreach ($matchesCollection as $match) {
-                $mentees = $match->mentees()->get();
-                foreach ($mentees as $mentee) {
-                    $matches[$mentee->id] = $match;
+            // Find the session
+            $session = BuddySession::find($request->session_id);
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            // If mentor provided a custom topic or description, update the session
+            if ($request->session_topic) {
+                $session->topic = $request->session_topic;
+            }
+            if ($request->session_description) {
+                $session->description = $request->session_description;
+            }
+
+            // Record mentor check-in
+            $session->mentor_check_in = now();
+
+            // Process attendance: check if any mentee is marked present
+            $anyPresent = false;
+            foreach ($request->attendance as $menteeId => $status) {
+                if ($status === 'present') {
+                    $anyPresent = true;
+                    break;
                 }
             }
 
-            $createdSessions = [];
-            
-            // Get session time from request or default
-            $sessionTime = $request->session_time ?? '10:00:00';
-            $sessionEndTime = $request->session_end_time ?? '11:00:00';
+            // If mentor marks mentee present, set mentee_check_in and status = completed
+            // If absent, leave mentee_check_in null and status = pending (mentee can still check in)
+            if ($anyPresent) {
+                $session->mentee_check_in = now();
+                $session->status = 'completed';
+            } else {
+                $session->mentee_check_in = null;
+                $session->status = 'pending';
+            }
 
-            foreach ($request->attendance as $menteeId => $status) {
-                // Find match for this mentee
-                $match = $matches->get((int)$menteeId);
-                
-                if (!$match) {
-                    continue;
-                }
+            $session->save();
 
-                // Determine session status based on mentor marking:
-                // - 'present' = mentor confirms mentee was present -> completed
-                // - 'absent' = mentor records session but mentee needs to check in -> pending (mentee can still check in within session time)
-                $sessionStatus = $status === 'present' ? 'completed' : 'pending';
-
-                // Create or update session
-                $session = BuddySession::updateOrCreate(
-                    [
-                        'match_id' => $match->id,
-                        'session_date' => $request->session_date,
-                    ],
-                    [
-                        'topic' => $request->session_topic,
-                        'session_time' => $sessionTime,
-                        'session_end_time' => $sessionEndTime,
-                        'mentor_check_in' => now(),
-                        'mentee_check_in' => $status === 'present' ? now() : null,
-                        'status' => $sessionStatus,
-                    ]
-                );
-
-                $createdSessions[] = [
-                    'sessionId' => $session->id,
-                    'menteeId' => $menteeId,
-                    'status' => $session->status,
-                ];
+            // Update match completed sessions count
+            $match = $session->match;
+            if ($match) {
+                $match->completed_sessions = BuddySession::where('match_id', $match->id)
+                    ->where('status', 'completed')
+                    ->count();
+                $match->save();
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Attendance submitted successfully',
                 'data' => [
-                    'sessions' => $createdSessions,
+                    'sessionId' => $session->id,
+                    'status' => $session->status,
                 ]
             ]);
         } catch (\Exception $e) {

@@ -23,7 +23,7 @@ interface ArchivedPoll {
   createdAt: string;
   expiryDate: string;
   totalVotes: number;
-  usefulnessScore: number;
+  usefulnessScore?: number;
 }
 
 interface PollArchiveProps {
@@ -84,7 +84,7 @@ export function PollArchive({ archivedPolls, onBack, onViewPoll }: PollArchivePr
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2">
+          <Button onClick={onBack} variant="ghost" className="mb-3 -ml-2 cursor-pointer">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Polls
           </Button>

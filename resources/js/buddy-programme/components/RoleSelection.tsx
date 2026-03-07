@@ -18,7 +18,7 @@ export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
         {/* Mentor Card */}
         <button
           onClick={() => onRoleSelect('mentor')}
-          className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:border-blue-500 hover:shadow-lg transition-all text-left group"
+          className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:border-blue-500 hover:shadow-lg transition-all text-left group cursor-pointer"
         >
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-blue-500 transition-colors">
             <GraduationCap className="w-8 h-8 text-blue-600 group-hover:text-white" />
@@ -49,7 +49,7 @@ export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
         {/* Mentee Card */}
         <button
           onClick={() => onRoleSelect('mentee')}
-          className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:border-green-500 hover:shadow-lg transition-all text-left group"
+          className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:border-green-500 hover:shadow-lg transition-all text-left group cursor-pointer"
         >
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-green-500 transition-colors">
             <BookOpen className="w-8 h-8 text-green-600 group-hover:text-white" />

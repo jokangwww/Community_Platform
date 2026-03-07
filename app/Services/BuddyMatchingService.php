@@ -157,6 +157,12 @@ class BuddyMatchingService
                     'completed_sessions' => 0,
                 ]);
 
+                // Populate the pivot table so participant-based queries work
+                $match->participants()->syncWithoutDetaching([
+                    $mentor->id => ['role' => 'mentor'],
+                    $mentee->id => ['role' => 'mentee'],
+                ]);
+
                 // Update mentor's match count in memory
                 $mentor->mentor_matches_count++;
 
@@ -222,7 +228,7 @@ class BuddyMatchingService
             return null;
         }
 
-        return BuddyMatch::create([
+        $match = BuddyMatch::create([
             'mentor_id' => $mentorId,
             'mentee_id' => $menteeId,
             'subject_id' => $finalSubjectId,
@@ -231,6 +237,14 @@ class BuddyMatchingService
             'total_sessions' => 0,
             'completed_sessions' => 0,
         ]);
+
+        // Populate the pivot table so participant-based queries work
+        $match->participants()->syncWithoutDetaching([
+            $mentorId => ['role' => 'mentor'],
+            $menteeId => ['role' => 'mentee'],
+        ]);
+
+        return $match;
     }
 
     /**

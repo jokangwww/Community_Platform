@@ -136,7 +136,7 @@ export function PollCard({ poll, onViewPoll }: PollCardProps) {
 
         <Button 
           onClick={() => onViewPoll(poll.id)} 
-          className="w-full"
+          className="w-full cursor-pointer"
           variant={poll.hasVoted || poll.isExpired ? "outline" : "default"}
         >
           <BarChart3 className="h-4 w-4 mr-2" />

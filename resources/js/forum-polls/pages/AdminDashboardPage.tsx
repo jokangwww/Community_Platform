@@ -10,6 +10,7 @@ interface AdminDashboardPageProps {
   onBack: () => void;
   onViewContent: (contentId: string, contentType: string) => void;
   onSwitchToUser: () => void;
+  initialTab?: string;
 }
 
 export function AdminDashboardPage({
@@ -17,7 +18,8 @@ export function AdminDashboardPage({
   adminNickname,
   onBack,
   onViewContent,
-  onSwitchToUser
+  onSwitchToUser,
+  initialTab
 }: AdminDashboardPageProps) {
   return (
     <div className="min-h-screen bg-white">
@@ -29,10 +31,10 @@ export function AdminDashboardPage({
               <Button
                 variant="ghost"
                 onClick={onBack}
-                className="flex items-center gap-2 text-white hover:bg-blue-700 hover:text-white"
+                className="flex items-center gap-2 text-white hover:bg-blue-700 hover:text-white cursor-pointer"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to Platform
+                Back
               </Button>
               <div className="h-6 w-px bg-blue-400" />
               <div className="flex items-center gap-3">
@@ -44,17 +46,13 @@ export function AdminDashboardPage({
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge className="bg-white text-blue-700 hover:bg-blue-50">
-                <Shield className="h-3 w-3 mr-1" />
-                Admin Access
-              </Badge>
               <Button
                 onClick={onSwitchToUser}
                 variant="outline"
                 className="flex items-center gap-2 bg-white text-blue-700 border-white hover:bg-blue-50"
               >
                 <User className="h-4 w-4" />
-                Switch to User Dashboard
+                Switch to User Side
               </Button>
             </div>
           </div>
@@ -66,6 +64,7 @@ export function AdminDashboardPage({
         <AdminDashboard
           adminId={adminId}
           onViewContent={onViewContent}
+          defaultTab={initialTab}
         />
       </div>
     </div>

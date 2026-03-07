@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
@@ -9,25 +8,13 @@ import {
   Eye,
   Hash
 } from "lucide-react";
-
-interface DiscussionPost {
-  id: string;
-  title: string;
-  tags: string[];
-  author: string;
-  authorAvatar: string;
-  timeAgo: string;
-  views: number;
-  likes: number;
-  comments: number;
-  isLiked: boolean;
-}
+import { ForumPost } from "./EnhancedForumPost";
 
 interface ForumTagSearchViewProps {
   tag: string;
   tagColor: string;
   tagEmoji?: string;
-  posts: DiscussionPost[];
+  posts: ForumPost[];
   onBack: () => void;
   onPostClick: (postId: string) => void;
   onLike: (postId: string) => void;
@@ -49,7 +36,7 @@ export function ForumTagSearchView({
         <Button
           variant="ghost"
           onClick={onBack}
-          className="mb-4 text-gray-700 hover:text-gray-900"
+          className="mb-4 text-gray-700 hover:text-gray-900 hover:bg-gray-300 cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Forum
@@ -58,7 +45,7 @@ export function ForumTagSearchView({
         {/* Tag Header */}
         <div className="bg-[#2c3138] rounded-xl p-6 mb-6">
           <div className="flex items-center gap-4">
-            <div className={`${tagColor} w-16 h-16 rounded-xl flex items-center justify-center text-3xl`}>
+            <div className={` cursor-pointer ${tagColor} w-16 h-16 rounded-xl flex items-center justify-center text-3xl`}>
               {tagEmoji || <Hash className="h-8 w-8 text-white" />}
             </div>
             <div>
@@ -86,11 +73,11 @@ export function ForumTagSearchView({
                 <h3 className="text-white text-lg mb-3">{post.title}</h3>
                 
                 <div className="flex gap-2 mb-4">
-                  {post.tags.map(postTag => (
+                  {post.hashtags.map(postTag => (
                     <Badge 
                       key={postTag}
                       variant="secondary"
-                      className={`${postTag.toLowerCase() === tag.toLowerCase() ? 'bg-[#ff6934] text-white' : 'bg-[#3a4149] text-gray-300'} text-xs px-3 py-1 rounded-full`}
+                      className={` cursor-pointer ${postTag.toLowerCase() === tag.toLowerCase() ? 'bg-[#ff6934] text-white' : 'bg-[#3a4149] text-gray-300'} text-xs px-3 py-1 rounded-full`}
                     >
                       {postTag}
                     </Badge>
@@ -101,26 +88,26 @@ export function ForumTagSearchView({
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-[#6b7280] text-white text-xs">
-                        {post.authorAvatar}
+                        {post.author.nickname.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-white text-sm">{post.author}</span>
+                        <span className="text-white text-sm">{post.author.nickname}</span>
                         <span className="text-gray-500 text-xs">•</span>
-                        <span className="text-gray-400 text-xs">{post.timeAgo}</span>
+                        <span className="text-gray-400 text-xs">{post.createdAt}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6 text-sm text-gray-400">
-                    <div className="flex items-center gap-1.5">
+                    {/* <div className="flex items-center gap-1.5">
                       <Eye className="h-4 w-4" />
                       <span>{post.views} Views</span>
-                    </div>
+                    </div> */}
                     <div className="flex items-center gap-1.5">
                       <Heart 
-                        className={`h-4 w-4 ${post.isLiked ? 'fill-[#ff6934] text-[#ff6934]' : ''}`}
+                        className={`h-4 w-4 cursor-pointer ${post.isLiked ? 'fill-[#ff6934] text-[#ff6934]' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onLike(post.id);
@@ -130,7 +117,7 @@ export function ForumTagSearchView({
                     </div>
                     <div className="flex items-center gap-1.5">
                       <MessageCircle className="h-4 w-4" />
-                      <span>{post.comments} comments</span>
+                      <span>{post.commentCount} comments</span>
                     </div>
                   </div>
                 </div>

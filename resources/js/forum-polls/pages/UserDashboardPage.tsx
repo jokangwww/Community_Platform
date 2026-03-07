@@ -10,6 +10,8 @@ interface UserDashboardPageProps {
   onBack: () => void;
   onPostClick: (postId: string) => void;
   onSwitchToAdmin: () => void;
+  onPollClick?: (pollId: string) => void;
+  onPetitionClick?: (petitionId: string) => void;
 }
 
 export function UserDashboardPage({
@@ -17,7 +19,9 @@ export function UserDashboardPage({
   userNickname,
   onBack,
   onPostClick,
-  onSwitchToAdmin
+  onSwitchToAdmin,
+  onPollClick,
+  onPetitionClick
 }: UserDashboardPageProps) {
   return (
     <div className="min-h-screen bg-white">
@@ -30,14 +34,6 @@ export function UserDashboardPage({
               <p className="text-sm text-gray-600">Welcome back, {userNickname}</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                onClick={onSwitchToAdmin}
-                variant="outline"
-                className="flex items-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
-                <Shield className="h-4 w-4" />
-                Switch to Admin Dashboard
-              </Button>
               <Button
                 variant="outline"
                 onClick={onBack}
@@ -57,6 +53,8 @@ export function UserDashboardPage({
           userId={userId}
           userNickname={userNickname}
           onPostClick={onPostClick}
+          onPollClick={onPollClick}
+          onPetitionClick={onPetitionClick}
         />
       </div>
     </div>

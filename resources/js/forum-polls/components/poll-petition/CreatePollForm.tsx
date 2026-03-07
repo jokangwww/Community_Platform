@@ -106,19 +106,19 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
           </p>
         </div>
         <Button onClick={onBack} variant="outline">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="h-4 w-4 mr-2 cursor-pointer" />
           Back
         </Button>
       </div>
 
       {!canCreatePoll && nextAvailableDate && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-yellow-600 mt-0.5" />
+        <Card className="border-yellow-200 bg-yellow-50 cursor-pointer">
+          <CardContent className="pt-6 cursor-pointer">
+            <div className="flex items-start gap-3 cursor-pointer">
+              <Calendar className="h-5 w-5 text-yellow-600 mt-0.5 cursor-pointer" />
               <div>
-                <h3 className="text-yellow-900 mb-1">Poll Creation Limit Reached</h3>
-                <p className="text-yellow-800 text-sm">
+                <h3 className="text-yellow-900 mb-1 cursor-pointer">Poll Creation Limit Reached</h3>
+                <p className="text-yellow-800 text-sm cursor-pointer">
                   You can only create one poll every 7 days. You'll be able to create your next poll on{" "}
                   <strong>{nextAvailableDate}</strong>.
                 </p>
@@ -128,13 +128,13 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
         </Card>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 cursor-pointer">
         <Card>
           <CardHeader>
             <CardTitle>Poll Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+          <CardContent className="space-y-4 cursor-pointer">
+            <div className="space-y-2 cursor-pointer">
               <Label htmlFor="title">Poll Title *</Label>
               <Input
                 id="title"
@@ -145,12 +145,12 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 required
                 disabled={!canCreatePoll}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground cursor-pointer">
                 {title.length}/100 characters
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 cursor-pointer">
               <Label htmlFor="description">Description *</Label>
               <Textarea
                 id="description"
@@ -162,13 +162,13 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 required
                 disabled={!canCreatePoll}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground cursor-pointer">
                 {description.length}/500 characters
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 cursor-pointer">
+              <div className="space-y-2 cursor-pointer">
                 <Label htmlFor="category">Category *</Label>
                 <Select value={category} onValueChange={setCategory} disabled={!canCreatePoll}>
                   <SelectTrigger>
@@ -184,7 +184,7 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 cursor-pointer">
                 <Label htmlFor="expiryDate">Expiry Date *</Label>
                 <Input
                   id="expiryDate"
@@ -203,15 +203,15 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
         <Card>
           <CardHeader>
             <CardTitle>Poll Options</CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground cursor-pointer">
               Add 2-5 options for students to choose from
             </p>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 cursor-pointer">
             {options.map((option, index) => (
-              <div key={index} className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor={`option-${index}`} className="sr-only">
+              <div key={index} className="flex gap-2 cursor-pointer">
+                <div className="flex-1 cursor-pointer">
+                  <Label htmlFor={`option-${index}`} className="sr-only cursor-pointer">
                     Option {index + 1}
                   </Label>
                   <Input
@@ -243,7 +243,7 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 type="button"
                 variant="outline"
                 onClick={handleAddOption}
-                className="w-full"
+                className="w-full cursor-pointer"
                 disabled={!canCreatePoll}
               >
                 <Plus className="h-4 w-4 mr-2" />

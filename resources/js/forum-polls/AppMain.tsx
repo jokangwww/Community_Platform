@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -12,14 +12,10 @@ import {
   Plus, 
   Filter, 
   Archive,
-  Users,
   User,
-  Star,
-  Award,
-  Trophy,
-  Crown,
   LayoutDashboard,
-  Shield
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { PollCard } from "./components/poll-petition/PollCard";
 import { PollVoteView } from "./components/poll-petition/PollVoteView";
@@ -29,26 +25,10 @@ import { PetitionCard } from "./components/poll-petition/PetitionCard";
 import { PetitionView } from "./components/poll-petition/PetitionView";
 import { CreatePetitionForm } from "./components/poll-petition/CreatePetitionForm";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
-import { MyPage, UserProfile } from "./components/shared/MyPage";
-import { DesigningCommunity } from "./components/shared/DesigningCommunity";
-import { Dashboard } from "./components/forum/Dashboard";
-import { DiscussionView } from "./components/forum/DiscussionView";
-import { CreateTopicForm } from "./components/forum/CreateTopicForm";
-import { ForumDiscussionLayout } from "./components/forum/ForumDiscussionLayout";
 import { ForumManager } from "./components/forum/ForumManager";
-import { UserDashboard } from "./components/shared/UserDashboard";
-import { AdminDashboard } from "./components/shared/AdminDashboard";
 import { UserDashboardPage } from "./pages/UserDashboardPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
-
-interface BadgeLevel {
-  id: number;
-  name: string;
-  icon: React.ComponentType<any>;
-  color: string;
-  minPoints: number;
-  maxPoints: number;
-}
+import { ModerationNoticePopup } from "./components/shared/ModerationNoticePopup";
 
 interface PollOption {
   id: string;
@@ -68,6 +48,7 @@ interface Poll {
   totalVotes: number;
   hasVoted: boolean;
   isExpired: boolean;
+  hasRated?: boolean;
   usefulnessScore?: number;
   targetCriteria?: {
     faculty?: string;
@@ -102,423 +83,318 @@ interface Petition {
   }[];
 }
 
-interface Topic {
-  id: string;
-  title: string;
-  description: string;
-  author: string;
-  createdAt: string;
-  status: 'discussion' | 'voting' | 'petition';
-  votes: number;
-  comments: number;
-  participants: number;
-  votesNeeded: number;
-  category: string;
-  fullDescription: string;
-  agreeCount: number;
-  disagreeCount: number;
-  totalVotes: number;
-  hasUserAgreed: boolean;
-  hasUserDisagreed: boolean;
+/* -- Helper: CSRF-safe fetch -- */
+function getCsrfToken(): string {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') || '' : '';
 }
 
-interface Comment {
-  id: string;
-  author: string;
-  content: string;
-  timestamp: string;
-  replies?: Comment[];
+async function apiFetch(url: string, options: RequestInit = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': getCsrfToken(),
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Request failed (${res.status})`);
+  }
+  return res.json();
 }
 
-// Mock poll data
-const mockPolls: Poll[] = [
-  {
-    id: "p1",
-    title: "What time should library hours be extended to?",
-    description: "Help us decide the best closing time for extended library hours on weekdays",
-    options: [
-      { id: "o1", text: "8:00 PM", votes: 15 },
-      { id: "o2", text: "9:00 PM", votes: 42 },
-      { id: "o3", text: "10:00 PM", votes: 78 },
-      { id: "o4", text: "11:00 PM", votes: 23 },
-    ],
-    category: "facilities",
-    author: "LibraryCommittee",
-    createdAt: "Dec 8, 2024",
-    expiryDate: "2024-12-20",
-    totalVotes: 158,
-    hasVoted: false,
-    isExpired: false,
-    usefulnessScore: 87,
-    targetCriteria: {
-      faculty: "All Students",
-    }
-  },
-  {
-    id: "p2",
-    title: "Best day for Engineering Week events?",
-    description: "Vote for the day that works best for you to attend Engineering Week activities",
-    options: [
-      { id: "o5", text: "Monday", votes: 8 },
-      { id: "o6", text: "Wednesday", votes: 24 },
-      { id: "o7", text: "Friday", votes: 31 },
-    ],
-    category: "events",
-    author: "EngineeringStudent",
-    createdAt: "Dec 5, 2024",
-    expiryDate: "2024-12-15",
-    totalVotes: 63,
-    hasVoted: false,
-    isExpired: false,
-    usefulnessScore: 76,
-    targetCriteria: {
-      faculty: "Engineering",
-    }
-  },
-  {
-    id: "p3",
-    title: "Campus cafeteria food preferences?",
-    description: "Help us improve our menu by voting for your preferred cuisine type",
-    options: [
-      { id: "o8", text: "More Asian dishes", votes: 89 },
-      { id: "o9", text: "More vegetarian options", votes: 102 },
-      { id: "o10", text: "More local cuisine", votes: 45 },
-      { id: "o11", text: "More international options", votes: 67 },
-    ],
-    category: "campus-life",
-    author: "CafeteriaManager",
-    createdAt: "Nov 28, 2024",
-    expiryDate: "2024-12-05",
-    totalVotes: 303,
-    hasVoted: true,
-    isExpired: true,
-    usefulnessScore: 92
-  }
-];
-
-// Mock petition data
-const mockPetitions: Petition[] = [
-  {
-    id: "pet1",
-    title: "Improve Mental Health Support Services on Campus",
-    description: "Our university currently has limited mental health resources available to students. Wait times for counseling appointments can exceed 2-3 weeks, and the counseling center is only open during regular business hours, which doesn't accommodate students with conflicting class schedules. Many students are struggling with stress, anxiety, and depression without adequate support.",
-    proposedSolution: "We propose expanding the mental health services by: 1) Hiring additional licensed counselors to reduce wait times, 2) Extending counseling center hours to include evenings and weekends, 3) Implementing a 24/7 crisis hotline specifically for students, 4) Creating peer support groups facilitated by trained student leaders, 5) Partnering with telehealth services for immediate virtual consultations.",
-    author: "WellnessAdvocate",
-    createdAt: "Dec 1, 2024",
-    supportCount: 847,
-    hasSupported: false,
-    attachmentCount: 3,
-    commentCount: 156,
-    attachments: [
-      {
-        id: "a1",
-        name: "Mental Health Survey Results.pdf",
-        type: "application/pdf",
-        size: "2.4 MB",
-        url: "#"
-      },
-      {
-        id: "a2",
-        name: "Counseling Center Statistics.xlsx",
-        type: "application/vnd.ms-excel",
-        size: "156 KB",
-        url: "#"
-      },
-      {
-        id: "a3",
-        name: "Student Testimonials.pdf",
-        type: "application/pdf",
-        size: "1.1 MB",
-        url: "#"
-      }
-    ],
-    supporters: [
-      {
-        id: "s1",
-        nickname: "StudentVoice",
-        comment: "This is desperately needed. I waited 3 weeks for an appointment during finals and it really impacted my performance.",
-        supportedAt: "2 hours ago"
-      },
-      {
-        id: "s2",
-        nickname: "CareAboutPeers",
-        comment: "Mental health should be a priority. Full support!",
-        supportedAt: "5 hours ago"
-      },
-      {
-        id: "s3",
-        nickname: "GradStudent2024",
-        supportedAt: "1 day ago"
-      }
-    ]
-  },
-  {
-    id: "pet2",
-    title: "Install More Charging Stations Across Campus",
-    description: "With the increasing number of students using laptops, tablets, and other electronic devices for their studies, there is a critical shortage of charging stations across campus. Many students struggle to find available outlets in libraries, common areas, and classrooms, which hampers their ability to study effectively.",
-    proposedSolution: "Install modern charging stations with multiple USB and AC outlets in key locations including: all library floors, student lounges, outdoor seating areas, and high-traffic hallways. Implement solar-powered charging benches in outdoor spaces to promote sustainability while providing convenient charging options.",
-    author: "TechSavvyStudent",
-    createdAt: "Nov 25, 2024",
-    supportCount: 542,
-    hasSupported: false,
-    attachmentCount: 1,
-    commentCount: 89,
-    attachments: [
-      {
-        id: "a4",
-        name: "Proposed Charging Station Locations.pdf",
-        type: "application/pdf",
-        size: "3.2 MB",
-        url: "#"
-      }
-    ],
-    supporters: [
-      {
-        id: "s4",
-        nickname: "EngineeringMajor",
-        comment: "Great idea! I've had to leave the library multiple times because my laptop died.",
-        supportedAt: "1 day ago"
-      },
-      {
-        id: "s5",
-        nickname: "LibraryRegular",
-        supportedAt: "2 days ago"
-      }
-    ]
-  }
-];
-
-// Mock discussion topics
-const mockTopics: Topic[] = [
-  {
-    id: "1",
-    title: "Implement Bike Lanes on Main Street",
-    description: "Proposal to add dedicated bike lanes to improve safety and reduce traffic congestion.",
-    fullDescription: "Our community needs safer transportation options. Main Street is heavily trafficked by both cars and cyclists, creating dangerous conditions.",
-    author: "BikeAdvocate",
-    createdAt: "Dec 15, 2024",
-    status: "voting",
-    votes: 78,
-    comments: 23,
-    participants: 45,
-    votesNeeded: 100,
-    category: "transportation",
-    agreeCount: 42,
-    disagreeCount: 8,
-    totalVotes: 50,
-    hasUserAgreed: false,
-    hasUserDisagreed: false
-  }
-];
-
-const mockComments: { [key: string]: Comment[] } = {};
-
-const mockUserProfile: UserProfile = {
-  id: "user_123",
-  nickname: "CommunityHelper",
+const userProfile = {
+  id: (window as any).authUser?.id?.toString() || "user_123",
+  nickname: (window as any).authUser?.nickname || (window as any).authUser?.name || "CommunityHelper",
   joinedDate: "Nov 15, 2024",
   totalComments: 47,
   acceptedTopics: 3,
   likesReceived: 28,
   topicsCreated: 7,
-  currentLevel: {
-    id: 3,
-    name: "Active Member",
-    icon: User, // Using User as a placeholder, will be replaced by badgeLevels
-    color: "bg-green-100 text-green-800",
-    minPoints: 51,
-    maxPoints: 150
-  },
-  activityPoints: 175
 };
+
+const isAdmin = (window as any).authUser?.is_admin === true;
+const isMuted = (() => {
+  const mutedUntil = (window as any).authUser?.muted_until;
+  return mutedUntil ? new Date(mutedUntil) > new Date() : false;
+})();
+const mutedUntilDate = (window as any).authUser?.muted_until
+  ? new Date((window as any).authUser.muted_until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  : null;
 
 export default function App() {
   const [mainView, setMainView] = useState<'main' | 'profile' | 'community' | 'user-dashboard' | 'admin-dashboard'>('main');
-  const [mainTab, setMainTab] = useState<'discussions' | 'polls' | 'petitions'>((window as any).initialTab === 'polls' ? 'polls' : (window as any).initialTab === 'petitions' ? 'petitions' : 'discussions');
+  const [mainTab, setMainTab] = useState<'discussions' | 'polls' | 'petitions'>(() => {
+    const urlTab = new URLSearchParams(window.location.search).get('tab');
+    if (urlTab === 'petitions') return 'petitions';
+    if (urlTab === 'polls') return 'polls';
+    return (window as any).initialTab === 'polls' ? 'polls'
+      : (window as any).initialTab === 'petitions' ? 'petitions'
+      : 'discussions';
+  });
   
   // Poll state
   const [pollView, setPollView] = useState<'list' | 'vote' | 'create' | 'archive'>('list');
-  const [polls, setPolls] = useState<Poll[]>(mockPolls);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [archivedPolls, setArchivedPolls] = useState<Poll[]>([]);
   const [selectedPollId, setSelectedPollId] = useState<string | null>(null);
-  const [lastPollCreated, setLastPollCreated] = useState<Date | null>(null);
+  const [canCreatePollFlag, setCanCreatePollFlag] = useState(true);
+  const [nextPollDate, setNextPollDate] = useState<string | undefined>(undefined);
   const [pollSearchTerm, setPollSearchTerm] = useState("");
+  const [activePollSearch, setActivePollSearch] = useState("");
   const [pollCategoryFilter, setPollCategoryFilter] = useState("all");
+  const [pollsLoading, setPollsLoading] = useState(false);
   
   // Petition state
   const [petitionView, setPetitionView] = useState<'list' | 'view' | 'create'>('list');
-  const [petitions, setPetitions] = useState<Petition[]>(mockPetitions);
+  const [petitions, setPetitions] = useState<Petition[]>([]);
   const [selectedPetitionId, setSelectedPetitionId] = useState<string | null>(null);
-  const [lastPetitionCreated, setLastPetitionCreated] = useState<Date | null>(null);
+  const [canCreatePetitionFlag, setCanCreatePetitionFlag] = useState(true);
+  const [nextPetitionDate, setNextPetitionDate] = useState<string | undefined>(undefined);
   const [petitionSearchTerm, setPetitionSearchTerm] = useState("");
-  
-  // Discussion state (existing)
-  const [discussionView, setDiscussionView] = useState<'dashboard' | 'topic' | 'create'>('dashboard');
-  const [topics, setTopics] = useState(mockTopics);
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  
-  // User profile
-  const [userProfile, setUserProfile] = useState(mockUserProfile);
+  const [activePetitionSearch, setActivePetitionSearch] = useState("");
+  const [petitionsLoading, setPetitionsLoading] = useState(false);
+  const [selectedPetitionDetail, setSelectedPetitionDetail] = useState<any>(null);
+  const [petitionDetailLoading, setPetitionDetailLoading] = useState(false);
 
-  // Badge levels
-  const badgeLevels: BadgeLevel[] = [
-    { id: 1, name: "Newcomer", icon: User, color: "bg-gray-100 text-gray-800", minPoints: 0, maxPoints: 10 },
-    { id: 2, name: "Contributor", icon: Star, color: "bg-blue-100 text-blue-800", minPoints: 11, maxPoints: 50 },
-    { id: 3, name: "Active Member", icon: Award, color: "bg-green-100 text-green-800", minPoints: 51, maxPoints: 150 },
-    { id: 4, name: "Community Leader", icon: Trophy, color: "bg-purple-100 text-purple-800", minPoints: 151, maxPoints: 500 },
-    { id: 5, name: "Expert", icon: Crown, color: "bg-yellow-100 text-yellow-800", minPoints: 501, maxPoints: Infinity }
-  ];
+  // For fetching a single poll directly (handles expired/closed polls not in active/archived lists)
+  const [singlePollDetail, setSinglePollDetail] = useState<any>(null);
+  const [singlePollLoading, setSinglePollLoading] = useState(false);
 
-  const calculateLevel = (points: number): BadgeLevel => {
-    return badgeLevels.find(level => points >= level.minPoints && points <= level.maxPoints) || badgeLevels[0];
-  };
-
-  const currentLevel = calculateLevel(userProfile.activityPoints);
-  const IconComponent = currentLevel.icon;
-
-  // Poll functions
-  const canCreatePoll = () => {
-    if (!lastPollCreated) return true;
-    const daysSinceLastPoll = (Date.now() - lastPollCreated.getTime()) / (1000 * 60 * 60 * 24);
-    return daysSinceLastPoll >= 7;
-  };
-
-  const getNextPollDate = () => {
-    if (!lastPollCreated) return undefined;
-    const nextDate = new Date(lastPollCreated);
-    nextDate.setDate(nextDate.getDate() + 7);
-    return nextDate.toLocaleDateString();
-  };
-
-  const handleCreatePoll = (pollData: any) => {
-    const newPoll: Poll = {
-      id: `p${Date.now()}`,
-      ...pollData,
-      options: pollData.options.map((text: string, index: number) => ({
-        id: `o${Date.now()}_${index}`,
-        text,
-        votes: 0
-      })),
-      author: userProfile.nickname,
-      createdAt: "Just now",
-      totalVotes: 0,
-      hasVoted: false,
-      isExpired: false
-    };
-
-    setPolls(prev => [newPoll, ...prev]);
-    setLastPollCreated(new Date());
-    setPollView('list');
-  };
-
-  const handleVotePoll = (pollId: string, optionId: string) => {
-    setPolls(prev => prev.map(poll => {
-      if (poll.id === pollId && !poll.hasVoted && !poll.isExpired) {
-        return {
-          ...poll,
-          options: poll.options.map(opt => 
-            opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
-          ),
-          totalVotes: poll.totalVotes + 1,
-          hasVoted: true
-        };
-      }
-      return poll;
-    }));
-  };
-
-  const handleRatePollUsefulness = (pollId: string, isUseful: boolean) => {
-    // In a real app, this would update the usefulness score
-    console.log(`Poll ${pollId} rated as ${isUseful ? 'useful' : 'not useful'}`);
-  };
-
-  // Petition functions
-  const canCreatePetition = () => {
-    if (!lastPetitionCreated) return true;
-    const now = new Date();
-    const lastMonth = lastPetitionCreated.getMonth();
-    const currentMonth = now.getMonth();
-    return lastMonth !== currentMonth || now.getFullYear() !== lastPetitionCreated.getFullYear();
-  };
-
-  const getNextPetitionDate = () => {
-    if (!lastPetitionCreated) return undefined;
-    const nextDate = new Date(lastPetitionCreated);
-    nextDate.setMonth(nextDate.getMonth() + 1);
-    nextDate.setDate(1);
-    return nextDate.toLocaleDateString();
-  };
-
-  const handleCreatePetition = (petitionData: any) => {
-    const newPetition: Petition = {
-      id: `pet${Date.now()}`,
-      ...petitionData,
-      author: userProfile.nickname,
-      createdAt: "Just now",
-      supportCount: 0,
-      hasSupported: false,
-      attachmentCount: petitionData.attachments?.length || 0,
-      commentCount: 0,
-      attachments: petitionData.attachments?.map((file: File, index: number) => ({
-        id: `a${Date.now()}_${index}`,
-        name: file.name,
-        type: file.type,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-        url: "#"
-      })) || [],
-      supporters: []
-    };
-
-    setPetitions(prev => [newPetition, ...prev]);
-    setLastPetitionCreated(new Date());
-    setPetitionView('list');
-  };
-
-  const handleSupportPetition = (petitionId: string, comment?: string) => {
-    setPetitions(prev => prev.map(petition => {
-      if (petition.id === petitionId && !petition.hasSupported) {
-        return {
-          ...petition,
-          supportCount: petition.supportCount + 1,
-          hasSupported: true,
-          supporters: [
-            {
-              id: `s${Date.now()}`,
-              nickname: userProfile.nickname,
-              comment,
-              supportedAt: "Just now"
-            },
-            ...petition.supporters
-          ]
-        };
-      }
-      return petition;
-    }));
-  };
-
-  // Discussion functions (existing)
-  const handleVote = (topicId: string) => {
-    setTopics(prev => prev.map(topic => 
-      topic.id === topicId ? { ...topic, votes: topic.votes + 1 } : topic
-    ));
-  };
-
-  const selectedPoll = selectedPollId ? polls.find(p => p.id === selectedPollId) : null;
-  const selectedPetition = selectedPetitionId ? petitions.find(p => p.id === selectedPetitionId) : null;
-  const selectedTopic = selectedTopicId ? topics.find(t => t.id === selectedTopicId) : null;
-
-  const activePolls = polls.filter(p => !p.isExpired);
-  const archivedPolls = polls.filter(p => p.isExpired);
-
-  const filteredPolls = activePolls.filter(poll => {
-    const matchesSearch = poll.title.toLowerCase().includes(pollSearchTerm.toLowerCase());
-    const matchesCategory = pollCategoryFilter === "all" || poll.category === pollCategoryFilter;
-    return matchesSearch && matchesCategory;
+  // Post to open when returning from user dashboard
+  const [openPostId, setOpenPostId] = useState<string | null>(() => {
+    return new URLSearchParams(window.location.search).get('viewPost');
   });
 
-  const filteredPetitions = petitions.filter(petition =>
-    petition.title.toLowerCase().includes(petitionSearchTerm.toLowerCase()) ||
-    petition.description.toLowerCase().includes(petitionSearchTerm.toLowerCase())
-  );
+  /* -- Data fetchers -- */
+
+  const fetchPolls = useCallback(async () => {
+    setPollsLoading(true);
+    try {
+      const params = new URLSearchParams({ status: 'active' });
+      if (activePollSearch) params.set('search', activePollSearch);
+      if (pollCategoryFilter !== 'all') params.set('category', pollCategoryFilter);
+      const data = await apiFetch(`/api/poll-petition/polls?${params}`);
+      setPolls(data);
+    } catch (e) {
+      console.error('Failed to fetch polls', e);
+    } finally {
+      setPollsLoading(false);
+    }
+  }, [activePollSearch, pollCategoryFilter]);
+
+  const fetchArchivedPolls = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/poll-petition/polls/archived');
+      setArchivedPolls(data);
+    } catch (e) {
+      console.error('Failed to fetch archived polls', e);
+    }
+  }, []);
+
+  const fetchPetitions = useCallback(async () => {
+    setPetitionsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activePetitionSearch) params.set('search', activePetitionSearch);
+      const data = await apiFetch(`/api/poll-petition/petitions?${params}`);
+      setPetitions(data);
+    } catch (e) {
+      console.error('Failed to fetch petitions', e);
+    } finally {
+      setPetitionsLoading(false);
+    }
+  }, [activePetitionSearch]);
+
+  const fetchCanCreatePoll = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/poll-petition/polls/can-create');
+      setCanCreatePollFlag(data.can_create);
+      setNextPollDate(data.next_available_date ?? undefined);
+    } catch (e) {
+      console.error('Failed to check poll create status', e);
+    }
+  }, []);
+
+  const fetchCanCreatePetition = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/poll-petition/petitions/can-create');
+      setCanCreatePetitionFlag(data.can_create);
+      setNextPetitionDate(data.next_available_date ?? undefined);
+    } catch (e) {
+      console.error('Failed to check petition create status', e);
+    }
+  }, []);
+
+  const fetchPetitionDetail = useCallback(async (id: string) => {
+    setPetitionDetailLoading(true);
+    try {
+      const data = await apiFetch(`/api/poll-petition/petitions/${id}`);
+      setSelectedPetitionDetail(data);
+    } catch (e) {
+      console.error('Failed to fetch petition detail', e);
+    } finally {
+      setPetitionDetailLoading(false);
+    }
+  }, []);
+
+  const fetchPollById = useCallback(async (id: string) => {
+    setSinglePollLoading(true);
+    try {
+      const data = await apiFetch(`/api/poll-petition/polls/${id}`);
+      setSinglePollDetail(data);
+    } catch (e) {
+      console.error('Failed to fetch poll detail', e);
+    } finally {
+      setSinglePollLoading(false);
+    }
+  }, []);
+
+  // Fetch active polls and petitions on mount & when tab changes
+  useEffect(() => {
+    if (mainTab === 'polls') {
+      fetchPolls();
+    } else if (mainTab === 'petitions') {
+      fetchPetitions();
+    }
+  }, [mainTab, fetchPolls, fetchPetitions]);
+
+  // Refetch when category filter changes (polls)
+  useEffect(() => {
+    if (mainTab === 'polls') fetchPolls();
+  }, [pollCategoryFilter]);
+
+  // Handle URL params for poll/petition deep links (from admin dashboard View buttons)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewId = params.get('viewId');
+    const tab = params.get('tab');
+    if (viewId && tab === 'polls') {
+      setSinglePollDetail(null);
+      setSelectedPollId(viewId);
+      setPollView('vote');
+      fetchPollById(viewId);
+    } else if (viewId && tab === 'petitions') {
+      setSelectedPetitionDetail(null);
+      setSelectedPetitionId(viewId);
+      setPetitionView('view');
+      fetchPetitionDetail(viewId);
+    }
+    // Clean URL params after consuming
+    if (viewId || params.get('viewPost')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* -- Poll actions -- */
+
+  const handleCreatePoll = async (pollData: any) => {
+    try {
+      await apiFetch('/api/poll-petition/polls', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: pollData.title,
+          description: pollData.description,
+          options: pollData.options,
+          expiry_date: pollData.expiryDate,
+          category: pollData.category,
+          target_faculty: pollData.targetCriteria?.faculty,
+          target_year: pollData.targetCriteria?.yearOfStudy,
+          target_course: pollData.targetCriteria?.course,
+        }),
+      });
+      setPollView('list');
+      fetchPolls();
+      fetchCanCreatePoll();
+    } catch (e: any) {
+      alert(e.message || 'Failed to create poll');
+    }
+  };
+
+  const handleVotePoll = async (pollId: string, optionId: string) => {
+    try {
+      const updated = await apiFetch(`/api/poll-petition/polls/${pollId}/vote`, {
+        method: 'POST',
+        body: JSON.stringify({ option_id: optionId }),
+      });
+      setPolls(prev => prev.map(p => p.id === pollId ? updated : p));
+    } catch (e: any) {
+      alert(e.message || 'Failed to vote');
+    }
+  };
+
+  const handleRatePollUsefulness = async (pollId: string, isUseful: boolean) => {
+    try {
+      const updated = await apiFetch(`/api/poll-petition/polls/${pollId}/rate`, {
+        method: 'POST',
+        body: JSON.stringify({ is_useful: isUseful }),
+      });
+      setPolls(prev => prev.map(p => p.id === pollId ? updated : p));
+    } catch (e: any) {
+      alert(e.message || 'Failed to rate');
+    }
+  };
+
+  /* -- Petition actions -- */
+
+  const handleCreatePetition = async (petitionData: any) => {
+    try {
+      const formData = new FormData();
+      formData.append('title', petitionData.title);
+      formData.append('description', petitionData.description);
+      formData.append('proposed_solution', petitionData.proposedSolution);
+      formData.append('supporter_goal', (petitionData.targetSupporters ?? 500).toString());
+      if (petitionData.attachments) {
+        petitionData.attachments.forEach((file: File, i: number) => {
+          formData.append(`attachments[${i}]`, file);
+        });
+      }
+
+      await apiFetch('/api/poll-petition/petitions', {
+        method: 'POST',
+        body: formData,
+      });
+      setPetitionView('list');
+      fetchPetitions();
+      fetchCanCreatePetition();
+    } catch (e: any) {
+      alert(e.message || 'Failed to create petition');
+    }
+  };
+
+  const handleSupportPetition = async (petitionId: string, comment?: string) => {
+    try {
+      const updated = await apiFetch(`/api/poll-petition/petitions/${petitionId}/support`, {
+        method: 'POST',
+        body: JSON.stringify({ comment: comment || null }),
+      });
+      // Update the full petition detail shown in PetitionView
+      setSelectedPetitionDetail(updated);
+      // Update summary fields in petitions list
+      setPetitions(prev => prev.map(p => p.id === petitionId ? {
+        ...p,
+        supportCount: updated.supportCount,
+        hasSupported: updated.hasSupported,
+        commentCount: updated.commentCount,
+      } : p));
+    } catch (e: any) {
+      alert(e.message || 'Failed to support petition');
+    }
+  };
+
+  /* -- Derived state -- */
+
+  const selectedPoll = selectedPollId
+    ? polls.find(p => p.id === selectedPollId)
+      || archivedPolls.find(p => p.id === selectedPollId)
+      || (singlePollDetail?.id === selectedPollId ? singlePollDetail : null)
+    : null;
+  const selectedPetition = selectedPetitionId ? petitions.find(p => p.id === selectedPetitionId) : null;
+
+  const activePolls = polls.filter(p => !p.isExpired);
 
   const pollCategories = Array.from(new Set(polls.map(p => p.category)));
 
@@ -538,51 +414,45 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <Button 
                   variant="ghost" 
-                  onClick={() => setMainView('user-dashboard')}
-                  className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+                  onClick={() => {
+                    if (isAdmin) {
+                      window.location.href = '/admin/forum';
+                    } else {
+                      setMainView('user-dashboard');
+                    }
+                  }}
+                  className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 cursor-pointer"
                 >
                   <LayoutDashboard className="h-4 w-4" />
                   My Dashboard
                 </Button>
-                {userProfile.activityPoints >= 500 && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setMainView('admin-dashboard')}
-                    className="flex items-center gap-2 text-blue-600"
-                  >
-                    <Shield className="h-4 w-4" />
-                    Moderation
-                  </Button>
-                )}
-                
-                
               </div>
             </div>
 
             {/* Main Tabs */}
             <Tabs value={mainTab} onValueChange={(v: any) => setMainTab(v)}>
-              <div className="bg-white rounded-lg px-6 py-2 shadow-sm mb-6">
+              <div className="bg-white rounded-lg px-6 py-2 shadow-sm">
                 <TabsList className="w-full flex bg-muted border-b-0">
                   <TabsTrigger 
                     value="discussions" 
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex-1 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <MessageCircle className="h-4 w-4" />
                     Forum
                   </TabsTrigger>
                   <TabsTrigger 
                     value="polls" 
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex-1 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <BarChart3 className="h-4 w-4" />
-                    Polls ({activePolls.length})
+                    Polls
                   </TabsTrigger>
                   <TabsTrigger 
                     value="petitions" 
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex-1 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <FileText className="h-4 w-4" />
-                    Petitions ({petitions.length})
+                    Petitions
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -592,8 +462,11 @@ export default function App() {
                 <ForumManager
                   currentUserId={userProfile.id}
                   currentUserNickname={userProfile.nickname}
-                  isVerifiedMentor={userProfile.activityPoints >= 200}
-                  isAdmin={userProfile.activityPoints >= 500}
+                  isVerifiedMentor={false}
+                  isAdmin={isAdmin}
+                  isMuted={isMuted}
+                  mutedUntilDate={mutedUntilDate}
+                  initialPostId={openPostId}
                   onPollClick={(pollId) => {
                     setSelectedPollId(pollId);
                     setMainTab('polls');
@@ -603,6 +476,15 @@ export default function App() {
                     setSelectedPetitionId(petitionId);
                     setMainTab('petitions');
                     setPetitionView('view');
+                    fetchPetitionDetail(petitionId);
+                  }}
+                  onViewAllPolls={() => {
+                    setMainTab('polls');
+                    setPollView('list');
+                  }}
+                  onViewAllPetitions={() => {
+                    setMainTab('petitions');
+                    setPetitionView('list');
                   }}
                 />
               </TabsContent>
@@ -619,11 +501,16 @@ export default function App() {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => setPollView('archive')} variant="outline">
+                        <Button 
+                          onClick={() => { setPollView('archive'); fetchArchivedPolls(); }} variant="outline"
+                          className="hover: cursor-pointer"
+                        >
                           <Archive className="h-4 w-4 mr-2" />
-                          Archive ({archivedPolls.length})
+                          Archive
                         </Button>
-                        <Button onClick={() => setPollView('create')}>
+                        <Button onClick={() => { setPollView('create'); fetchCanCreatePoll(); }}
+                          className="hover: cursor-pointer"
+                        >
                           <Plus className="h-4 w-4 mr-2" />
                           Create Poll
                         </Button>
@@ -631,14 +518,25 @@ export default function App() {
                     </div>
 
                     <div className="flex gap-4 items-center">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input
-                          placeholder="Search polls..."
-                          value={pollSearchTerm}
-                          onChange={(e) => setPollSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
+                      <div className="relative flex-1 flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                          <Input
+                            placeholder="Search polls..."
+                            value={pollSearchTerm}
+                            onChange={(e) => setPollSearchTerm(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { setActivePollSearch(pollSearchTerm); } }}
+                            className="pl-10"
+                          />
+                        </div>
+                        <Button
+                          onClick={() => setActivePollSearch(pollSearchTerm)}
+                          variant="secondary"
+                          className="cursor-pointer"
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          Search
+                        </Button>
                       </div>
                       <Select value={pollCategoryFilter} onValueChange={setPollCategoryFilter}>
                         <SelectTrigger className="w-48">
@@ -656,13 +554,20 @@ export default function App() {
                       </Select>
                     </div>
 
-                    {filteredPolls.length === 0 ? (
+                    {pollsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <Loader2 className="h-12 w-12 text-[#ff6934] mx-auto mb-4 animate-spin" />
+                          <p className="text-muted-foreground">Loading polls...</p>
+                        </div>
+                      </div>
+                    ) : activePolls.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-muted-foreground">No active polls found</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredPolls.map(poll => (
+                        {activePolls.map(poll => (
                           <PollCard
                             key={poll.id}
                             poll={poll}
@@ -677,10 +582,19 @@ export default function App() {
                   </div>
                 )}
 
-                {pollView === 'vote' && selectedPoll && (
+                {pollView === 'vote' && singlePollLoading && (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                      <Loader2 className="h-12 w-12 text-[#ff6934] mx-auto mb-4 animate-spin" />
+                      <p className="text-muted-foreground">Loading poll...</p>
+                    </div>
+                  </div>
+                )}
+
+                {pollView === 'vote' && !singlePollLoading && selectedPoll && (
                   <PollVoteView
                     poll={selectedPoll}
-                    onBack={() => setPollView('list')}
+                    onBack={() => { setPollView('list'); fetchPolls(); setSinglePollDetail(null); }}
                     onVote={handleVotePoll}
                     onRateUsefulness={handleRatePollUsefulness}
                   />
@@ -690,8 +604,8 @@ export default function App() {
                   <CreatePollForm
                     onBack={() => setPollView('list')}
                     onCreatePoll={handleCreatePoll}
-                    canCreatePoll={canCreatePoll()}
-                    nextAvailableDate={getNextPollDate()}
+                    canCreatePoll={canCreatePollFlag}
+                    nextAvailableDate={nextPollDate}
                   />
                 )}
 
@@ -718,35 +632,56 @@ export default function App() {
                           Support petitions that matter to you
                         </p>
                       </div>
-                      <Button onClick={() => setPetitionView('create')}>
+                      <Button onClick={() => { setPetitionView('create'); fetchCanCreatePetition(); }}
+                        className="hover: cursor-pointer"
+                      >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Petition
                       </Button>
                     </div>
 
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        placeholder="Search petitions..."
-                        value={petitionSearchTerm}
-                        onChange={(e) => setPetitionSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          placeholder="Search petitions..."
+                          value={petitionSearchTerm}
+                          onChange={(e) => setPetitionSearchTerm(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { setActivePetitionSearch(petitionSearchTerm); } }}
+                          className="pl-10"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => setActivePetitionSearch(petitionSearchTerm)}
+                        variant="secondary"
+                        className="cursor-pointer"
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        Search
+                      </Button>
                     </div>
 
-                    {filteredPetitions.length === 0 ? (
+                    {petitionsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <Loader2 className="h-12 w-12 text-[#ff6934] mx-auto mb-4 animate-spin" />
+                          <p className="text-muted-foreground">Loading petitions...</p>
+                        </div>
+                      </div>
+                    ) : petitions.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-muted-foreground">No petitions found</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredPetitions.map(petition => (
+                        {petitions.map(petition => (
                           <PetitionCard
                             key={petition.id}
                             petition={petition}
                             onViewPetition={(id) => {
                               setSelectedPetitionId(id);
                               setPetitionView('view');
+                              fetchPetitionDetail(id);
                             }}
                           />
                         ))}
@@ -755,39 +690,34 @@ export default function App() {
                   </div>
                 )}
 
-                {petitionView === 'view' && selectedPetition && (
-                  <PetitionView
-                    petition={selectedPetition}
-                    onBack={() => setPetitionView('list')}
-                    onSupport={handleSupportPetition}
-                  />
+                {petitionView === 'view' && (
+                  petitionDetailLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="text-center">
+                        <Loader2 className="h-12 w-12 text-[#ff6934] mx-auto mb-4 animate-spin" />
+                        <p className="text-muted-foreground">Loading petition...</p>
+                      </div>
+                    </div>
+                  ) : selectedPetitionDetail ? (
+                    <PetitionView
+                      petition={selectedPetitionDetail}
+                      onBack={() => { setPetitionView('list'); fetchPetitions(); setSelectedPetitionDetail(null); }}
+                      onSupport={handleSupportPetition}
+                    />
+                  ) : null
                 )}
 
                 {petitionView === 'create' && (
                   <CreatePetitionForm
                     onBack={() => setPetitionView('list')}
                     onCreatePetition={handleCreatePetition}
-                    canCreatePetition={canCreatePetition()}
-                    nextAvailableDate={getNextPetitionDate()}
+                    canCreatePetition={canCreatePetitionFlag}
+                    nextAvailableDate={nextPetitionDate}
                   />
                 )}
               </TabsContent>
             </Tabs>
           </div>
-        )}
-
-        {mainView === 'profile' && (
-          <MyPage
-            userProfile={userProfile}
-            onUpdateProfile={(nickname) => setUserProfile(prev => ({ ...prev, nickname }))}
-            onBack={() => setMainView('main')}
-          />
-        )}
-
-        {mainView === 'community' && (
-          <DesigningCommunity
-            onBack={() => setMainView('main')}
-          />
         )}
 
         {mainView === 'user-dashboard' && (
@@ -796,10 +726,30 @@ export default function App() {
             userNickname={userProfile.nickname}
             onBack={() => setMainView('main')}
             onPostClick={(postId) => {
+              setOpenPostId(postId);
               setMainView('main');
               setMainTab('discussions');
             }}
-            onSwitchToAdmin={() => setMainView('admin-dashboard')}
+            onPollClick={(pollId) => {
+              setSinglePollDetail(null);
+              setSelectedPollId(pollId);
+              setPollView('vote');
+              setMainView('main');
+              setMainTab('polls');
+              // Fetch directly when poll isn't already in active or archived lists (e.g. expired poll)
+              if (!polls.find(p => p.id === pollId) && !archivedPolls.find(p => p.id === pollId)) {
+                fetchPollById(pollId);
+              }
+            }}
+            onPetitionClick={(petitionId) => {
+              setSelectedPetitionDetail(null);
+              setSelectedPetitionId(petitionId);
+              setPetitionView('view');
+              fetchPetitionDetail(petitionId);
+              setMainView('main');
+              setMainTab('petitions');
+            }}
+            onSwitchToAdmin={() => { window.location.href = '/admin/forum'; }}
           />
         )}
 
@@ -809,11 +759,32 @@ export default function App() {
             adminNickname={userProfile.nickname}
             onBack={() => setMainView('main')}
             onViewContent={(contentId, contentType) => {
-              setMainView('main');
-              setMainTab('discussions');
+              if (contentType === 'poll') {
+                setSinglePollDetail(null);
+                setSelectedPollId(contentId);
+                setPollView('vote');
+                setMainView('main');
+                setMainTab('polls');
+              } else if (contentType === 'petition') {
+                setSelectedPetitionDetail(null);
+                setSelectedPetitionId(contentId);
+                setPetitionView('view');
+                fetchPetitionDetail(contentId);
+                setMainView('main');
+                setMainTab('petitions');
+              } else {
+                setOpenPostId(contentId);
+                setMainView('main');
+                setMainTab('discussions');
+              }
             }}
             onSwitchToUser={() => setMainView('user-dashboard')}
           />
+        )}
+
+        {/* Moderation notice popup for users */}
+        {!isAdmin && (
+          <ModerationNoticePopup mutedUntil={(window as any).authUser?.muted_until} />
         )}
       </div>
     </div>

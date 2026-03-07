@@ -78,23 +78,26 @@ export function ReportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4">
           <div>
             <Label className="text-base font-medium mb-3 block">
               Why are you reporting this {content?.type}?
             </Label>
             <RadioGroup value={selectedReason} onValueChange={setSelectedReason}>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {reportReasons.map((reason) => (
-                  <div key={reason.value} className="flex items-center space-x-3">
+                  <label
+                    key={reason.value}
+                    htmlFor={reason.value}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedReason === reason.value
+                        ? 'border-red-400 bg-red-50 text-red-700'
+                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 text-gray-700'
+                    }`}
+                  >
                     <RadioGroupItem value={reason.value} id={reason.value} />
-                    <Label
-                      htmlFor={reason.value}
-                      className="font-normal cursor-pointer"
-                    >
-                      {reason.label}
-                    </Label>
-                  </div>
+                    <span className="text-sm font-normal">{reason.label}</span>
+                  </label>
                 ))}
               </div>
             </RadioGroup>
@@ -126,13 +129,14 @@ export function ReportDialog({
             variant="outline"
             onClick={onClose}
             disabled={isSubmitting}
+            className="cursor-pointer"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!selectedReason || isSubmitting}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
           >
             {isSubmitting ? "Submitting..." : "Submit Report"}
           </Button>

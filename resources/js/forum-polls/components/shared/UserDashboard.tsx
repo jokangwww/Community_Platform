@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -23,7 +23,6 @@ import {
   Clock,
   Users,
   ThumbsUp,
-  Share2,
   Bookmark,
   Calendar,
   AlertCircle,
@@ -37,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 interface UserActivity {
   id: string;
-  type: "post" | "comment" | "answer" | "upvote" | "mention" | "accepted";
+  type: "post" | "comment" | "answer" | "upvote" | "mention" | "accepted" | "moderation";
   title: string;
   description: string;
   timestamp: string;
@@ -105,12 +104,15 @@ interface UserDashboardProps {
   userId: string;
   userNickname: string;
   onPostClick: (postId: string) => void;
+  onPollClick?: (pollId: string) => void;
+  onPetitionClick?: (petitionId: string) => void;
 }
 
-export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboardProps) {
+export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, onPetitionClick }: UserDashboardProps) {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterTag, setFilterTag] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("forum");
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [nickname, setNickname] = useState(userNickname);
   const [bio, setBio] = useState("");
@@ -127,212 +129,106 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
     setIsEditing(false);
   };
 
-  // Mock user stats
-  const stats: UserStats = {
-    postsCreated: 12,
-    commentsPosted: 45,
-    answersGiven: 18,
-    upvotesReceived: 234,
-    acceptedAnswers: 5,
-    totalViews: 3456
-  };
+  // Forum stats from API
+  const [stats, setStats] = useState<UserStats>({
+    postsCreated: 0,
+    commentsPosted: 0,
+    answersGiven: 0,
+    upvotesReceived: 0,
+    acceptedAnswers: 0,
+    totalViews: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  // Mock activities
-  const activities: UserActivity[] = [
-    {
-      id: "1",
-      type: "accepted",
-      title: "Your answer was accepted",
-      description: "Your answer on 'How to implement binary search?' was marked as the best answer",
-      timestamp: "2 hours ago",
-      postId: "post1",
-      category: "Computer Science",
-      isUnread: true
-    },
-    {
-      id: "2",
-      type: "upvote",
-      title: "Your post received 10 upvotes",
-      description: "Your post 'Understanding React Hooks' is trending",
-      timestamp: "5 hours ago",
-      postId: "post2",
-      category: "Programming",
-      isUnread: true
-    },
-    {
-      id: "3",
-      type: "mention",
-      title: "You were mentioned",
-      description: "Sarah Chen mentioned you in a discussion about Database Design",
-      timestamp: "1 day ago",
-      postId: "post3",
-      category: "Database",
-      isUnread: false
-    },
-    {
-      id: "4",
-      type: "comment",
-      title: "New reply on your post",
-      description: "Mike Johnson replied to your post about Algorithm Complexity",
-      timestamp: "2 days ago",
-      postId: "post4",
-      category: "Computer Science",
-      isUnread: false
-    }
-  ];
+  // Activities from API
+  const [activities, setActivities] = useState<UserActivity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
 
-  // Mock poll participation
-  const pollParticipation: PollParticipation[] = [
-    {
-      id: "p1",
-      title: "Should the library extend hours during finals?",
-      category: "Campus Life",
-      myVote: "Yes, 24/7 access",
-      totalVotes: 1247,
-      expiresAt: "2 days",
-      status: "active",
-      isBookmarked: true,
-      createdByMe: false,
-      results: [
-        { option: "Yes, 24/7 access", votes: 789, percentage: 63 },
-        { option: "Yes, but until midnight", votes: 312, percentage: 25 },
-        { option: "No, keep current hours", votes: 146, percentage: 12 }
-      ]
-    },
-    {
-      id: "p2",
-      title: "Preferred exam format for online courses",
-      category: "Academics",
-      myVote: "Take-home assignments",
-      totalVotes: 856,
-      expiresAt: "5 days",
-      status: "active",
-      isBookmarked: false,
-      createdByMe: true,
-      results: [
-        { option: "Take-home assignments", votes: 428, percentage: 50 },
-        { option: "Proctored online exams", votes: 257, percentage: 30 },
-        { option: "In-person exams", votes: 171, percentage: 20 }
-      ]
-    },
-    {
-      id: "p3",
-      title: "Campus dining improvements priority",
-      category: "Campus Life",
-      totalVotes: 634,
-      expiresAt: "Expired 1 day ago",
-      status: "expired",
-      isBookmarked: false,
-      createdByMe: false,
-      results: [
-        { option: "More vegan options", votes: 254, percentage: 40 },
-        { option: "Extended hours", votes: 228, percentage: 36 },
-        { option: "Lower prices", votes: 152, percentage: 24 }
-      ]
-    }
-  ];
+  // Poll & Petition data from API
+  const [pollParticipation, setPollParticipation] = useState<PollParticipation[]>([]);
+  const [petitionParticipation, setPetitionParticipation] = useState<PetitionParticipation[]>([]);
+  const [topCampusVoices, setTopCampusVoices] = useState<CampusVoice[]>([]);
+  const [topCampusConcerns, setTopCampusConcerns] = useState<CampusConcern[]>([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
-  // Mock petition participation
-  const petitionParticipation: PetitionParticipation[] = [
-    {
-      id: "pt1",
-      title: "Implement Mental Health Days for Students",
-      description: "Allow students 3 mental health days per semester without penalty",
-      category: "Student Welfare",
-      supporters: 2847,
-      goal: 3000,
-      expiresAt: "7 days",
-      status: "active",
-      iSupported: true,
-      isBookmarked: true,
-      createdByMe: false
-    },
-    {
-      id: "pt2",
-      title: "Free Printing Credits for All Students",
-      description: "Provide 500 free printing pages per semester",
-      category: "Campus Life",
-      supporters: 1523,
-      goal: 2000,
-      expiresAt: "14 days",
-      status: "active",
-      iSupported: true,
-      isBookmarked: false,
-      createdByMe: true
-    },
-    {
-      id: "pt3",
-      title: "Green Campus Initiative",
-      description: "Install solar panels and reduce campus carbon footprint",
-      category: "Environment",
-      supporters: 3124,
-      goal: 3000,
-      expiresAt: "Achieved",
-      status: "successful",
-      iSupported: true,
-      isBookmarked: true,
-      createdByMe: false
-    }
-  ];
+  const getCsrfToken = useCallback(() => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') || '' : '';
+  }, []);
 
-  // Top 3 Campus Voices (by total votes and interactions)
-  const topCampusVoices: CampusVoice[] = [
-    {
-      id: "v1",
-      title: "Should the library extend hours during finals?",
-      type: "poll",
-      totalVotes: 1247,
-      totalInteractions: 2456,
-      author: "Sarah Chen",
-      authorAvatar: "SC"
-    },
-    {
-      id: "v2",
-      title: "Implement Mental Health Days for Students",
-      type: "petition",
-      totalVotes: 2847,
-      totalInteractions: 3421,
-      author: "Mike Johnson",
-      authorAvatar: "MJ"
-    },
-    {
-      id: "v3",
-      title: "Green Campus Initiative",
-      type: "petition",
-      totalVotes: 3124,
-      totalInteractions: 4567,
-      author: "Emma Davis",
-      authorAvatar: "ED"
+  // Fetch forum dashboard data (stats + activities)
+  const fetchForumDashboard = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      setActivitiesLoading(true);
+      const res = await fetch('/api/forum/dashboard', {
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.stats) {
+          setStats({
+            postsCreated: data.data.stats.postsCreated || 0,
+            commentsPosted: data.data.stats.commentsPosted || 0,
+            answersGiven: data.data.stats.answersGiven || 0,
+            upvotesReceived: data.data.stats.upvotesReceived || 0,
+            acceptedAnswers: data.data.stats.acceptedAnswers || 0,
+            totalViews: data.data.stats.totalViews || 0,
+          });
+        }
+        if (data.data?.activities) {
+          setActivities(data.data.activities);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch forum dashboard:', err);
+    } finally {
+      setStatsLoading(false);
+      setActivitiesLoading(false);
     }
-  ];
+  }, [getCsrfToken]);
 
-  // Top 3 Campus Concerns (by week-over-week increase)
-  const topCampusConcerns: CampusConcern[] = [
-    {
-      id: "c1",
-      title: "Campus Safety Improvements Needed",
-      type: "petition",
-      currentParticipants: 1845,
-      weekOverWeekIncrease: 156,
-      category: "Safety"
-    },
-    {
-      id: "c2",
-      title: "Affordable Housing Near Campus",
-      type: "poll",
-      currentParticipants: 1234,
-      weekOverWeekIncrease: 142,
-      category: "Housing"
-    },
-    {
-      id: "c3",
-      title: "Improve Campus WiFi Infrastructure",
-      type: "petition",
-      currentParticipants: 987,
-      weekOverWeekIncrease: 128,
-      category: "Technology"
-    }
-  ];
+  useEffect(() => {
+    fetchForumDashboard();
+  }, [fetchForumDashboard]);
+
+  useEffect(() => {
+    fetch('/api/forum/categories', {
+      headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.data) setCategories(data.data); })
+      .catch(() => {});
+  }, [getCsrfToken]);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setDashboardLoading(true);
+        const res = await fetch('/api/poll-petition/dashboard', {
+          headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Merge created + voted polls into flat participation array
+          const createdPolls = (data.polls?.created || []).map((p: any) => ({ ...p, createdByMe: true }));
+          const votedPolls = (data.polls?.voted || []).map((p: any) => ({ ...p, createdByMe: false }));
+          setPollParticipation([...createdPolls, ...votedPolls]);
+          // Merge created + supported petitions
+          const createdPetitions = (data.petitions?.created || []).map((p: any) => ({ ...p, createdByMe: true }));
+          const supportedPetitions = (data.petitions?.supported || []).map((p: any) => ({ ...p, createdByMe: false }));
+          setPetitionParticipation([...createdPetitions, ...supportedPetitions]);
+          setTopCampusVoices(data.topCampusVoices || []);
+          setTopCampusConcerns(data.topCampusConcerns || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+      } finally {
+        setDashboardLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, [getCsrfToken]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -348,6 +244,8 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
         return <AtSign className="h-4 w-4" />;
       case "accepted":
         return <Award className="h-4 w-4" />;
+      case "moderation":
+        return <AlertCircle className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -367,6 +265,8 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
         return "bg-pink-100 text-pink-600";
       case "accepted":
         return "bg-yellow-100 text-yellow-600";
+      case "moderation":
+        return "bg-red-100 text-red-600";
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -388,22 +288,18 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
 
         {/* Main Tabs: Forum, Polls, Petition, Settings */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="forum">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="forum" className="cursor-pointer">
               <MessageCircle className="h-4 w-4 mr-2" />
               Forum
             </TabsTrigger>
-            <TabsTrigger value="polls">
+            <TabsTrigger value="polls" className="cursor-pointer">
               <BarChart3 className="h-4 w-4 mr-2" />
               Polls
             </TabsTrigger>
-            <TabsTrigger value="petition">
+            <TabsTrigger value="petition" className="cursor-pointer">
               <FileText className="h-4 w-4 mr-2" />
               Petitions
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -492,15 +388,16 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                   Recent Activity
                 </h2>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-[200px] cursor-pointer">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="Computer Science">Computer Science</SelectItem>
-                    <SelectItem value="Programming">Programming</SelectItem>
-                    <SelectItem value="Database">Database</SelectItem>
+                    <SelectItem value="all" className="hover:cursor-pointer">All Categories</SelectItem>
+                    <SelectItem value="Moderation" className="hover:cursor-pointer">Moderation</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.name} className="hover:cursor-pointer">{cat.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -509,12 +406,13 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                 {filteredActivities.map((activity) => (
                   <div
                     key={activity.id}
-                    className={`flex gap-4 p-4 rounded-lg border-2 cursor-pointer hover:border-[#ff6934] transition-colors ${
+                    className={`flex gap-4 p-4 rounded-lg border-2 ${activity.postId ? 'cursor-pointer hover:border-[#ff6934]' : ''} transition-colors ${
+                      activity.type === 'moderation' ? "bg-red-50 border-red-200" :
                       activity.isUnread ? "bg-blue-50 border-blue-200" : "bg-white border-gray-200"
                     }`}
-                    onClick={() => onPostClick(activity.postId)}
+                    onClick={() => activity.postId && onPostClick(activity.postId)}
                   >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.type)}`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer ${getActivityColor(activity.type)}`}>
                       {getActivityIcon(activity.type)}
                     </div>
                     <div className="flex-1">
@@ -544,7 +442,7 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
           {/* POLLS TAB */}
           <TabsContent value="polls" className="space-y-6">
             {/* Polls Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -565,18 +463,6 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                   <div>
                     <p className="text-2xl font-bold">{pollParticipation.filter(p => p.myVote).length}</p>
                     <p className="text-xs text-gray-600">Voted</p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Bookmark className="h-5 w-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{pollParticipation.filter(p => p.isBookmarked).length}</p>
-                    <p className="text-xs text-gray-600">Bookmarked</p>
                   </div>
                 </div>
               </Card>
@@ -669,20 +555,16 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                     )}
 
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" className="cursor-pointer" onClick={() => onPollClick?.(poll.id)}>
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
                       </Button>
                       {poll.status === "active" && !poll.myVote && (
-                        <Button size="sm" className="bg-[#ff6934] hover:bg-[#ff7a47]">
+                        <Button size="sm" className="bg-[#ff6934] hover:bg-[#ff7a47] cursor-pointer" onClick={() => onPollClick?.(poll.id)}>
                           <ThumbsUp className="h-4 w-4 mr-2" />
                           Vote Now
                         </Button>
                       )}
-                      <Button size="sm" variant="outline">
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -691,9 +573,9 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
           </TabsContent>
 
           {/* PETITION TAB */}
-          <TabsContent value="petition" className="space-y-6">
+          <TabsContent value="petition" className="space-y-6 cursor-pointer">
             {/* Petition Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -720,18 +602,6 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
 
               <Card className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Bookmark className="h-5 w-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{petitionParticipation.filter(p => p.isBookmarked).length}</p>
-                    <p className="text-xs text-gray-600">Bookmarked</p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                     <TrendingUp className="h-5 w-5 text-purple-600" />
                   </div>
@@ -750,7 +620,7 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                 {petitionParticipation.map((petition) => {
                   const progress = (petition.supporters / petition.goal) * 100;
                   return (
-                    <div key={petition.id} className="p-4 border-2 rounded-lg hover:border-[#ff6934] transition-colors">
+                    <div key={petition.id} className="p-4 border-2 rounded-lg hover:border-[#ff6934] transition-colors cursor-pointer">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -811,20 +681,16 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                       </div>
 
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" className="cursor-pointer" onClick={() => onPetitionClick?.(petition.id)}>
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </Button>
                         {petition.status === "active" && !petition.iSupported && (
-                          <Button size="sm" className="bg-[#ff6934] hover:bg-[#ff7a47]">
+                          <Button size="sm" className="bg-[#ff6934] hover:bg-[#ff7a47] cursor-pointer" onClick={() => onPetitionClick?.(petition.id)}>
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Support Now
                           </Button>
                         )}
-                        <Button size="sm" variant="outline">
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
-                        </Button>
                       </div>
                     </div>
                   );
@@ -834,24 +700,24 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
           </TabsContent>
 
           {/* SETTINGS TAB */}
-          <TabsContent value="settings" className="space-y-6">
+          {/* <TabsContent value="settings" className="space-y-6 cursor-pointer"> */}
             {/* Profile Card - Centered with max width */}
-            <div className="max-w-2xl mx-auto">
+            {/* <div className="max-w-2xl mx-auto cursor-pointer">
               <Card>
                 <CardHeader>
                   <CardTitle>Profile Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex flex-col items-center space-y-4">
-                    <Avatar className="h-20 w-20">
-                      <AvatarFallback className="text-xl">
+                <CardContent className="space-y-6 cursor-pointer">
+                  <div className="flex flex-col items-center space-y-4 cursor-pointer">
+                    <Avatar className="h-20 w-20 cursor-pointer">
+                      <AvatarFallback className="text-xl cursor-pointer">
                         {nickname.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     
                     {isEditing ? (
-                      <div className="space-y-3 w-full max-w-md">
-                        <div className="space-y-2">
+                      <div className="space-y-3 w-full max-w-md cursor-pointer">
+                        <div className="space-y-2 cursor-pointer">
                           <Label htmlFor="nickname">Nickname</Label>
                           <Input
                             id="nickname"
@@ -861,20 +727,20 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
                             maxLength={20}
                           />
                         </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleSave} size="sm" className="flex-1">
+                        <div className="flex gap-2 cursor-pointer">
+                          <Button onClick={handleSave} size="sm" className="flex-1 cursor-pointer">
                             Save
                           </Button>
-                          <Button onClick={handleCancel} variant="outline" size="sm" className="flex-1">
+                          <Button onClick={handleCancel} variant="outline" size="sm" className="flex-1 cursor-pointer">
                             Cancel
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center space-y-2">
-                        <h3 className="text-lg">{nickname}</h3>
+                      <div className="text-center space-y-2 cursor-pointer">
+                        <h3 className="text-lg cursor-pointer">{nickname}</h3>
                         <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-                          <Edit3 className="h-4 w-4 mr-2" />
+                          <Edit3 className="h-4 w-4 mr-2 cursor-pointer" />
                           Edit Nickname
                         </Button>
                       </div>
@@ -883,20 +749,20 @@ export function UserDashboard({ userId, userNickname, onPostClick }: UserDashboa
 
                   <Separator />
 
-                  <div className="space-y-2 max-w-md mx-auto">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Member since</span>
+                  <div className="space-y-2 max-w-md mx-auto cursor-pointer">
+                    <div className="flex justify-between text-sm cursor-pointer">
+                      <span className="text-muted-foreground cursor-pointer">Member since</span>
                       <span>January 2024</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">User ID</span>
-                      <span className="font-mono text-xs">#{userId}</span>
+                    <div className="flex justify-between text-sm cursor-pointer">
+                      <span className="text-muted-foreground cursor-pointer">User ID</span>
+                      <span className="font-mono text-xs cursor-pointer">#{userId}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </div>

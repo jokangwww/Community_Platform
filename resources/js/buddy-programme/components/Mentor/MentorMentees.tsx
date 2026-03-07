@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, Calendar, Clock, ChevronDown } from 'lucide-react';
 
 interface Mentee {
   id: string;
@@ -22,10 +22,20 @@ interface AttendanceRecord {
   mentorCheckedIn: boolean;
 }
 
+interface SessionOption {
+  id: string;
+  date: string;
+  time: string;
+  topic: string;
+  status: string;
+  description?: string;
+}
+
 interface MentorMenteesProps {
   mentees: Mentee[];
   attendanceRecords: AttendanceRecord[];
   studentId: string;
+  sessions: SessionOption[];
   onAttendanceSubmitted: () => void;
 }
 
@@ -33,29 +43,41 @@ export function MentorMentees({
   mentees,
   attendanceRecords,
   studentId,
+  sessions,
   onAttendanceSubmitted,
 }: MentorMenteesProps) {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showMenteeDetailsModal, setShowMenteeDetailsModal] = useState(false);
   const [selectedMenteeId, setSelectedMenteeId] = useState<string | null>(null);
-  const [sessionDate, setSessionDate] = useState('');
+  const [selectedSessionId, setSelectedSessionId] = useState('');
   const [sessionTopic, setSessionTopic] = useState('');
-  const [sessionStartTime, setSessionStartTime] = useState('10:00');
-  const [sessionEndTime, setSessionEndTime] = useState('11:00');
+  const [sessionDescription, setSessionDescription] = useState('');
   const [menteeAttendance, setMenteeAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Filter to only pending sessions that haven't been checked in yet, sorted ascending for ordinal labels
+  const pendingSessions = [...sessions.filter(s => s.status === 'pending' && s.date)]
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const openAttendanceModal = () => {
     setShowCheckInModal(true);
-    setSessionDate(new Date().toISOString().split('T')[0]);
+    setSelectedSessionId('');
     setSessionTopic('');
-    setSessionStartTime('10:00');
-    setSessionEndTime('11:00');
+    setSessionDescription('');
     const initialAttendance: Record<string, 'present' | 'absent'> = {};
     mentees.forEach(mentee => {
       initialAttendance[mentee.id] = 'absent';
     });
     setMenteeAttendance(initialAttendance);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setSessionTopic(session.topic || '');
+      setSessionDescription(session.description || '');
+    }
   };
 
   const toggleMenteeAttendance = (menteeId: string) => {
@@ -66,7 +88,7 @@ export function MentorMentees({
   };
 
   const submitAttendance = async () => {
-    if (!sessionDate || !sessionTopic || !studentId) return;
+    if (!selectedSessionId || !studentId) return;
 
     try {
       setSubmitting(true);
@@ -79,10 +101,9 @@ export function MentorMentees({
         },
         body: JSON.stringify({
           student_id: studentId,
-          session_date: sessionDate,
-          session_topic: sessionTopic,
-          session_time: sessionStartTime + ':00',
-          session_end_time: sessionEndTime + ':00',
+          session_id: parseInt(selectedSessionId),
+          session_topic: sessionTopic || null,
+          session_description: sessionDescription || null,
           attendance: menteeAttendance,
         }),
       });
@@ -91,10 +112,9 @@ export function MentorMentees({
 
       if (result.success) {
         setShowCheckInModal(false);
-        setSessionDate('');
+        setSelectedSessionId('');
         setSessionTopic('');
-        setSessionStartTime('10:00');
-        setSessionEndTime('11:00');
+        setSessionDescription('');
         setMenteeAttendance({});
         onAttendanceSubmitted();
       } else {
@@ -122,7 +142,7 @@ export function MentorMentees({
         </div>
         <button
           onClick={openAttendanceModal}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 cursor-pointer"
         >
           <CheckCircle className="w-4 h-4" />
           Check In
@@ -167,7 +187,7 @@ export function MentorMentees({
                       setSelectedMenteeId(mentee.id);
                       setShowMenteeDetailsModal(true);
                     }}
-                    className="px-3 py-1 text-purple-600 hover:bg-purple-50 border border-purple-300 rounded transition-colors"
+                    className="px-3 py-1 text-purple-600 hover:bg-purple-50 border border-purple-300 rounded transition-colors cursor-pointer"
                   >
                     View Details
                   </button>
@@ -192,44 +212,51 @@ export function MentorMentees({
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-gray-700 mb-2">Session Date</label>
-                <input
-                  type="date"
-                  value={sessionDate}
-                  onChange={(e) => setSessionDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">Start Time</label>
-                  <input
-                    type="time"
-                    value={sessionStartTime}
-                    onChange={(e) => setSessionStartTime(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">End Time</label>
-                  <input
-                    type="time"
-                    value={sessionEndTime}
-                    onChange={(e) => setSessionEndTime(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
+                <label className="block text-gray-700 mb-2">Select Session</label>
+                {pendingSessions.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-yellow-700">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>No pending sessions available. Sessions are auto-created when you confirm a schedule.</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={selectedSessionId}
+                      onChange={(e) => handleSessionSelect(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none bg-white pr-10 cursor-pointer"
+                    >
+                      <option value="">-- Choose a session --</option>
+                      {pendingSessions.map((session, index) => (
+                        <option key={session.id} value={session.id}>
+                          Session {index + 1} — {session.date} {session.time}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-gray-700 mb-2">Session Topic</label>
+                <label className="block text-gray-700 mb-2">Session Name <span className="text-gray-400 text-sm">(optional, overrides default name)</span></label>
                 <input
                   type="text"
                   value={sessionTopic}
                   onChange={(e) => setSessionTopic(e.target.value)}
                   placeholder="e.g., Calculus - Integration Techniques"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2">Description <span className="text-gray-400 text-sm">(optional)</span></label>
+                <textarea
+                  value={sessionDescription}
+                  onChange={(e) => setSessionDescription(e.target.value)}
+                  placeholder="Add any notes about this session..."
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 />
               </div>
 
@@ -247,7 +274,7 @@ export function MentorMentees({
                       </div>
                       <button
                         onClick={() => toggleMenteeAttendance(mentee.id)}
-                        className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                        className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
                           menteeAttendance[mentee.id] === 'present'
                             ? 'bg-green-600 text-white hover:bg-green-700'
                             : 'bg-red-600 text-white hover:bg-red-700'
@@ -275,21 +302,20 @@ export function MentorMentees({
               <button
                 onClick={() => {
                   setShowCheckInModal(false);
-                  setSessionDate('');
+                  setSelectedSessionId('');
                   setSessionTopic('');
-                  setSessionStartTime('10:00');
-                  setSessionEndTime('11:00');
+                  setSessionDescription('');
                   setMenteeAttendance({});
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={submitAttendance}
-                disabled={!sessionDate || !sessionTopic || submitting}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                  sessionDate && sessionTopic && !submitting
+                disabled={!selectedSessionId || submitting}
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                  selectedSessionId && !submitting
                     ? 'bg-purple-600 text-white hover:bg-purple-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
@@ -324,7 +350,7 @@ export function MentorMentees({
                   setShowMenteeDetailsModal(false);
                   setSelectedMenteeId(null);
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 cursor-pointer"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -336,7 +362,7 @@ export function MentorMentees({
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <p className="text-gray-600 mb-1">Attendance Rate</p>
-                <p className={`text-gray-900 ${
+                <p className={`text-gray-900 cursor-pointer ${
                   selectedMentee.attendanceRate >= 80 ? 'text-green-700' :
                   selectedMentee.attendanceRate >= 60 ? 'text-amber-700' :
                   'text-red-700'
@@ -429,7 +455,7 @@ export function MentorMentees({
                   setShowMenteeDetailsModal(false);
                   setSelectedMenteeId(null);
                 }}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
               >
                 Close
               </button>

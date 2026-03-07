@@ -98,10 +98,10 @@ export function FeedbackRating({ userRole, pairName, pairId, studentId, hasSubmi
             onClick={() => setRating(star)}
             onMouseEnter={() => setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}
-            className="focus:outline-none transition-transform hover:scale-110"
+            className="focus:outline-none transition-transform hover:scale-110 cursor-pointer"
           >
             <Star
-              className={`w-8 h-8 ${
+              className={`w-8 h-8 cursor-pointer ${
                 star <= (hoverRating || rating)
                   ? 'fill-amber-400 text-amber-400'
                   : 'text-gray-300'
@@ -230,14 +230,14 @@ export function FeedbackRating({ userRole, pairName, pairId, studentId, hasSubmi
               setRating(0);
               setFeedback('');
             }}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
           >
             Reset
           </button>
           <button
             type="submit"
             disabled={isSubmitting || rating === 0 || feedback.trim().length < 10}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
           >
             {isSubmitting ? (
               <>
