@@ -246,7 +246,8 @@
             $hasProfileErrors = $errors->has('name')
                 || $errors->has('display_name')
                 || $errors->has('role')
-                || $errors->has('department')
+                || $errors->has('ic_number')
+                || $errors->has('programme')
                 || $errors->has('email')
                 || $errors->has('bio');
         @endphp
@@ -298,23 +299,31 @@
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>
-                <div class="form-row" id="department-row">
-                    <label for="department">Department</label>
+                <div class="form-row" id="ic-number-row">
+                    <label for="ic_number">IC Number</label>
                     <input
-                        id="department"
-                        name="department"
+                        id="ic_number"
+                        name="ic_number"
                         type="text"
-                        list="department-options"
-                        value="{{ old('department', $user?->department ?? '') }}"
-                        placeholder="Type to find and select department"
+                        value="{{ old('ic_number', $user?->ic_number ?? '') }}"
+                        placeholder="e.g. 000808-14-XXXX"
                         readonly
                     >
-                    <datalist id="department-options">
-                        @foreach (($departments ?? collect()) as $department)
-                            <option value="{{ $department->name }}"></option>
-                        @endforeach
-                    </datalist>
-                    @error('department')
+                    @error('ic_number')
+                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div class="form-row" id="programme-row">
+                    <label for="programme">Programme</label>
+                    <input
+                        id="programme"
+                        name="programme"
+                        type="text"
+                        value="{{ old('programme', $user?->programme ?? '') }}"
+                        placeholder="e.g. Diploma in Business Information Systems"
+                        readonly
+                    >
+                    @error('programme')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>
@@ -407,16 +416,21 @@
 
             const fields = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]'));
             const roleField = document.getElementById('role');
-            const departmentRow = document.getElementById('department-row');
-            const departmentField = document.getElementById('department');
+            const icNumberRow = document.getElementById('ic-number-row');
+            const icNumberField = document.getElementById('ic_number');
+            const programmeRow = document.getElementById('programme-row');
+            const programmeField = document.getElementById('programme');
 
-            const toggleDepartment = () => {
-                if (!roleField || !departmentRow || !departmentField) return;
+            const toggleStudentFields = () => {
+                if (!roleField || !icNumberRow || !icNumberField || !programmeRow || !programmeField) return;
                 const isStudent = roleField.value === 'student';
-                departmentRow.style.display = isStudent ? 'flex' : 'none';
-                departmentField.required = isStudent;
+                icNumberRow.style.display = isStudent ? 'flex' : 'none';
+                programmeRow.style.display = isStudent ? 'flex' : 'none';
+                icNumberField.required = isStudent;
+                programmeField.required = isStudent;
                 if (!isStudent) {
-                    departmentField.value = '';
+                    icNumberField.value = '';
+                    programmeField.value = '';
                 }
             };
 
@@ -441,20 +455,20 @@
                         }
                     }
                 });
-                toggleDepartment();
+                toggleStudentFields();
                 actionBar.classList.toggle('is-visible', isEditable);
             };
 
             editButton.addEventListener('click', () => setEditable(true));
             cancelButton.addEventListener('click', () => setEditable(false));
             if (roleField) {
-                roleField.addEventListener('change', toggleDepartment);
+                roleField.addEventListener('change', toggleStudentFields);
             }
 
             if (form.dataset.startEdit === 'true') {
                 setEditable(true);
             } else {
-                toggleDepartment();
+                toggleStudentFields();
             }
         })();
     </script>

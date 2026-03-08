@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Notification;
 
 class PostingController extends Controller
 {
+    // Shared search + lifecycle filters used by all posting list tabs (all/mine/favorites).
     private function applySearchAndLifecycleFilters($query, Request $request): void
     {
         $keyword = trim((string) $request->query('q', ''));
@@ -42,6 +43,7 @@ class PostingController extends Controller
         }
     }
 
+    // Normalize list filters so invalid lifecycle values do not break the page logic.
     private function indexFilters(Request $request): array
     {
         $lifecycle = (string) $request->query('lifecycle', 'all');
@@ -55,6 +57,7 @@ class PostingController extends Controller
         ];
     }
 
+    // Resolve the authenticated club user once for ownership checks and personalized data.
     private function requireClub(): User
     {
         /** @var User $user */
@@ -63,6 +66,7 @@ class PostingController extends Controller
         return $user;
     }
 
+    // Collect the current user's favorite posting IDs for favorite-state UI rendering.
     private function favoriteIds(User $user): array
     {
         return $user->favoritePostings()
@@ -70,6 +74,7 @@ class PostingController extends Controller
             ->all();
     }
 
+    // Public/club posting browse tab with search and current/outdated lifecycle filter.
     public function index(Request $request)
     {
         $user = $this->requireClub();
@@ -94,14 +99,16 @@ class PostingController extends Controller
         ]);
     }
 
+    // Club's own postings tab (only postings created by the authenticated club).
     public function mine(Request $request)
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
         $filters = $this->indexFilters($request);
 
         $query = Posting::with(['club', 'event', 'images'])
             ->withCount('registrations')
-            ->where('club_id', $user->id)
+            ->where('club_id', $userId)
             ->whereHas('event', function ($query) {
                 $query->where('status', '!=', 'ended')
                     ->where('approval_status', 'approved');
@@ -119,6 +126,7 @@ class PostingController extends Controller
         ]);
     }
 
+    // Favorite postings tab for club users (same filters reused across tabs).
     public function favorites(Request $request)
     {
         $user = $this->requireClub();
@@ -144,11 +152,13 @@ class PostingController extends Controller
         ]);
     }
 
+    // Posting create form only allows approved, non-ended events owned by the club.
     public function create()
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
 
-        $events = Event::where('club_id', $user->id)
+        $events = Event::where('club_id', $userId)
             ->where('status', '!=', 'ended')
             ->where('approval_status', 'approved')
             ->orderBy('name')
@@ -157,9 +167,11 @@ class PostingController extends Controller
         return view('club.event-posting-create', compact('events'));
     }
 
+    // Create a posting for one of the club's approved events and store poster images.
     public function store(Request $request)
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
 
         $validated = $request->validate([
             'event_id' => ['required', 'integer', 'exists:events,id'],
@@ -170,13 +182,14 @@ class PostingController extends Controller
             'posters.*' => ['image', 'max:2048'],
         ]);
 
+        // Validate ownership by resolving the selected event under this club account.
         $event = Event::where('id', $validated['event_id'])
-            ->where('club_id', $user->id)
+            ->where('club_id', $userId)
             ->where('approval_status', 'approved')
             ->firstOrFail();
 
         $posting = Posting::create([
-            'club_id' => $user->id,
+            'club_id' => $userId,
             'event_id' => $event->id,
             'description' => $validated['description'],
             'status' => $validated['status'],
@@ -184,6 +197,7 @@ class PostingController extends Controller
             'poster_path' => null,
         ]);
 
+        // Save poster images as separate rows to support multi-image postings.
         if ($request->hasFile('posters')) {
             foreach ($request->file('posters') as $index => $file) {
                 $path = $file->store('posters', 'public');
@@ -199,15 +213,18 @@ class PostingController extends Controller
             ->with('status', 'Posting created.');
     }
 
+    // Posting edit form with ownership guard and current event choices.
     public function edit(Posting $posting)
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
+        $postingClubId = (int) ($posting->getAttribute('club_id') ?? 0);
 
-        if ($posting->club_id !== $user->id) {
+        if ($postingClubId !== $userId) {
             abort(403);
         }
 
-        $events = Event::where('club_id', $user->id)
+        $events = Event::where('club_id', $userId)
             ->where('status', '!=', 'ended')
             ->where('approval_status', 'approved')
             ->orderBy('name')
@@ -216,6 +233,7 @@ class PostingController extends Controller
         return view('club.event-posting-edit', compact('posting', 'events'));
     }
 
+    // Posting detail page for clubs (registrants, posters, event info, live stream viewer count).
     public function show(Posting $posting)
     {
         $user = $this->requireClub();
@@ -232,11 +250,14 @@ class PostingController extends Controller
         ]);
     }
 
+    // Update posting fields/images and trigger notifications when registration status changes to open.
     public function update(Request $request, Posting $posting)
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
+        $postingClubId = (int) ($posting->getAttribute('club_id') ?? 0);
 
-        if ($posting->club_id !== $user->id) {
+        if ($postingClubId !== $userId) {
             abort(403);
         }
 
@@ -250,10 +271,11 @@ class PostingController extends Controller
         ]);
 
         $event = Event::where('id', $validated['event_id'])
-            ->where('club_id', $user->id)
+            ->where('club_id', $userId)
             ->where('approval_status', 'approved')
             ->firstOrFail();
 
+        // Detect open transition so favorite followers are only notified when registration opens.
         $wasOpen = ($posting->status ?? 'open') === 'open';
 
         $posting->event_id = $event->id;
@@ -266,6 +288,7 @@ class PostingController extends Controller
             $this->notifyStudentsWhenFavoriteRegistrationOpens($posting);
         }
 
+        // Replacing posters resets the image list and stores the new upload set in order.
         if ($request->hasFile('posters')) {
             $posting->images()->delete();
             foreach ($request->file('posters') as $index => $file) {
@@ -282,11 +305,14 @@ class PostingController extends Controller
             ->with('status', 'Posting updated.');
     }
 
+    // Delete a club-owned posting.
     public function destroy(Posting $posting)
     {
         $user = $this->requireClub();
+        $userId = (int) $user->getKey();
+        $postingClubId = (int) ($posting->getAttribute('club_id') ?? 0);
 
-        if ($posting->club_id !== $user->id) {
+        if ($postingClubId !== $userId) {
             abort(403);
         }
 
@@ -297,22 +323,25 @@ class PostingController extends Controller
             ->with('status', 'Posting deleted.');
     }
 
+    // Toggle favorite state for the current user on a posting (used by the shared posting UI).
     public function toggleFavorite(Posting $posting)
     {
         $user = $this->requireClub();
+        $postingId = (int) $posting->getKey();
 
-        $user->favoritePostings()->toggle($posting->id);
+        $user->favoritePostings()->toggle($postingId);
 
         return redirect()
             ->back();
     }
 
+    // Send notifications to students who favorited the posting when registration is opened.
     private function notifyStudentsWhenFavoriteRegistrationOpens(Posting $posting): void
     {
         $posting->loadMissing('event');
 
         $students = $posting->favoritedBy()
-            ->where('role', 'student')
+            ->where('users.role', 'student')
             ->get();
 
         if ($students->isEmpty()) {

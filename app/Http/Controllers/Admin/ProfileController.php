@@ -15,6 +15,7 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    // Helper method: require admin.
     private function requireAdmin(Request $request): User
     {
         /** @var User $user */
@@ -23,6 +24,7 @@ class ProfileController extends Controller
         return $user;
     }
 
+    // Helper method: admin meta.
     private function adminMeta(User $user): object
     {
         $staffId = $user->staff_id ?: ($user->student_id ?: 'ADMIN-' . $user->id);
@@ -35,6 +37,7 @@ class ProfileController extends Controller
         ];
     }
 
+    // Load and render the requested record details page.
     public function show(Request $request): View
     {
         $user = $this->requireAdmin($request);
@@ -45,6 +48,7 @@ class ProfileController extends Controller
         ]);
     }
 
+    // Controller action: update photo.
     public function updatePhoto(Request $request): RedirectResponse
     {
         $this->requireAdmin($request);
@@ -66,6 +70,7 @@ class ProfileController extends Controller
         return back()->with('status', 'Profile photo updated.');
     }
 
+    // Controller action: update password.
     public function updatePassword(Request $request): RedirectResponse
     {
         $this->requireAdmin($request);
@@ -89,6 +94,7 @@ class ProfileController extends Controller
         return back()->with('password_status', 'Password updated.');
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request): RedirectResponse
     {
         $user = $this->requireAdmin($request);

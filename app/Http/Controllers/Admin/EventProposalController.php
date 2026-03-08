@@ -10,13 +10,16 @@ use Illuminate\View\View;
 
 class EventProposalController extends Controller
 {
+    // Admin proposal review screen.
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
         $status = (string) $request->query('status', '');
 
+        // Include sub-events so the proposal page can show schedule breakdowns without extra queries.
         $query = Event::with('subEvents');
 
+        // Keyword search matches main proposal fields used by admins during review.
         if ($search !== '') {
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', '%' . $search . '%')
@@ -25,6 +28,7 @@ class EventProposalController extends Controller
             });
         }
 
+        // Status filter is limited to the proposal approval workflow values.
         if (in_array($status, ['pending', 'approved', 'rejected'], true)) {
             $query->where('approval_status', $status);
         }
@@ -33,6 +37,7 @@ class EventProposalController extends Controller
             ->latest()
             ->get();
 
+        // Return records and active filters so the UI keeps the current search/filter state.
         return view('admin.event-proposals', [
             'events' => $events,
             'filters' => [
@@ -42,6 +47,7 @@ class EventProposalController extends Controller
         ]);
     }
 
+    // Approve an event proposal and clear any previous rejection reason.
     public function approve(Event $event): RedirectResponse
     {
         $event->update([
@@ -52,8 +58,10 @@ class EventProposalController extends Controller
         return back()->with('status', 'Event proposal approved.');
     }
 
+    // Reject an event proposal and require a reason for admin transparency.
     public function reject(Request $request, Event $event): RedirectResponse
     {
+
         $validated = $request->validate([
             'rejection_reason' => ['required', 'string', 'max:1000'],
         ]);

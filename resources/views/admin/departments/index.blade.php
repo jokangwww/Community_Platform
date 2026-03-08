@@ -34,6 +34,7 @@
             padding: 8px 10px;
             font-size: 14px;
             background: #fff;
+            color: #1f1f1f;
         }
         .department-form input {
             min-width: 260px;
@@ -128,3 +129,4 @@
         </div>
     @endif
 @endsection
+

@@ -4,29 +4,104 @@
 
 @section('content')
     <style>
+        .event-page {
+            --text-main: #1a2438;
+            --text-muted: #5a6880;
+            --border-soft: #d5deed;
+            --brand: #2b66db;
+            --brand-dark: #1d4fae;
+            margin-top: 16px;
+            color: var(--text-main);
+        }
+        .event-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .event-title {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.2;
+        }
+        .event-subtitle {
+            margin: 6px 0 0;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-soft);
+            background: #fff;
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .back-link:hover {
+            background: #f7faff;
+        }
         .event-form {
-            margin-top: 20px;
-            max-width: 720px;
+            max-width: 980px;
             display: grid;
-            gap: 16px;
+            gap: 14px;
+        }
+        .event-card {
+            background: #fff;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
+        }
+        .card-title {
+            margin: 0 0 12px;
+            font-size: 18px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
         }
         .event-form .field {
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
+        }
+        .event-form .field.full {
+            grid-column: 1 / -1;
         }
         .event-form label {
             font-size: 14px;
-            color: #2f2f2f;
+            font-weight: 700;
+            color: var(--text-main);
         }
         .event-form input,
         .event-form select,
         .event-form textarea {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #bccadf;
+            border-radius: 10px;
             padding: 10px 12px;
             font-size: 15px;
             background: #fff;
+            color: var(--text-main);
+        }
+        .event-form input[type="file"] {
+            background: #f9fbff;
+            border-style: dashed;
+        }
+        .event-form input:focus,
+        .event-form select:focus,
+        .event-form textarea:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(43, 102, 219, 0.14);
         }
         .event-form textarea {
             min-height: 140px;
@@ -35,31 +110,52 @@
         .form-actions {
             display: flex;
             gap: 12px;
+            justify-content: flex-end;
         }
         .form-actions button,
         .form-actions a {
             padding: 10px 16px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 10px;
+            border: 1px solid #94a6c2;
             background: #fff;
             text-decoration: none;
-            color: inherit;
+            color: var(--text-main);
             cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .form-actions button {
+            border-color: var(--brand);
+            background: var(--brand);
+            color: #fff;
+        }
+        .form-actions button:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        .form-actions a:hover {
+            background: #f7faff;
         }
         .error-text {
             color: #b00020;
             font-size: 13px;
         }
-        .committee-input {
+        .committee-input,
+        .file-grid {
             display: flex;
             gap: 10px;
         }
         .committee-input button {
             padding: 10px 14px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 10px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .committee-search {
             margin-top: 8px;
@@ -68,17 +164,18 @@
             list-style: none;
             padding: 0;
             margin: 8px 0 0;
-            border: 1px solid #d6d6d6;
-            border-radius: 6px;
+            border: 1px solid #d6deeb;
+            border-radius: 10px;
             max-height: 180px;
             overflow-y: auto;
+            background: #fbfdff;
         }
         .committee-list li {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 8px 10px;
-            border-bottom: 1px solid #ededed;
+            border-bottom: 1px solid #e8edf7;
         }
         .committee-list li:last-child {
             border-bottom: 0;
@@ -105,12 +202,17 @@
             gap: 10px;
             align-items: center;
         }
-        .subevent-row button {
+        .subevent-row button,
+        .faculty-row button,
+        .subevent-add,
+        .faculty-add {
             padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .subevent-list {
             display: grid;
@@ -119,11 +221,6 @@
         }
         .subevent-add {
             margin-top: 8px;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
-            cursor: pointer;
             width: fit-content;
         }
         .faculty-row {
@@ -132,13 +229,6 @@
             gap: 10px;
             align-items: center;
         }
-        .faculty-row button {
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
-            cursor: pointer;
-        }
         .faculty-list {
             display: grid;
             gap: 10px;
@@ -146,21 +236,62 @@
         }
         .faculty-add {
             margin-top: 8px;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
-            cursor: pointer;
             width: fit-content;
+        }
+        @media (max-width: 980px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .event-form .field,
+            .event-form .field.full {
+                grid-column: 1 / -1;
+            }
+            .subevent-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .subevent-row button {
+                grid-column: 1 / -1;
+                justify-self: start;
+            }
+        }
+        @media (max-width: 760px) {
+            .event-title {
+                font-size: 26px;
+            }
+            .back-link {
+                width: 100%;
+            }
+            .faculty-row,
+            .subevent-row {
+                grid-template-columns: 1fr;
+            }
+            .file-grid {
+                flex-direction: column;
+            }
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+            .form-actions button,
+            .form-actions a {
+                width: 100%;
+            }
         }
     </style>
 
-    <div class="tabs">
-        <div class="tab">Apply New Event</div>
-    </div>
+    <div class="event-page">
+        <div class="event-hero">
+            <div>
+                <h2 class="event-title">Apply New Event</h2>
+                <p class="event-subtitle">Fill in complete event details before submitting for review.</p>
+            </div>
+            <a class="back-link" href="{{ route('club.events.index') }}">Back to Manage Event</a>
+        </div>
 
     <form class="event-form" action="{{ route('club.events.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
+        <div class="event-card">
+        <h3 class="card-title">Basic Information</h3>
+        <div class="form-grid">
         <div class="field">
             <label for="name">Event Name</label>
             <input id="name" name="name" type="text" value="{{ old('name') }}" required>
@@ -168,7 +299,7 @@
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
-        <div class="field">
+        <div class="field full">
             <label for="description">Event Description</label>
             <textarea id="description" name="description" required>{{ old('description') }}</textarea>
             @error('description')
@@ -195,16 +326,6 @@
             @enderror
         </div>
         <div class="field">
-            <label for="status">Event Status</label>
-            <select id="status" name="status" required>
-                <option value="in_progress" @selected(old('status', 'in_progress') === 'in_progress')>In progress</option>
-                <option value="ended" @selected(old('status') === 'ended')>Ended</option>
-            </select>
-            @error('status')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
-        </div>
-        <div class="field">
             <label for="registration_type">Join Type</label>
             <select id="registration_type" name="registration_type" required>
                 <option value="register" @selected(old('registration_type', 'register') === 'register')>Register only</option>
@@ -223,33 +344,23 @@
         </div>
         <div class="field">
             <label for="start_date">Event start date</label>
-            <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}">
+            <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}" required>
             @error('start_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
         <div class="field">
             <label for="end_date">Event end date</label>
-            <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}">
+            <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}" required>
             @error('end_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
-        <div class="field">
-            <label for="committee_student_ids">Committee student IDs</label>
-            <div class="committee-input">
-                <input id="committee_entry" type="text" placeholder="Enter student ID">
-                <button type="button" id="committee_add">Add</button>
-            </div>
-            <input id="committee_student_ids" name="committee_student_ids" type="hidden" value="{{ old('committee_student_ids') }}">
-            <input id="committee_search" class="committee-search" type="text" placeholder="Search committee">
-            <ul id="committee_list" class="committee-list"></ul>
-            <div id="committee_error" class="committee-error" style="display:none;"></div>
-            @error('committee_student_ids')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
         </div>
-        <div class="field">
+        </div>
+        <div class="event-card">
+        <h3 class="card-title">Sub Events</h3>
+        <div class="field full">
             <label>Sub events</label>
             <div id="subevent_list" class="subevent-list">
                 @if (is_array(old('sub_event_title')))
@@ -287,7 +398,10 @@
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
-        <div class="field">
+        </div>
+        <div class="event-card">
+        <h3 class="card-title">Faculty Limits</h3>
+        <div class="field full">
             <label>Faculty limits</label>
             <div id="faculty_list" class="faculty-list">
                 @if (is_array(old('faculty_name')))
@@ -313,151 +427,58 @@
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
-        <div class="field">
-            <label for="logo">Event Logo (PNG, JPG)</label>
-            <input id="logo" name="logo" type="file" accept="image/*">
-            @error('logo')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
         </div>
-        <div class="field">
-            <label for="attachment">Attachment (PDF, Word, Excel)</label>
-            <input id="attachment" name="attachment" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx">
-            @error('attachment')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
+        <div class="event-card">
+        <h3 class="card-title">Files</h3>
+        <div class="form-grid">
+            <div class="field">
+                <label for="logo">Event Logo (PNG, JPG)</label>
+                <input id="logo" name="logo" type="file" accept="image/*">
+                @error('logo')
+                    <div class="error-text">{{ $message }}</div>
+                @enderror
+            </div>
+            <div class="field">
+                <label for="attachment">Attachment (PDF, Word, Excel)</label>
+                <input id="attachment" name="attachment" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                @error('attachment')
+                    <div class="error-text">{{ $message }}</div>
+                @enderror
+            </div>
         </div>
+        </div>
+        <div class="event-card">
         <div class="form-actions">
             <button type="submit">Submit</button>
             <a href="{{ route('club.events.index') }}">Cancel</a>
         </div>
+        </div>
     </form>
+    </div>
 
     <script>
         (function () {
-            var hidden = document.getElementById('committee_student_ids');
-            var list = document.getElementById('committee_list');
-            var entry = document.getElementById('committee_entry');
-            var addBtn = document.getElementById('committee_add');
-            var search = document.getElementById('committee_search');
-            var errorBox = document.getElementById('committee_error');
-            var validateUrl = "{{ route('club.events.committee.validate') }}";
+            var startDateInput = document.getElementById('start_date');
+            var endDateInput = document.getElementById('end_date');
 
-            if (!hidden || !list || !entry || !addBtn || !search) {
+            if (!startDateInput || !endDateInput) {
                 return;
             }
 
-            function normalize(value) {
-                return value.trim();
+            function syncEndDateMin() {
+                var startValue = startDateInput.value || '';
+                endDateInput.min = startValue;
+
+                if (startValue && endDateInput.value && endDateInput.value < startValue) {
+                    endDateInput.value = startValue;
+                }
             }
 
-            var items = hidden.value
-                ? hidden.value.split(',').map(normalize).filter(Boolean)
-                : [];
-            items = Array.from(new Set(items));
-
-            function syncHidden() {
-                hidden.value = items.join(', ');
-            }
-
-            function render() {
-                var filter = normalize(search.value || '').toLowerCase();
-                list.innerHTML = '';
-
-                var visible = items.filter(function (id) {
-                    return !filter || id.toLowerCase().indexOf(filter) !== -1;
-                });
-
-                if (visible.length === 0) {
-                    var empty = document.createElement('li');
-                    empty.className = 'committee-empty';
-                    empty.textContent = items.length ? 'No matching student IDs.' : 'No committee members yet.';
-                    list.appendChild(empty);
-                    return;
-                }
-
-                visible.forEach(function (id) {
-                    var item = document.createElement('li');
-                    var label = document.createElement('span');
-                    label.textContent = id;
-
-                    var remove = document.createElement('button');
-                    remove.type = 'button';
-                    remove.className = 'committee-remove';
-                    remove.textContent = 'Remove';
-                    remove.addEventListener('click', function () {
-                        items = items.filter(function (value) {
-                            return value !== id;
-                        });
-                        syncHidden();
-                        render();
-                    });
-
-                    item.appendChild(label);
-                    item.appendChild(remove);
-                    list.appendChild(item);
-                });
-            }
-
-            function addEntry() {
-                var value = normalize(entry.value);
-                if (!value) {
-                    return;
-                }
-                if (items.indexOf(value) !== -1) {
-                    entry.value = '';
-                    render();
-                    return;
-                }
-                if (errorBox) {
-                    errorBox.style.display = 'none';
-                    errorBox.textContent = '';
-                }
-
-                fetch(validateUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}"
-                    },
-                    body: JSON.stringify({ student_id: value })
-                })
-                    .then(function (response) { return response.json(); })
-                    .then(function (data) {
-                        if (!data || !data.valid) {
-                            if (errorBox) {
-                                errorBox.textContent = data && data.message ? data.message : 'Student ID not found.';
-                                errorBox.style.display = 'block';
-                            }
-                            return;
-                        }
-                        items.push(value);
-                        items.sort();
-                        syncHidden();
-                        entry.value = '';
-                        render();
-                    })
-                    .catch(function () {
-                        if (errorBox) {
-                            errorBox.textContent = 'Unable to validate student ID right now.';
-                            errorBox.style.display = 'block';
-                        }
-                    });
-            }
-
-            addBtn.addEventListener('click', addEntry);
-            entry.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    addEntry();
-                }
-            });
-            search.addEventListener('input', render);
-
-            syncHidden();
-            render();
+            startDateInput.addEventListener('change', syncEndDateMin);
+            syncEndDateMin();
         })();
     </script>
+
     <script>
         (function () {
             var list = document.getElementById('subevent_list');

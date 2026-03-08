@@ -11,6 +11,7 @@ use Illuminate\View\View;
 
 class VenueBookingApprovalController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
@@ -56,6 +57,7 @@ class VenueBookingApprovalController extends Controller
         ]);
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request, VenueBooking $booking): RedirectResponse
     {
         $validated = $request->validate([

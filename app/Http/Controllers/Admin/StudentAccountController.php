@@ -10,6 +10,7 @@ use Illuminate\View\View;
 
 class StudentAccountController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -46,6 +47,7 @@ class StudentAccountController extends Controller
         ]);
     }
 
+    // Controller action: ban.
     public function ban(Request $request, User $user): RedirectResponse
     {
         abort_unless($user->role === 'student', 404);
@@ -68,6 +70,7 @@ class StudentAccountController extends Controller
         return back()->with('status', 'Student account banned.');
     }
 
+    // Controller action: unban.
     public function unban(User $user): RedirectResponse
     {
         abort_unless($user->role === 'student', 404);
@@ -86,6 +89,7 @@ class StudentAccountController extends Controller
         return back()->with('status', 'Student account unbanned.');
     }
 
+    // Controller action: approve appeal.
     public function approveAppeal(User $user): RedirectResponse
     {
         abort_unless($user->role === 'student', 404);
@@ -102,6 +106,7 @@ class StudentAccountController extends Controller
         return back()->with('status', 'Appeal approved. Student account restored.');
     }
 
+    // Controller action: reject appeal.
     public function rejectAppeal(Request $request, User $user): RedirectResponse
     {
         abort_unless($user->role === 'student', 404);

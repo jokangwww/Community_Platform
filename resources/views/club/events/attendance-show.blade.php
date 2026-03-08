@@ -65,6 +65,7 @@
             border: 1px solid #1f1f1f;
             border-radius: 6px;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
         }
         .table {
@@ -99,6 +100,7 @@
             border-radius: 6px;
             padding: 8px 10px;
             background: #fff;
+            color: #1f1f1f;
             font-size: 14px;
         }
         .row-action-btn {
@@ -232,3 +234,4 @@
         </section>
     @endif
 @endsection
+

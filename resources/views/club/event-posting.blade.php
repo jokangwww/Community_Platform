@@ -6,7 +6,7 @@
     <style>
         .posting-topbar {
             padding: 10px 0 6px;
-            border-bottom: 2px solid #1f1f1f;
+            border-bottom: 1px solid #dbe4f0;
         }
         .posting-topbar-row {
             display: flex;
@@ -25,8 +25,8 @@
             min-width: 320px;
         }
         .search-bar input {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             padding: 8px 10px;
             font-size: 14px;
             min-width: 260px;
@@ -34,20 +34,22 @@
             width: 100%;
         }
         .search-bar select {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             padding: 8px 10px;
             font-size: 14px;
             background: #fff;
         }
         .search-bar button {
             padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #aac4e6;
+            background: #f8fbff;
             cursor: pointer;
             font-size: 14px;
             line-height: 1.2;
+            color: #0b4ea5;
+            font-weight: 700;
         }
         .posting-subbar {
             display: flex;
@@ -72,13 +74,14 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 4px 8px;
-            border: 1px solid #1f1f1f;
-            border-radius: 4px;
-            background: #fff;
-            font-size: 16px;
+            padding: 8px 12px;
+            border: 1px solid #aac4e6;
+            border-radius: 10px;
+            background: #f8fbff;
+            font-size: 14px;
+            font-weight: 700;
             text-decoration: none;
-            color: inherit;
+            color: #0b4ea5;
         }
         .posting-list {
             margin-top: 16px;
@@ -89,14 +92,15 @@
             grid-template-columns: 420px 1fr;
             gap: 24px;
             padding: 18px 0;
-            border-bottom: 1px solid #d0d0d0;
+            border-bottom: 1px solid #dbe4f0;
             align-items: stretch;
         }
         .posting-media {
             aspect-ratio: 1 / 1;
             width: 420px;
-            background: #ececec;
-            border: 1px solid #2f2f2f;
+            background: #f2f7ff;
+            border: 1px solid #cfddee;
+            border-radius: 12px;
             font-size: 40px;
             color: #1f1f1f;
             overflow: hidden;
@@ -176,8 +180,9 @@
             flex-direction: column;
         }
         .posting-desc {
-            background: #f5f5f5;
-            border: 1px solid #2f2f2f;
+            background: #f8fbff;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
             font-size: 20px;
             color: #1f1f1f;
             padding: 12px;
@@ -234,10 +239,10 @@
             margin-top: 8px;
         }
         .meta-pill {
-            border: 1px solid #d0d0d0;
+            border: 1px solid #b8cde8;
             border-radius: 999px;
             padding: 2px 10px;
-            background: #fff;
+            background: #f4f9ff;
             font-weight: 500;
             font-size: 11px;
         }

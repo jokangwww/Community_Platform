@@ -84,6 +84,7 @@
         .draw-actions button {
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             border-radius: 6px;
             padding: 8px 14px;
             cursor: pointer;
@@ -138,6 +139,10 @@
                     $draw = $event->luckyDraw;
                     $excluded = $draw ? $draw->numbers->where('type', 'excluded')->pluck('number')->sort()->values()->all() : [];
                     $winning = $draw ? $draw->numbers->where('type', 'winning')->pluck('number')->sort()->values()->all() : [];
+                    $autoRangeStart = 1;
+                    $autoRangeEnd = (int) ($event->participant_limit ?? 0) > 0
+                        ? (int) $event->participant_limit
+                        : (int) old('range_end', $draw?->range_end ?? 100);
                 @endphp
                 <form class="draw-card" method="POST" action="{{ route('club.lucky-draw.update', $event) }}">
                     @csrf
@@ -150,34 +155,48 @@
                             Not set
                         @endif
                         |
+                        Participant limit: {{ $event->participant_limit ?? 'N/A' }}
+                        |
                         Winning count: {{ count($winning) }}
                     </div>
                     <div class="draw-grid">
                         <div class="draw-field">
-                            <label>Range Start</label>
+                            <label>Range Start (Auto)</label>
                             <input
                                 type="number"
                                 name="range_start"
                                 min="0"
                                 max="1000000"
                                 required
-                                value="{{ old('range_start', $draw?->range_start ?? 1) }}"
+                                value="{{ $autoRangeStart }}"
+                                readonly
                             >
                         </div>
                         <div class="draw-field">
-                            <label>Range End</label>
+                            <label>Range End (Auto from Participant Limit)</label>
                             <input
                                 type="number"
                                 name="range_end"
                                 min="0"
                                 max="1000000"
                                 required
-                                value="{{ old('range_end', $draw?->range_end ?? 100) }}"
+                                value="{{ $autoRangeEnd }}"
+                                readonly
+                            >
+                        </div>
+                        <div class="draw-field">
+                            <label>Draw Count (per click)</label>
+                            <input
+                                type="number"
+                                name="draw_count"
+                                min="1"
+                                max="1000"
+                                value="{{ old('draw_count', 1) }}"
                             >
                         </div>
                         <div class="draw-field draw-full">
-                            <label>Excluded Numbers (comma/space/newline)</label>
-                            <textarea name="excluded_numbers" placeholder="e.g. 3, 5, 18">{{ old('excluded_numbers', implode(', ', $excluded)) }}</textarea>
+                            <label>Excluded Numbers (comma/space/newline, supports range)</label>
+                            <textarea name="excluded_numbers" placeholder="e.g. 3, 5-10, 18">{{ old('excluded_numbers', implode(', ', $excluded)) }}</textarea>
                         </div>
                         <div class="draw-field draw-full">
                             <label>Winning Numbers (comma/space/newline)</label>
@@ -193,7 +212,7 @@
                             formaction="{{ route('club.lucky-draw.draw-one', $event) }}"
                             formmethod="POST"
                         >
-                            Draw 1 Random Winner
+                            Draw Random Winner(s)
                         </button>
                         <button type="submit">Save Lucky Draw</button>
                     </div>
@@ -202,3 +221,4 @@
         </div>
     @endif
 @endsection
+

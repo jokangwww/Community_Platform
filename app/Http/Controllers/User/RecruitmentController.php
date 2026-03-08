@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 
 class RecruitmentController extends Controller
 {
+    // Helper method: require student.
     private function requireStudent(): User
     {
         /** @var User $user */
@@ -18,6 +19,7 @@ class RecruitmentController extends Controller
         return $user;
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request)
     {
         $user = $this->requireStudent();
@@ -34,7 +36,8 @@ class RecruitmentController extends Controller
                         ->orWhere('description', 'like', '%' . $keyword . '%')
                         ->orWhere('requirements', 'like', '%' . $keyword . '%')
                         ->orWhere('required_skills', 'like', '%' . $keyword . '%')
-                        ->orWhere('interests', 'like', '%' . $keyword . '%');
+                        ->orWhere('interests', 'like', '%' . $keyword . '%')
+                        ->orWhere('volunteer_benefits', 'like', '%' . $keyword . '%');
                 });
             })
             ->when($skills, function ($query) use ($skills) {
@@ -63,6 +66,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Load and render the requested record details page.
     public function show(Recruitment $recruitment)
     {
         $user = $this->requireStudent();
@@ -81,6 +85,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Controller action: submitted.
     public function submitted()
     {
         $user = $this->requireStudent();
@@ -95,6 +100,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Controller action: apply.
     public function apply(Request $request, Recruitment $recruitment)
     {
         $user = $this->requireStudent();

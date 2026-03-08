@@ -66,6 +66,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
         }
         .question-add {
@@ -129,6 +130,13 @@
             <label for="interests">Interests (comma separated)</label>
             <input id="interests" name="interests" type="text" value="{{ old('interests') }}" placeholder="e.g. Community, Volunteering">
             @error('interests')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="field">
+            <label for="volunteer_benefits">Volunteer benefits</label>
+            <textarea id="volunteer_benefits" name="volunteer_benefits" placeholder="e.g. Certificate, merit points, networking opportunities">{{ old('volunteer_benefits') }}</textarea>
+            @error('volunteer_benefits')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
@@ -205,3 +213,4 @@
         })();
     </script>
 @endsection
+

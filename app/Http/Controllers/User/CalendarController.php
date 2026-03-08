@@ -15,6 +15,7 @@ use Illuminate\View\View;
 
 class CalendarController extends Controller
 {
+    // Helper method: require student.
     private function requireStudent(): User
     {
         /** @var User $user */
@@ -23,6 +24,7 @@ class CalendarController extends Controller
         return $user;
     }
 
+    // Helper method: sync event to calendar.
     private function syncEventToCalendar(User $student, Event $event, string $source): void
     {
         $event->loadMissing('subEvents.locationPoint');
@@ -51,6 +53,7 @@ class CalendarController extends Controller
         );
     }
 
+    // Helper method: sync joined events.
     private function syncJoinedEvents(User $student): void
     {
         $eventIds = $this->joinedEventIds($student);
@@ -94,6 +97,7 @@ class CalendarController extends Controller
         }
     }
 
+    // Helper method: joined event ids.
     private function joinedEventIds(User $student): array
     {
         $registeredEventIds = EventRegistration::query()
@@ -115,6 +119,7 @@ class CalendarController extends Controller
         return array_values(array_unique(array_merge($registeredEventIds, $ticketEventIds)));
     }
 
+    // Helper method: build joined rows.
     private function buildJoinedRows(Collection $events): Collection
     {
         $rows = collect();
@@ -154,6 +159,7 @@ class CalendarController extends Controller
             ->values();
     }
 
+    // Helper method: filter joined rows.
     private function filterJoinedRows(Collection $rows, string $filter): Collection
     {
         if ($filter === 'passed') {
@@ -169,6 +175,7 @@ class CalendarController extends Controller
         return $rows;
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $student = $this->requireStudent();

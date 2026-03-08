@@ -396,6 +396,76 @@
             color: var(--brand-700);
         }
 
+        /* Shared page-level baseline for existing role-specific views */
+        .content [class$="-header"],
+        .content [class*="-header "] {
+            border-bottom-color: var(--line-soft) !important;
+        }
+
+        .content [class$="-card"],
+        .content [class*="-card "],
+        .content .panel,
+        .content [class$="-panel"],
+        .content [class*="-panel "] {
+            border-color: var(--line-soft) !important;
+            border-radius: 14px !important;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%) !important;
+            box-shadow: 0 16px 30px -28px rgba(15, 23, 42, 0.7);
+        }
+
+        .content [class$="-meta"],
+        .content [class*="-meta "] {
+            color: var(--ink-700) !important;
+        }
+
+        .content [class$="-empty"],
+        .content [class*="-empty "],
+        .content .empty,
+        .content .empty-box,
+        .content .empty-state {
+            border-color: #bfd2ea !important;
+            border-radius: 12px !important;
+            background: #f8fbff !important;
+            color: #4b6079 !important;
+        }
+
+        .content [class$="-badge"],
+        .content [class*="-badge "],
+        .content .badge {
+            border-color: #b8cde8 !important;
+            background: #f4f9ff !important;
+            color: #355070 !important;
+            border-radius: 999px !important;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--line-soft);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .content table th,
+        .content table td {
+            border-bottom: 1px solid #e9f0fa;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        .content table th {
+            background: #f4f8ff;
+            color: #41556f;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .content table tr:last-child td {
+            border-bottom: 0;
+        }
+
         @keyframes panel-in {
             from {
                 opacity: 0;

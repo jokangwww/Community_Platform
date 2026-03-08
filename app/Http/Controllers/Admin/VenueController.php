@@ -12,6 +12,7 @@ use Illuminate\View\View;
 
 class VenueController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
@@ -61,6 +62,7 @@ class VenueController extends Controller
         ]);
     }
 
+    // Validate the request and create a new record from submitted form data.
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -80,6 +82,7 @@ class VenueController extends Controller
         return back()->with('status', 'Venue created.');
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request, Venue $venue): RedirectResponse
     {
         $validated = $request->validate([
@@ -99,6 +102,7 @@ class VenueController extends Controller
         return back()->with('status', 'Venue updated.');
     }
 
+    // Delete or close the selected record after access checks.
     public function destroy(Venue $venue): RedirectResponse
     {
         $hasLinkedActiveUpcomingBooking = $venue->bookings()

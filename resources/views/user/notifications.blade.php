@@ -9,38 +9,41 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 16px 0 10px;
-            border-bottom: 2px solid #1f1f1f;
+            padding: 16px 0 12px;
+            border-bottom: 1px solid #dbe4f0;
         }
         .notification-header h2 {
             margin: 0;
-            font-size: 24px;
+            font-size: 26px;
         }
         .notification-btn {
-            padding: 8px 12px;
-            border: 1px solid #3a3a3a;
-            border-radius: 6px;
-            background: #fff;
+            padding: 9px 13px;
+            border: 1px solid #aac4e6;
+            border-radius: 10px;
+            background: #f8fbff;
             cursor: pointer;
+            font-weight: 700;
+            color: #0b4ea5;
         }
         .notification-status {
             margin-top: 14px;
-            padding: 10px 12px;
-            border: 1px solid #b7ddb7;
-            background: #f6fff6;
-            color: #155724;
-            border-radius: 6px;
+            padding: 11px 12px;
+            border: 1px solid #b8cae5;
+            background: #f6faff;
+            color: #355070;
+            border-radius: 10px;
         }
         .notification-list {
             margin-top: 12px;
-            border: 1px solid #d8d8d8;
-            border-radius: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 16px 30px -28px rgba(15, 23, 42, 0.7);
         }
         .notification-item {
             padding: 12px 14px;
-            border-bottom: 1px solid #e4e4e4;
-            background: #fff;
+            border-bottom: 1px solid #e8eef8;
+            background: #ffffff;
         }
         .notification-item:last-child {
             border-bottom: none;
@@ -51,23 +54,28 @@
         .notification-title {
             font-weight: 700;
             margin: 0 0 4px;
+            color: #0f172a;
         }
         .notification-message {
             margin: 0 0 6px;
+            color: #34455c;
         }
         .notification-meta {
             font-size: 12px;
-            color: #666;
+            color: #5b6b84;
         }
         .notification-link {
             font-size: 14px;
+            font-weight: 700;
+            color: #0b4ea5;
         }
         .notification-empty {
             margin-top: 14px;
-            border: 1px solid #d8d8d8;
-            border-radius: 8px;
+            border: 1px dashed #bfd2ea;
+            border-radius: 12px;
             padding: 16px;
-            background: #fff;
+            background: #f8fbff;
+            color: #4b6079;
         }
         .notification-pagination {
             margin-top: 12px;
@@ -108,4 +116,3 @@
         </div>
     @endif
 @endsection
-

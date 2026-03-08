@@ -3,6 +3,7 @@
 @section('title', 'Location Management')
 
 @section('content')
+    {{-- Page-scoped styles for the admin map management UI (cards, map canvas, markers, forms, tables). --}}
     <style>
         .location-page {
             padding: 20px 0;
@@ -180,10 +181,12 @@
     <div class="location-page">
         <h1>Location Management</h1>
 
+        {{-- Flash success message after map/point create or delete actions. --}}
         @if (session('status'))
             <div class="status-message">{{ session('status') }}</div>
         @endif
 
+        {{-- Validation errors for map upload / point creation forms. --}}
         @if ($errors->any())
             <div class="error-list">
                 <ul>
@@ -196,6 +199,7 @@
 
         <section class="card">
             <h2 style="margin-top:0;">Upload New Map</h2>
+            {{-- Admin uploads a new campus map image before placing any location points on it. --}}
             <form method="POST" action="{{ route('admin.locations.maps.store') }}" enctype="multipart/form-data" class="form-grid">
                 @csrf
                 <div class="field">
@@ -215,6 +219,7 @@
         <section class="maps-grid">
             @forelse ($maps as $map)
                 <article class="card">
+                    {{-- Per-map management block: delete map, preview markers, add point, and review point list. --}}
                     <div class="map-header">
                         <h2>{{ $map->name }}</h2>
                         <form method="POST" action="{{ route('admin.locations.maps.destroy', $map) }}" onsubmit="return confirm('Delete this map and all points?');">
@@ -227,17 +232,20 @@
                     <div class="map-canvas" data-map-canvas data-map-id="{{ $map->id }}">
                         <img src="{{ asset('storage/' . $map->image_path) }}" alt="{{ $map->name }} map image">
 
+                        {{-- Existing saved points rendered as absolute-positioned markers using x/y percentages. --}}
                         @foreach ($map->points as $point)
                             <div class="marker" style="left: {{ $point->x_percent }}%; top: {{ $point->y_percent }}%;">
                                 <span>{{ $point->name }}</span>
                             </div>
                         @endforeach
 
+                        {{-- Temporary marker preview shown after admin clicks on the map before submitting the point form. --}}
                         <div class="marker marker-preview" data-preview-marker="{{ $map->id }}" style="display:none;">
                             <span>New point</span>
                         </div>
                     </div>
 
+                    {{-- Point creation form stores the clicked coordinates in hidden fields and submits metadata. --}}
                     <form method="POST" action="{{ route('admin.locations.points.store', $map) }}" class="form-grid location-point-form">
                         @csrf
                         <input type="hidden" name="x_percent" data-x-input="{{ $map->id }}" required>
@@ -261,6 +269,7 @@
                     </form>
 
                     @if ($map->points->isNotEmpty())
+                        {{-- Point table gives admins an exact coordinate/reference list and delete actions for cleanup. --}}
                         <table class="points-table">
                             <thead>
                                 <tr>
@@ -297,8 +306,10 @@
         </section>
     </div>
 
+    {{-- Client-side helpers: auto-grow description textarea and click-to-place coordinate capture on each map canvas. --}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Keep description textareas compact but expand vertically as content grows.
             const autoGrow = (textarea) => {
                 textarea.style.height = 'auto';
                 textarea.style.height = `${textarea.scrollHeight}px`;
@@ -320,6 +331,7 @@
                     return;
                 }
 
+                // Convert click position into percentage coordinates so marker placement stays correct on responsive image sizes.
                 canvas.addEventListener('click', (event) => {
                     const rect = canvas.getBoundingClientRect();
                     const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -328,6 +340,7 @@
                     const clampedX = Math.min(100, Math.max(0, x)).toFixed(2);
                     const clampedY = Math.min(100, Math.max(0, y)).toFixed(2);
 
+                    // Save coordinates to hidden inputs and move the preview marker to the selected point.
                     xInput.value = clampedX;
                     yInput.value = clampedY;
                     preview.style.display = 'block';

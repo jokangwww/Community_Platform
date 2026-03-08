@@ -12,6 +12,7 @@ use Illuminate\View\View;
 
 class JoinedEventController extends Controller
 {
+    // Helper method: require student.
     private function requireStudent(): User
     {
         /** @var User $user */
@@ -20,6 +21,7 @@ class JoinedEventController extends Controller
         return $user;
     }
 
+    // Helper method: joined event ids.
     private function joinedEventIds(User $student): array
     {
         $registeredEventIds = EventRegistration::query()
@@ -41,6 +43,7 @@ class JoinedEventController extends Controller
         return array_values(array_unique(array_merge($registeredEventIds, $ticketEventIds)));
     }
 
+    // Helper method: build rows.
     private function buildRows(Collection $events): Collection
     {
         $rows = collect();
@@ -73,6 +76,7 @@ class JoinedEventController extends Controller
             ->values();
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(): View
     {
         $student = $this->requireStudent();

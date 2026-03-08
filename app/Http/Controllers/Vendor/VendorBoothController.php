@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
+use App\Models\EventBooth;
 use App\Models\Event;
 use App\Models\VendorBoothApplication;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +19,7 @@ class VendorBoothController extends Controller
         $vendor = $request->user();
 
         $events = Event::query()
-            ->with('club')
+            ->with(['club', 'boothPlaces.booths'])
             ->where('approval_status', 'approved')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($inner) use ($q) {
@@ -34,7 +35,7 @@ class VendorBoothController extends Controller
             ->get();
 
         $myApplications = VendorBoothApplication::query()
-            ->with('event')
+            ->with(['event', 'selectedBooth.boothPlace'])
             ->where('vendor_id', $vendor->id)
             ->when($status !== '' && in_array($status, ['pending_organizer', 'pending_admin', 'approved', 'rejected_organizer', 'rejected_admin'], true), fn ($query) => $query->where('status', $status))
             ->latest()
@@ -44,10 +45,23 @@ class VendorBoothController extends Controller
             ->where('vendor_id', $vendor->id)
             ->pluck('status', 'event_id');
 
+        $takenBoothIdsByEvent = [];
+        foreach ($events as $event) {
+            $takenBoothIdsByEvent[$event->id] = VendorBoothApplication::query()
+                ->where('event_id', $event->id)
+                ->whereIn('status', ['pending_organizer', 'pending_admin', 'approved'])
+                ->pluck('selected_event_booth_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
+
         return view('vendor.booth-applications.index', [
             'events' => $events,
             'myApplications' => $myApplications,
             'appliedByEvent' => $appliedByEvent,
+            'takenBoothIdsByEvent' => $takenBoothIdsByEvent,
             'filters' => [
                 'q' => $q,
                 'status' => $status,
@@ -63,9 +77,32 @@ class VendorBoothController extends Controller
 
         $validated = $request->validate([
             'items_for_sale' => ['required', 'string', 'max:2000'],
+            'selected_event_booth_id' => ['required', 'integer', 'exists:event_booths,id'],
         ]);
 
         $vendor = $request->user();
+        $selectedBooth = EventBooth::query()
+            ->with('boothPlace')
+            ->find((int) $validated['selected_event_booth_id']);
+        if (! $selectedBooth || (int) ($selectedBooth->boothPlace?->event_id) !== (int) $event->id) {
+            return back()->withErrors(['selected_event_booth_id' => 'Selected booth is invalid for this event.']);
+        }
+
+        $currentApplication = VendorBoothApplication::query()
+            ->where('vendor_id', $vendor->id)
+            ->where('event_id', $event->id)
+            ->first();
+
+        $boothAlreadyTaken = VendorBoothApplication::query()
+            ->where('event_id', $event->id)
+            ->where('selected_event_booth_id', $selectedBooth->id)
+            ->whereIn('status', ['pending_organizer', 'pending_admin', 'approved'])
+            ->when($currentApplication, fn ($query) => $query->where('id', '!=', $currentApplication->id))
+            ->exists();
+
+        if ($boothAlreadyTaken) {
+            return back()->withErrors(['selected_event_booth_id' => 'This booth has already been taken. Please choose another booth.']);
+        }
 
         VendorBoothApplication::updateOrCreate(
             [
@@ -77,6 +114,8 @@ class VendorBoothController extends Controller
                 'vendor_email_snapshot' => (string) ($vendor->email ?? ''),
                 'vendor_phone_snapshot' => (string) ($vendor->contact_information ?? ''),
                 'items_for_sale' => trim($validated['items_for_sale']),
+                'selected_booth_location' => trim(($selectedBooth->boothPlace?->name ? $selectedBooth->boothPlace->name . ' - ' : '') . $selectedBooth->name),
+                'selected_event_booth_id' => $selectedBooth->id,
                 'status' => 'pending_organizer',
                 'organizer_reviewed_by' => null,
                 'organizer_review_reason' => null,
@@ -90,4 +129,3 @@ class VendorBoothController extends Controller
         return back()->with('status', 'Vendor application submitted. Status: Pending organizer review.');
     }
 }
-

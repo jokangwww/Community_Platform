@@ -17,6 +17,8 @@ class VendorBoothApplication extends Model
         'vendor_email_snapshot',
         'vendor_phone_snapshot',
         'items_for_sale',
+        'selected_booth_location',
+        'selected_event_booth_id',
         'status',
         'organizer_reviewed_by',
         'organizer_review_reason',
@@ -53,5 +55,9 @@ class VendorBoothApplication extends Model
     {
         return $this->belongsTo(User::class, 'admin_reviewed_by');
     }
-}
 
+    public function selectedBooth(): BelongsTo
+    {
+        return $this->belongsTo(EventBooth::class, 'selected_event_booth_id');
+    }
+}

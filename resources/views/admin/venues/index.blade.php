@@ -30,6 +30,7 @@
         .v-actions .row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
         .v-actions input, .v-actions textarea, .v-actions select, .v-actions button {
             border: 1px solid #c7c7c7; border-radius: 6px; padding: 8px 10px; font-size: 14px; background: #fff;
+            color: #1f1f1f;
         }
         .v-actions textarea { grid-column: 1 / -1; min-height: 60px; resize: vertical; }
         .v-actions button { cursor: pointer; }
@@ -129,4 +130,5 @@
         </section>
     </div>
 @endsection
+
 

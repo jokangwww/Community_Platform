@@ -84,7 +84,7 @@
     </div>
 
     <form method="GET" action="{{ route('admin.user-profiles.index') }}" class="filters">
-        <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search by name, email, student ID">
+        <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search by name, email, student ID, IC number">
         <select name="role">
             <option value="" @selected($filters['role'] === '')>All roles</option>
             <option value="student" @selected($filters['role'] === 'student')>Student</option>
@@ -106,6 +106,8 @@
                     <div>Email: {{ $user->email }}</div>
                     <div>Role: {{ ucfirst($user->role ?? 'N/A') }}</div>
                     <div>Student/Staff ID: {{ $user->student_id ?: 'N/A' }}</div>
+                    <div>IC Number: {{ $user->ic_number ?: 'N/A' }}</div>
+                    <div>Programme: {{ $user->programme ?: 'N/A' }}</div>
                 </div>
                 <a class="edit-link" href="{{ route('admin.user-profiles.edit', $user) }}">Correct Profile</a>
             </div>

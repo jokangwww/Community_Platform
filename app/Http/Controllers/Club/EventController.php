@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\LocationPoint;
+use App\Models\RecruitmentApplication;
 use App\Models\TicketPurchase;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ use Illuminate\View\View;
 
 class EventController extends Controller
 {
+    // Helper methods for normalizing user input before saving event/sub-event data.
     private function normalizeTimeValue($value): ?string
     {
         if ($value === null) {
@@ -34,6 +36,7 @@ class EventController extends Controller
         return $time;
     }
 
+    // Read the currently authenticated club user once and keep the return type explicit for IDE/static analysis.
     private function authenticatedClub(): User
     {
         /** @var User $user */
@@ -42,6 +45,7 @@ class EventController extends Controller
         return $user;
     }
 
+    // Convert comma-separated committee student IDs from the form into a cleaned unique list.
     private function parseCommitteeIds(?string $raw): array
     {
         if (! $raw) {
@@ -52,6 +56,7 @@ class EventController extends Controller
         return array_values(array_unique($items));
     }
 
+    // Resolve entered student IDs to real user IDs and fail validation if any ID is not a student account.
     private function resolveCommitteeUsers(array $committeeIds): array
     {
         if ($committeeIds === []) {
@@ -74,6 +79,7 @@ class EventController extends Controller
         return $users->pluck('id')->all();
     }
 
+    // Build normalized sub-event rows from parallel form arrays (title/date/time/location fields).
     private function normalizeSubEvents(array $titles, array $dates, array $startTimes, array $endTimes, array $locationPointIds): array
     {
         $items = [];
@@ -93,6 +99,7 @@ class EventController extends Controller
         return $items;
     }
 
+    // Replace the event's sub-event list with the latest rows from the create/edit form.
     private function storeSubEvents(Event $event, array $subEvents): void
     {
         $event->subEvents()->delete();
@@ -107,6 +114,7 @@ class EventController extends Controller
         }
     }
 
+    // Build faculty limit rows from dynamic form inputs while skipping blank rows.
     private function normalizeFacultyLimits(array $names, array $limits): array
     {
         $items = [];
@@ -127,6 +135,7 @@ class EventController extends Controller
         return $items;
     }
 
+    // Guard against half-filled faculty limit rows (name without limit or limit without name).
     private function ensureCompleteFacultyLimitRows(array $names, array $limits): void
     {
         $max = max(count($names), count($limits));
@@ -144,6 +153,36 @@ class EventController extends Controller
         }
     }
 
+    // Keep total faculty caps within the overall participant cap when participant limit is set.
+    private function ensureFacultyLimitsWithinParticipantLimit(array $limits, ?int $participantLimit): void
+    {
+        if ($limits === []) {
+            return;
+        }
+
+        if ($participantLimit === null) {
+            throw ValidationException::withMessages([
+                'participant_limit' => 'Participant limit is required when faculty limits are set.',
+            ]);
+        }
+
+        if ($participantLimit <= 0) {
+            return;
+        }
+
+        $totalFacultyLimit = 0;
+        foreach ($limits as $limit) {
+            $totalFacultyLimit += (int) ($limit['limit'] ?? 0);
+        }
+
+        if ($totalFacultyLimit > $participantLimit) {
+            throw ValidationException::withMessages([
+                'faculty_limit.0' => 'Total faculty limit (' . $totalFacultyLimit . ') cannot exceed participant limit (' . $participantLimit . ').',
+            ]);
+        }
+    }
+
+    // Replace existing faculty limits with the submitted faculty capacity rules.
     private function storeFacultyLimits(Event $event, array $limits): void
     {
         $event->facultyLimits()->delete();
@@ -155,6 +194,7 @@ class EventController extends Controller
         }
     }
 
+    // Committee position assignment uses admin-defined position rules and stores the selected role per member.
     private function storeCommitteePositions(Event $event, array $studentIds, array $positionNames): void
     {
         $max = max(count($studentIds), count($positionNames));
@@ -199,12 +239,18 @@ class EventController extends Controller
             ];
         }
 
-        $event->committeePositions()->delete();
+        foreach ($event->committeeMembers as $member) {
+            $event->committeeMembers()->updateExistingPivot($member->id, ['position_name' => null]);
+        }
+
         foreach (array_values($rows) as $row) {
-            $event->committeePositions()->create($row);
+            $event->committeeMembers()->updateExistingPivot((int) $row['user_id'], [
+                'position_name' => $row['position_name'],
+            ]);
         }
     }
 
+    // Venue/location dropdown builders read from admin-managed location points for event forms.
     private function venueOptions(): array
     {
         return LocationPoint::query()
@@ -248,6 +294,25 @@ class EventController extends Controller
             ->all();
     }
 
+    // Preserve existing committee position assignments when committee membership list is updated.
+    private function syncCommitteeMembersPreservingPositions(Event $event, array $committeeUserIds): void
+    {
+        $currentPositions = $event->committeeMembers()
+            ->pluck('event_committees.position_name', 'users.id')
+            ->all();
+
+        $syncData = [];
+        foreach ($committeeUserIds as $userId) {
+            $userId = (int) $userId;
+            $syncData[$userId] = [
+                'position_name' => $currentPositions[$userId] ?? null,
+            ];
+        }
+
+        $event->committeeMembers()->sync($syncData);
+    }
+
+    // Lightweight AJAX validation for committee student ID entry in club event forms.
     public function validateCommittee(Request $request)
     {
         $validated = $request->validate([
@@ -264,6 +329,7 @@ class EventController extends Controller
         ]);
     }
 
+    // Club event listing pages (main list + attendance list + create form).
     public function index(Request $request): View
     {
         $user = $this->authenticatedClub();
@@ -289,6 +355,7 @@ class EventController extends Controller
 
     public function attendance(Request $request): View
     {
+        // Attendance dashboard lists only this club's approved events and supports keyword search.
         $user = $this->authenticatedClub();
         $search = trim((string) $request->query('q', ''));
 
@@ -311,6 +378,10 @@ class EventController extends Controller
             ->withCount(['ticketPurchases as attended_tickets_count' => function ($query) {
                 $query->whereNotNull('attended_at');
             }])
+            ->withCount('committeeMembers')
+            ->withCount(['committeeMembers as attended_committees_count' => function ($query) {
+                $query->whereNotNull('event_committees.attended_at');
+            }])
             ->latest()
             ->get();
 
@@ -322,6 +393,7 @@ class EventController extends Controller
 
     public function create(Request $request): View
     {
+        // Create form needs location/venue options and department list for dynamic event settings.
         return view('club.events.create', [
             'venueOptions' => $this->venueOptions(),
             'locationPointOptions' => $this->locationPointOptions(),
@@ -329,6 +401,7 @@ class EventController extends Controller
         ]);
     }
 
+    // Event management detail page loads related modules (committee, sub-events, registrations, soft skill rules).
     public function show(Event $event): View
     {
         $user = $this->authenticatedClub();
@@ -339,7 +412,6 @@ class EventController extends Controller
 
         $event->load([
             'committeeMembers',
-            'committeePositions.user',
             'softSkillCategory.positionRules',
             'subEvents.locationPoint',
             'facultyLimits',
@@ -347,13 +419,80 @@ class EventController extends Controller
             'registrations.student',
         ]);
         $registrations = $event->registrations;
+        $acceptedRecruitmentApplicants = RecruitmentApplication::query()
+            ->where('status', 'accepted')
+            ->whereHas('recruitment', function ($query) use ($event) {
+                $query->where('event_id', $event->id)
+                    ->where('club_id', $event->club_id);
+            })
+            ->with('student:id,name,student_id')
+            ->get()
+            ->filter(fn (RecruitmentApplication $application) => $application->student !== null)
+            ->unique('student_id')
+            ->values();
+        $existingCommitteeStudentIds = $event->committeeMembers
+            ->pluck('student_id')
+            ->filter()
+            ->values();
 
         return view('club.events.show', [
             'event' => $event,
             'registrations' => $registrations,
+            'acceptedRecruitmentApplicants' => $acceptedRecruitmentApplicants,
+            'existingCommitteeStudentIds' => $existingCommitteeStudentIds,
         ]);
     }
 
+    // Import accepted recruitment applicants into event committee membership (deduplicated).
+    public function importAcceptedRecruitmentCommittee(Event $event)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $studentIds = RecruitmentApplication::query()
+            ->where('status', 'accepted')
+            ->whereHas('recruitment', function ($query) use ($event) {
+                $query->where('event_id', $event->id)
+                    ->where('club_id', $event->club_id);
+            })
+            ->pluck('student_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($studentIds->isEmpty()) {
+            return back()->with('status', 'No accepted recruitment applicants found for this event.');
+        }
+
+        $currentCommitteeIds = $event->committeeMembers()
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $importUserIds = User::query()
+            ->whereIn('id', $studentIds->all())
+            ->where('role', 'student')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $mergedCommitteeIds = array_values(array_unique(array_merge($currentCommitteeIds, $importUserIds)));
+        $beforeCount = count($currentCommitteeIds);
+        $afterCount = count($mergedCommitteeIds);
+        $addedCount = max(0, $afterCount - $beforeCount);
+
+        $this->syncCommitteeMembersPreservingPositions($event, $mergedCommitteeIds);
+
+        if ($addedCount === 0) {
+            return back()->with('status', 'All accepted applicants are already in the committee list.');
+        }
+
+        return back()->with('status', $addedCount . ' accepted applicant(s) imported into committee list.');
+    }
+
+    // Save committee position assignments after committee members are already defined.
     public function updateCommitteePositions(Request $request, Event $event)
     {
         $user = $this->authenticatedClub();
@@ -378,6 +517,7 @@ class EventController extends Controller
         return back()->with('status', 'Committee positions updated.');
     }
 
+    // Club attendance management screens and attendance marking actions (registration/ticket modes).
     public function attendanceShow(Event $event): View
     {
         $user = $this->authenticatedClub();
@@ -444,8 +584,45 @@ class EventController extends Controller
         ]);
     }
 
+    public function committeeAttendanceShow(Event $event): View
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $status = (string) request()->query('status', 'all');
+        if (! in_array($status, ['all', 'attend', 'absent'], true)) {
+            $status = 'all';
+        }
+        $studentIdKeyword = trim((string) request()->query('student_id', ''));
+
+        $committeeMembers = $event->committeeMembers()
+            ->when($studentIdKeyword !== '', function ($query) use ($studentIdKeyword) {
+                $query->where('users.student_id', 'like', '%' . $studentIdKeyword . '%');
+            })
+            ->when($status === 'attend', function ($query) {
+                $query->wherePivotNotNull('attended_at');
+            })
+            ->when($status === 'absent', function ($query) {
+                $query->wherePivotNull('attended_at');
+            })
+            ->orderBy('users.name')
+            ->get(['users.id', 'users.name', 'users.student_id', 'users.programme', 'users.department']);
+
+        return view('club.events.committee-attendance-show', [
+            'event' => $event,
+            'committeeMembers' => $committeeMembers,
+            'filters' => [
+                'status' => $status,
+                'student_id' => $studentIdKeyword,
+            ],
+        ]);
+    }
+
     public function markRegistrationAttendance(Request $request, Event $event)
     {
+        // Student-ID attendance flow is only valid for registration-based events.
         $user = $this->authenticatedClub();
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -486,6 +663,7 @@ class EventController extends Controller
 
     public function markTicketAttendance(Request $request, Event $event)
     {
+        // Ticket attendance flow supports searching by ticket number or ticket record ID.
         $user = $this->authenticatedClub();
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -526,6 +704,7 @@ class EventController extends Controller
 
     public function markRegistrationAttendanceRow(Event $event, EventRegistration $registration)
     {
+        // Row action is the quick-mark shortcut from the attendance table for registration-based events.
         $user = $this->authenticatedClub();
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -549,6 +728,7 @@ class EventController extends Controller
 
     public function markTicketAttendanceRow(Event $event, TicketPurchase $ticketPurchase)
     {
+        // Row action is the quick-mark shortcut from the attendance table for ticket-based events.
         $user = $this->authenticatedClub();
         if ($event->club_id !== $user->id) {
             abort(403);
@@ -570,6 +750,33 @@ class EventController extends Controller
         return back()->with('status', 'Attendance marked for ticket ' . $ticketPurchase->ticket_number . '.');
     }
 
+    public function markCommitteeAttendanceRow(Event $event, User $committeeMember)
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        $member = $event->committeeMembers()
+            ->where('users.id', $committeeMember->id)
+            ->first();
+        if (! $member) {
+            return back()->with('status', 'Selected student is not a committee member for this event.');
+        }
+
+        if ($member->pivot?->attended_at) {
+            return back()->with('status', 'Committee attendance already marked.');
+        }
+
+        $event->committeeMembers()->updateExistingPivot($committeeMember->id, [
+            'attended_at' => now(),
+            'attendance_marked_by' => $user->id,
+        ]);
+
+        return back()->with('status', 'Committee attendance marked for ' . ($committeeMember->name ?? 'student') . '.');
+    }
+
+    // Event edit/create persistence for the core event management flow.
     public function edit(Event $event): View
     {
         $user = $this->authenticatedClub();
@@ -578,7 +785,7 @@ class EventController extends Controller
             abort(403);
         }
 
-        $event->load(['subEvents.locationPoint', 'facultyLimits']);
+        $event->load(['subEvents.locationPoint', 'facultyLimits', 'committeeMembers', 'softSkillCategory.positionRules']);
         $committeeIds = $event->committeeMembers()
             ->pluck('student_id')
             ->all();
@@ -596,16 +803,15 @@ class EventController extends Controller
     {
         $user = $this->authenticatedClub();
 
+        // Validate core event fields plus dynamic sub-event/faculty-limit arrays from the create form.
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
             'venue' => ['nullable', 'string', 'max:255'],
-            'status' => ['required', 'in:in_progress,ended'],
             'registration_type' => ['required', 'in:register,ticket'],
             'participant_limit' => ['nullable', 'integer', 'min:1', 'max:100000'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'committee_student_ids' => ['nullable', 'string', 'max:2000'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'sub_event_title' => ['nullable', 'array'],
             'sub_event_title.*' => ['nullable', 'string', 'max:255'],
             'sub_event_date' => ['nullable', 'array'],
@@ -624,8 +830,7 @@ class EventController extends Controller
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
         ]);
 
-        $committeeIds = $this->parseCommitteeIds($validated['committee_student_ids'] ?? null);
-        $committeeUserIds = $this->resolveCommitteeUsers($committeeIds);
+        // Normalize and validate dynamic sections before persisting the main event.
         $subEvents = $this->normalizeSubEvents(
             $validated['sub_event_title'] ?? [],
             $validated['sub_event_date'] ?? [],
@@ -641,7 +846,12 @@ class EventController extends Controller
             $validated['faculty_name'] ?? [],
             $validated['faculty_limit'] ?? []
         );
+        $this->ensureFacultyLimitsWithinParticipantLimit(
+            $facultyLimits,
+            isset($validated['participant_limit']) ? (int) $validated['participant_limit'] : null
+        );
 
+        // Store optional uploaded assets and keep their paths on the event record.
         $logoPath = null;
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('event-logos', 'public');
@@ -652,12 +862,13 @@ class EventController extends Controller
             $attachmentPath = $request->file('attachment')->store('event-files', 'public');
         }
 
+        // Create the main event first, then attach related committee/sub-event/faculty-limit records.
         $event = Event::create([
             'club_id' => $user->id,
             'name' => $validated['name'],
             'description' => $validated['description'],
             'venue' => $validated['venue'] ?? null,
-            'status' => $validated['status'],
+            'status' => 'in_progress',
             'approval_status' => 'pending',
             'registration_type' => $validated['registration_type'],
             'participant_limit' => $validated['participant_limit'] ?? null,
@@ -667,7 +878,6 @@ class EventController extends Controller
             'attachment_path' => $attachmentPath,
         ]);
 
-        $event->committeeMembers()->sync($committeeUserIds);
         $this->storeSubEvents($event, $subEvents);
         $this->storeFacultyLimits($event, $facultyLimits);
 
@@ -682,6 +892,7 @@ class EventController extends Controller
             abort(403);
         }
 
+        // Validate the same shape as create(), because edit form submits the same nested sections.
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
@@ -710,6 +921,7 @@ class EventController extends Controller
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
         ]);
 
+        // Rebuild dynamic related data from form arrays before updating the event and child tables.
         $committeeIds = $this->parseCommitteeIds($validated['committee_student_ids'] ?? null);
         $committeeUserIds = $this->resolveCommitteeUsers($committeeIds);
         $subEvents = $this->normalizeSubEvents(
@@ -727,7 +939,12 @@ class EventController extends Controller
             $validated['faculty_name'] ?? [],
             $validated['faculty_limit'] ?? []
         );
+        $this->ensureFacultyLimitsWithinParticipantLimit(
+            $facultyLimits,
+            isset($validated['participant_limit']) ? (int) $validated['participant_limit'] : null
+        );
 
+        // Replace file paths only when a new file is uploaded; otherwise keep existing assets.
         $logoPath = $event->logo_path;
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('event-logos', 'public');
@@ -738,6 +955,7 @@ class EventController extends Controller
             $attachmentPath = $request->file('attachment')->store('event-files', 'public');
         }
 
+        // Update main event fields, then sync committee/sub-events/faculty limits in their own tables.
         $event->update([
             'name' => $validated['name'],
             'description' => $validated['description'],
@@ -751,15 +969,16 @@ class EventController extends Controller
             'attachment_path' => $attachmentPath,
         ]);
 
-        $event->committeeMembers()->sync($committeeUserIds);
+        $this->syncCommitteeMembersPreservingPositions($event, $committeeUserIds);
         $this->storeSubEvents($event, $subEvents);
         $this->storeFacultyLimits($event, $facultyLimits);
 
         return redirect()
-            ->route('club.events.show', $event)
+            ->route('club.events.edit', $event)
             ->with('status', 'Event updated.');
     }
 
+    // Live stream controls are managed from the event detail page (start/update/stop).
     public function updateStream(Request $request, Event $event)
     {
         $user = $this->authenticatedClub();

@@ -11,6 +11,7 @@ use Illuminate\View\View;
 
 class TicketController extends Controller
 {
+    // Normalize dynamic bundle discount rows and keep only valid quantity/discount combinations.
     private function normalizeBundleDiscounts(array $quantities, array $percents): array
     {
         $bundles = [];
@@ -45,6 +46,7 @@ class TicketController extends Controller
         return array_values($bundles);
     }
 
+    // Ticket settings dashboard for this club's ticket-based events.
     public function index(Request $request): View
     {
         $user = $request->user();
@@ -73,6 +75,7 @@ class TicketController extends Controller
         ]);
     }
 
+    // Save or update ticket pricing/numbering settings (including bundle discounts) for one event.
     public function update(Request $request, Event $event): RedirectResponse
     {
         $user = $request->user();
@@ -98,6 +101,7 @@ class TicketController extends Controller
             'bundle_discount_percent.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
+        // Persist ticket numbering config while ensuring numbering does not move backwards.
         $setting = EventTicketSetting::firstOrNew([
             'event_id' => $event->id,
         ]);

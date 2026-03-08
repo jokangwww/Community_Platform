@@ -12,19 +12,35 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('buddy_subjects', function (Blueprint $table) {
-            $table->string('code')->nullable()->after('id');
-            $table->enum('type', ['subject', 'skill'])->default('subject')->after('name');
-        });
+        if (! Schema::hasColumn('buddy_subjects', 'code') || ! Schema::hasColumn('buddy_subjects', 'type')) {
+            Schema::table('buddy_subjects', function (Blueprint $table) {
+                if (! Schema::hasColumn('buddy_subjects', 'code')) {
+                    $table->string('code')->nullable()->after('id');
+                }
+                if (! Schema::hasColumn('buddy_subjects', 'type')) {
+                    $table->enum('type', ['subject', 'skill'])->default('subject')->after('name');
+                }
+            });
+        }
 
         // Add some default skills
-        DB::table('buddy_subjects')->insert([
-            ['name' => 'Coding', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Design', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Music', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Public Speaking', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Writing', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        $skills = ['Coding', 'Design', 'Music', 'Public Speaking', 'Writing'];
+        foreach ($skills as $skillName) {
+            $exists = DB::table('buddy_subjects')
+                ->where('name', $skillName)
+                ->where('type', 'skill')
+                ->exists();
+
+            if (! $exists) {
+                DB::table('buddy_subjects')->insert([
+                    'name' => $skillName,
+                    'type' => 'skill',
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -36,7 +52,16 @@ return new class extends Migration
         DB::table('buddy_subjects')->where('type', 'skill')->delete();
 
         Schema::table('buddy_subjects', function (Blueprint $table) {
-            $table->dropColumn(['code', 'type']);
+            $columns = [];
+            if (Schema::hasColumn('buddy_subjects', 'code')) {
+                $columns[] = 'code';
+            }
+            if (Schema::hasColumn('buddy_subjects', 'type')) {
+                $columns[] = 'type';
+            }
+            if ($columns !== []) {
+                $table->dropColumn($columns);
+            }
         });
     }
 };

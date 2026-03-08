@@ -10,6 +10,7 @@ use Illuminate\View\View;
 
 class ClubProfileController extends Controller
 {
+    // Load and render the requested record details page.
     public function show(Request $request, User $club): View
     {
         abort_unless($club->role === 'club', 404);

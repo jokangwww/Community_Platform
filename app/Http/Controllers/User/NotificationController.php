@@ -9,6 +9,7 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
+    // Helper method: authenticated student.
     private function authenticatedStudent(): User
     {
         /** @var User $user */
@@ -17,6 +18,7 @@ class NotificationController extends Controller
         return $user;
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(): View
     {
         $user = $this->authenticatedStudent();
@@ -26,6 +28,7 @@ class NotificationController extends Controller
         ]);
     }
 
+    // Controller action: mark all as read.
     public function markAllAsRead(): RedirectResponse
     {
         $user = $this->authenticatedStudent();

@@ -72,6 +72,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
         }
         .applicant-list {
@@ -116,6 +117,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
         }
         .answer-list {
@@ -148,6 +150,7 @@
         <p><strong>Requirements:</strong> {{ $recruitment->requirements ?: 'Not set' }}</p>
         <p><strong>Required skills:</strong> {{ $recruitment->required_skills ?: 'Not set' }}</p>
         <p><strong>Interests:</strong> {{ $recruitment->interests ?: 'Not set' }}</p>
+        <p><strong>Volunteer benefits:</strong> {{ $recruitment->volunteer_benefits ?: 'Not set' }}</p>
         @if ($recruitment->questions->isNotEmpty())
             <p><strong>Questions:</strong></p>
             <ul class="answer-list">
@@ -225,3 +228,4 @@
         @endif
     </div>
 @endsection
+

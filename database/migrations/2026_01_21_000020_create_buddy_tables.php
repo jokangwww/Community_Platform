@@ -13,37 +13,42 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Buddy Subjects Table
-        Schema::create('buddy_subjects', function (Blueprint $table) {
-            $table->id();
-            $table->string('code')->nullable();
-            $table->string('name');
-            $table->enum('type', ['subject', 'skill'])->default('subject');
-            $table->string('description')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('buddy_subjects')) {
+            Schema::create('buddy_subjects', function (Blueprint $table) {
+                $table->id();
+                $table->string('code')->nullable();
+                $table->string('name');
+                $table->enum('type', ['subject', 'skill'])->default('subject');
+                $table->string('description')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
 
         // Seed default subjects
-        DB::table('buddy_subjects')->insert([
-            ['name' => 'Mathematics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Physics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Chemistry', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Biology', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Computer Science', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'English', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Business Management', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Economics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Accounting', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Statistics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            // Skills
-            ['name' => 'Coding', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Design', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Music', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Public Speaking', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Writing', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        if (Schema::hasTable('buddy_subjects') && DB::table('buddy_subjects')->count() === 0) {
+            DB::table('buddy_subjects')->insert([
+                ['name' => 'Mathematics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Physics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Chemistry', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Biology', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Computer Science', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'English', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Business Management', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Economics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Accounting', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Statistics', 'type' => 'subject', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                // Skills
+                ['name' => 'Coding', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Design', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Music', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Public Speaking', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Writing', 'type' => 'skill', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ]);
+        }
 
-        Schema::create('buddy_participants', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_participants')) {
+            Schema::create('buddy_participants', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('full_name');
@@ -68,20 +73,24 @@ return new class extends Migration
 
             $table->index(['role', 'status']);
             $table->index(['priority_tier', 'status']);
-        });
+            });
+        }
 
         // 3. Buddy Participant Subjects (Many-to-Many)
-        Schema::create('buddy_participant_subjects', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_participant_subjects')) {
+            Schema::create('buddy_participant_subjects', function (Blueprint $table) {
             $table->id();
             $table->foreignId('buddy_participant_id')->constrained()->onDelete('cascade');
             $table->foreignId('buddy_subject_id')->constrained()->onDelete('cascade');
             $table->timestamps();
 
             $table->unique(['buddy_participant_id', 'buddy_subject_id'], 'participant_subject_unique');
-        });
+            });
+        }
 
         // 4. Buddy Matches Table
-        Schema::create('buddy_matches', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_matches')) {
+            Schema::create('buddy_matches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('mentor_id')->constrained('buddy_participants')->onDelete('cascade');
             $table->foreignId('mentee_id')->constrained('buddy_participants')->onDelete('cascade');
@@ -94,10 +103,12 @@ return new class extends Migration
 
             $table->unique(['mentor_id', 'mentee_id', 'subject_id']);
             $table->index(['status', 'matched_date']);
-        });
+            });
+        }
 
         // 5. Buddy Sessions Table
-        Schema::create('buddy_sessions', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_sessions')) {
+            Schema::create('buddy_sessions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('match_id')->constrained('buddy_matches')->onDelete('cascade');
             $table->date('session_date');
@@ -112,19 +123,23 @@ return new class extends Migration
 
             $table->index(['match_id', 'session_date']);
             $table->index('status');
-        });
+            });
+        }
 
         // 6. Buddy Settings Table
-        Schema::create('buddy_settings', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_settings')) {
+            Schema::create('buddy_settings', function (Blueprint $table) {
             $table->id();
             $table->boolean('priority_allocation')->default(true);
             $table->boolean('registration_open')->default(true);
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-        });
+            });
+        }
 
         // 7. Buddy Time Slots Table (for scheduling)
-        Schema::create('buddy_time_slots', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_time_slots')) {
+            Schema::create('buddy_time_slots', function (Blueprint $table) {
             $table->id();
             $table->foreignId('match_id')->constrained('buddy_matches')->onDelete('cascade');
             $table->string('day');
@@ -134,20 +149,24 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['match_id', 'is_published']);
-        });
+            });
+        }
 
         // 8. Buddy Time Slot Votes Table
-        Schema::create('buddy_time_slot_votes', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_time_slot_votes')) {
+            Schema::create('buddy_time_slot_votes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('time_slot_id')->constrained('buddy_time_slots')->onDelete('cascade');
             $table->foreignId('participant_id')->constrained('buddy_participants')->onDelete('cascade');
             $table->timestamps();
 
             $table->unique(['time_slot_id', 'participant_id']);
-        });
+            });
+        }
 
         // 9. Buddy Schedules Table (confirmed schedules)
-        Schema::create('buddy_schedules', function (Blueprint $table) {
+        if (! Schema::hasTable('buddy_schedules')) {
+            Schema::create('buddy_schedules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('match_id')->constrained('buddy_matches')->onDelete('cascade');
             $table->foreignId('selected_slot_id')->nullable()->constrained('buddy_time_slots')->onDelete('set null');
@@ -159,7 +178,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique('match_id');
-        });
+            });
+        }
     }
 
     /**

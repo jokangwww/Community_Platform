@@ -12,7 +12,8 @@
         form { display:grid; gap:10px; }
         label { display:grid; gap:6px; font-size:14px; }
         input, button, a { border:1px solid #c7c7c7; border-radius:8px; padding:10px 12px; font-size:14px; }
-        button { cursor:pointer; background:#fff; }
+        button { cursor:pointer; background:#fff;
+            color: #1f1f1f; }
         .msg { margin-bottom:10px; padding:10px; border:1px solid #cfcfcf; border-radius:8px; background:#f7f7f7; font-size:14px; }
         .links { margin-top:10px; display:flex; gap:8px; justify-content:space-between; align-items:center; }
         .links a { text-decoration:none; color:#1f1f1f; background:#fff; }
@@ -59,4 +60,5 @@
     </div>
 </body>
 </html>
+
 

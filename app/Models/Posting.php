@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\PostingImage;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int|null $club_id
+ * @property int|null $event_id
+ * @property string|null $description
+ * @property string|null $status
+ * @property string|null $poster_path
+ */
 class Posting extends Model
 {
     use HasFactory;

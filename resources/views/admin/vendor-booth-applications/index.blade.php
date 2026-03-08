@@ -61,6 +61,8 @@
                             <div><strong>Vendor:</strong> {{ $application->vendor_name_snapshot }}</div>
                             <div><strong>Email:</strong> {{ $application->vendor_email_snapshot }}</div>
                             <div><strong>Phone:</strong> {{ $application->vendor_phone_snapshot }}</div>
+                            <div><strong>Selected booth:</strong> {{ ($application->selectedBooth?->boothPlace?->name ? $application->selectedBooth->boothPlace->name . ' - ' : '') . ($application->selectedBooth?->name ?? $application->selected_booth_location ?? 'Not selected') }}</div>
+                            <div><strong>Booth date:</strong> {{ $application->selectedBooth?->boothPlace?->start_date?->format('Y-m-d') ?: '-' }} - {{ $application->selectedBooth?->boothPlace?->end_date?->format('Y-m-d') ?: '-' }}</div>
                             <div><strong>Status:</strong> <span class="badge">{{ ucfirst(str_replace('_', ' ', $application->status)) }}</span></div>
                             <div><strong>Organizer Stage:</strong> {{ $application->organizer_review_reason ?: 'Approved / no remark' }}</div>
                             <div><strong>Organizer Reviewed At:</strong> {{ optional($application->organizer_reviewed_at)->format('Y-m-d h:i A') ?: '-' }}</div>
@@ -95,4 +97,3 @@
         @endif
     </section>
 @endsection
-

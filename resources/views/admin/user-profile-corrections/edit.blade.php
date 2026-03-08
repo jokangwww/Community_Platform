@@ -138,21 +138,13 @@
                     <label for="student_id">Student/Staff ID</label>
                     <input id="student_id" name="student_id" type="text" value="{{ old('student_id', $targetUser->student_id) }}">
                 </div>
-                <div>
-                    <label for="department">Department</label>
-                    <input
-                        id="department"
-                        name="department"
-                        type="text"
-                        list="department-options"
-                        value="{{ old('department', $targetUser->department) }}"
-                        placeholder="Type to find and select department"
-                    >
-                    <datalist id="department-options">
-                        @foreach (($departments ?? collect()) as $department)
-                            <option value="{{ $department->name }}"></option>
-                        @endforeach
-                    </datalist>
+                <div id="ic-number-row">
+                    <label for="ic_number">IC Number</label>
+                    <input id="ic_number" name="ic_number" type="text" value="{{ old('ic_number', $targetUser->ic_number) }}" placeholder="e.g. 000808-14-XXXX">
+                </div>
+                <div id="programme-row">
+                    <label for="programme">Programme</label>
+                    <input id="programme" name="programme" type="text" value="{{ old('programme', $targetUser->programme) }}" placeholder="e.g. Diploma in Business Information Systems">
                 </div>
                 <div>
                     <label for="display_name">Display Name</label>
@@ -216,22 +208,38 @@
             var roleSelect = document.querySelector('select[name="role"]');
             var studentIdRow = document.getElementById('student-id-row');
             var studentIdInput = document.getElementById('student_id');
+            var icNumberRow = document.getElementById('ic-number-row');
+            var icNumberInput = document.getElementById('ic_number');
+            var programmeRow = document.getElementById('programme-row');
+            var programmeInput = document.getElementById('programme');
             var adminFields = document.getElementById('admin-fields');
             var adminInputs = adminFields
                 ? adminFields.querySelectorAll('input, textarea, select')
                 : [];
 
-            function toggleStudentIdField() {
-                if (!roleSelect || !studentIdRow || !studentIdInput) {
+            function toggleStudentFields() {
+                if (!roleSelect || !studentIdRow || !studentIdInput || !icNumberRow || !icNumberInput || !programmeRow || !programmeInput) {
                     return;
                 }
 
                 var isClub = roleSelect.value === 'club';
+                var isStudent = roleSelect.value === 'student';
                 studentIdRow.style.display = isClub ? 'none' : 'block';
                 studentIdInput.disabled = isClub;
+                icNumberRow.style.display = isStudent ? 'block' : 'none';
+                icNumberInput.disabled = !isStudent;
+                icNumberInput.required = isStudent;
+                programmeRow.style.display = isStudent ? 'block' : 'none';
+                programmeInput.disabled = !isStudent;
+                programmeInput.required = isStudent;
 
                 if (isClub) {
                     studentIdInput.value = '';
+                }
+
+                if (!isStudent) {
+                    icNumberInput.value = '';
+                    programmeInput.value = '';
                 }
             }
 
@@ -249,9 +257,9 @@
             }
 
             if (roleSelect) {
-                roleSelect.addEventListener('change', toggleStudentIdField);
+                roleSelect.addEventListener('change', toggleStudentFields);
                 roleSelect.addEventListener('change', toggleAdminFields);
-                toggleStudentIdField();
+                toggleStudentFields();
                 toggleAdminFields();
             }
         })();

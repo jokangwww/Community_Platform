@@ -9,6 +9,7 @@ use Illuminate\View\View;
 
 class LuckyDrawController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $keyword = trim((string) $request->query('q', ''));

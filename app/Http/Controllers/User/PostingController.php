@@ -12,9 +12,11 @@ use App\Models\User;
 use App\Notifications\OverlappingScheduleAlertNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PostingController extends Controller
 {
+    // Shared filters used by event posting list/favorites pages (keyword + lifecycle status).
     private function applySearchAndLifecycleFilters($query, Request $request): void
     {
         $keyword = trim((string) $request->query('q', ''));
@@ -44,6 +46,7 @@ class PostingController extends Controller
         }
     }
 
+    // Helper method: index filters.
     private function indexFilters(Request $request): array
     {
         $lifecycle = (string) $request->query('lifecycle', 'all');
@@ -57,6 +60,7 @@ class PostingController extends Controller
         ];
     }
 
+    // Calendar synchronization after student registration and overlap detection for sub-events.
     private function syncCalendarEntry(User $student, Posting $posting): ?StudentCalendarEvent
     {
         $posting->loadMissing(['event.subEvents.locationPoint']);
@@ -89,6 +93,7 @@ class PostingController extends Controller
         );
     }
 
+    // Helper method: detect calendar overlaps.
     private function detectCalendarOverlaps(User $student, Posting $posting): array
     {
         $posting->loadMissing('event.subEvents');
@@ -165,6 +170,7 @@ class PostingController extends Controller
         return array_values($conflictsByKey);
     }
 
+    // Helper method: build comparable sub event slots.
     private function buildComparableSubEventSlots(Event $event): array
     {
         $slots = [];
@@ -193,6 +199,7 @@ class PostingController extends Controller
         return $slots;
     }
 
+    // Helper method: build conflict message.
     private function buildConflictMessage(array $conflicts): string
     {
         if ($conflicts === []) {
@@ -210,6 +217,7 @@ class PostingController extends Controller
         return ' Schedule overlap detected with: ' . $preview . '.';
     }
 
+    // Auth/user helper methods and reusable aggregates for posting cards.
     private function authenticatedStudent(): User
     {
         /** @var User $user */
@@ -218,6 +226,7 @@ class PostingController extends Controller
         return $user;
     }
 
+    // Helper method: favorite ids.
     private function favoriteIds(User $user): array
     {
         return $user->favoritePostings()
@@ -225,6 +234,7 @@ class PostingController extends Controller
             ->all();
     }
 
+    // Helper method: registered posting ids.
     private function registeredPostingIds(User $user): array
     {
         $eventIds = EventRegistration::where('student_id', $user->id)
@@ -242,6 +252,7 @@ class PostingController extends Controller
             ->all();
     }
 
+    // Helper method: event registration counts.
     private function eventRegistrationCounts(array $eventIds): array
     {
         if ($eventIds === []) {
@@ -256,6 +267,17 @@ class PostingController extends Controller
             ->all();
     }
 
+    // Helper method: events where this student is already assigned as committee.
+    private function committeeEventIds(User $user): array
+    {
+        return DB::table('event_committees')
+            ->where('user_id', $user->id)
+            ->pluck('event_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    // Student event posting pages (all, favorites, detail).
     public function index(Request $request)
     {
         $user = $this->authenticatedStudent();
@@ -276,12 +298,14 @@ class PostingController extends Controller
             'activeTab' => 'all',
             'favoriteIds' => $this->favoriteIds($user),
             'registeredIds' => $this->registeredPostingIds($user),
+            'committeeEventIds' => $this->committeeEventIds($user),
             'canRegister' => true,
             'filters' => $filters,
             'eventRegistrationCounts' => $this->eventRegistrationCounts($postings->pluck('event_id')->filter()->unique()->all()),
         ]);
     }
 
+    // Controller action: favorites.
     public function favorites(Request $request)
     {
         $user = $this->authenticatedStudent();
@@ -303,12 +327,14 @@ class PostingController extends Controller
             'activeTab' => 'favorites',
             'favoriteIds' => $this->favoriteIds($user),
             'registeredIds' => $this->registeredPostingIds($user),
+            'committeeEventIds' => $this->committeeEventIds($user),
             'canRegister' => true,
             'filters' => $filters,
             'eventRegistrationCounts' => $this->eventRegistrationCounts($postings->pluck('event_id')->filter()->unique()->all()),
         ]);
     }
 
+    // Load and render the requested record details page.
     public function show(Posting $posting)
     {
         $user = $this->authenticatedStudent();
@@ -323,11 +349,13 @@ class PostingController extends Controller
             'posting' => $posting,
             'favoriteIds' => $this->favoriteIds($user),
             'registeredIds' => $this->registeredPostingIds($user),
+            'committeeEventIds' => $this->committeeEventIds($user),
             'canRegister' => true,
             'eventRegistrationCounts' => $this->eventRegistrationCounts($posting->event_id ? [$posting->event_id] : []),
         ]);
     }
 
+    // Register flow validates posting/event status, participant limit, and sends overlap alert notification if needed.
     public function register(Posting $posting)
     {
         $user = $this->authenticatedStudent();
@@ -353,6 +381,11 @@ class PostingController extends Controller
             return redirect()
                 ->back()
                 ->with('status', 'This event has not been approved yet.');
+        }
+        if ($posting->event && $posting->event->committeeMembers()->where('users.id', $user->id)->exists()) {
+            return redirect()
+                ->back()
+                ->with('status', 'Committee members cannot register as participants for this event.');
         }
         $limit = $posting->event?->participant_limit;
         if (($posting->event?->registration_type ?? 'register') === 'ticket') {
@@ -386,6 +419,7 @@ class PostingController extends Controller
             ->with('status', $status);
     }
 
+    // Toggle favorite for quick save/unsave from posting lists and detail.
     public function toggleFavorite(Posting $posting)
     {
         $user = $this->authenticatedStudent();

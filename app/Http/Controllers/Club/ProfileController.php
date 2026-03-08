@@ -14,6 +14,7 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    // Resolve the authenticated club user and keep the return type explicit for controller methods.
     private function requireClub(Request $request): User
     {
         /** @var User $user */
@@ -22,6 +23,7 @@ class ProfileController extends Controller
         return $user;
     }
 
+    // Render club profile page (profile fields, password form, photo upload form).
     public function show(Request $request): View
     {
         $this->requireClub($request);
@@ -29,6 +31,7 @@ class ProfileController extends Controller
         return view('club.profile');
     }
 
+    // Replace the club profile photo and remove the previous image from storage if it exists.
     public function updatePhoto(Request $request): RedirectResponse
     {
         $this->requireClub($request);
@@ -39,6 +42,7 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        // Delete the old photo file first to avoid orphaned uploads in storage.
         if ($user->profile_photo_path) {
             Storage::disk('public')->delete($user->profile_photo_path);
         }
@@ -50,6 +54,7 @@ class ProfileController extends Controller
         return back()->with('status', 'Profile photo updated.');
     }
 
+    // Update account password after verifying the current password entered by the club user.
     public function updatePassword(Request $request): RedirectResponse
     {
         $this->requireClub($request);
@@ -73,6 +78,7 @@ class ProfileController extends Controller
         return back()->with('password_status', 'Password updated.');
     }
 
+    // Update editable club profile fields (name/display name/email/bio).
     public function update(Request $request): RedirectResponse
     {
         $user = $this->requireClub($request);

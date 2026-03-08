@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 
 class RecruitmentController extends Controller
 {
+    // Resolve the authenticated club user for recruitment ownership checks.
     private function requireClub(): User
     {
         /** @var User $user */
@@ -20,6 +21,7 @@ class RecruitmentController extends Controller
         return $user;
     }
 
+    // Recruitment listing tab showing all active recruitments across clubs.
     public function index()
     {
         $this->requireClub();
@@ -37,6 +39,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Recruitment listing tab showing only recruitments created by the current club.
     public function mine()
     {
         $user = $this->requireClub();
@@ -55,6 +58,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Recruitment create form loads the club's active events for linking recruitment to an event.
     public function create()
     {
         $user = $this->requireClub();
@@ -67,6 +71,7 @@ class RecruitmentController extends Controller
         return view('club.recruitment-create', compact('events'));
     }
 
+    // Create recruitment and persist dynamic interview/application questions.
     public function store(Request $request)
     {
         $user = $this->requireClub();
@@ -78,10 +83,12 @@ class RecruitmentController extends Controller
             'requirements' => ['nullable', 'string', 'max:2000'],
             'required_skills' => ['nullable', 'string', 'max:255'],
             'interests' => ['nullable', 'string', 'max:255'],
+            'volunteer_benefits' => ['nullable', 'string', 'max:2000'],
             'question' => ['nullable', 'array'],
             'question.*' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Only allow recruitments to be attached to this club's non-ended events.
         $event = Event::where('id', $validated['event_id'])
             ->where('club_id', $user->id)
             ->where('status', '!=', 'ended')
@@ -95,8 +102,10 @@ class RecruitmentController extends Controller
             'requirements' => $validated['requirements'] ?? null,
             'required_skills' => $validated['required_skills'] ?? null,
             'interests' => $validated['interests'] ?? null,
+            'volunteer_benefits' => $validated['volunteer_benefits'] ?? null,
         ]);
 
+        // Save optional question rows in submitted order for application forms.
         $questions = array_values(array_filter(array_map('trim', $validated['question'] ?? [])));
         foreach ($questions as $index => $question) {
             $recruitment->questions()->create([
@@ -110,6 +119,7 @@ class RecruitmentController extends Controller
             ->with('status', 'Recruitment created.');
     }
 
+    // Recruitment detail page shows applicants with filters and application answers.
     public function show(Request $request, Recruitment $recruitment)
     {
         $user = $this->requireClub();
@@ -121,6 +131,7 @@ class RecruitmentController extends Controller
             abort(404);
         }
 
+        // Applicant filters support skill keywords, experience keywords, and application status.
         $skills = $request->query('skills');
         $experience = $request->query('experience');
         $status = $request->query('status');
@@ -154,6 +165,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Recruitment edit form with existing question list.
     public function edit(Recruitment $recruitment)
     {
         $user = $this->requireClub();
@@ -175,6 +187,7 @@ class RecruitmentController extends Controller
         ]);
     }
 
+    // Update recruitment details and fully replace the configured application questions.
     public function update(Request $request, Recruitment $recruitment)
     {
         $user = $this->requireClub();
@@ -193,6 +206,7 @@ class RecruitmentController extends Controller
             'requirements' => ['nullable', 'string', 'max:2000'],
             'required_skills' => ['nullable', 'string', 'max:255'],
             'interests' => ['nullable', 'string', 'max:255'],
+            'volunteer_benefits' => ['nullable', 'string', 'max:2000'],
             'question' => ['nullable', 'array'],
             'question.*' => ['nullable', 'string', 'max:255'],
         ]);
@@ -209,8 +223,10 @@ class RecruitmentController extends Controller
             'requirements' => $validated['requirements'] ?? null,
             'required_skills' => $validated['required_skills'] ?? null,
             'interests' => $validated['interests'] ?? null,
+            'volunteer_benefits' => $validated['volunteer_benefits'] ?? null,
         ]);
 
+        // Rebuild question list to match the current form rows exactly.
         $recruitment->questions()->delete();
         $questions = array_values(array_filter(array_map('trim', $validated['question'] ?? [])));
         foreach ($questions as $index => $question) {
@@ -225,6 +241,7 @@ class RecruitmentController extends Controller
             ->with('status', 'Recruitment updated.');
     }
 
+    // Delete a club-owned recruitment posting.
     public function destroy(Recruitment $recruitment)
     {
         $user = $this->requireClub();
@@ -240,6 +257,7 @@ class RecruitmentController extends Controller
             ->with('status', 'Recruitment deleted.');
     }
 
+    // Organizer review action for applications (pending/accepted/rejected + optional reply).
     public function updateApplication(Request $request, Recruitment $recruitment, RecruitmentApplication $application)
     {
         $user = $this->requireClub();

@@ -28,6 +28,7 @@
             border-radius: 6px;
             padding: 8px 10px;
             background: #fff;
+            color: #1f1f1f;
             font-size: 14px;
         }
         .attendance-filter button {
@@ -124,4 +125,5 @@
         </div>
     @endif
 @endsection
+
 

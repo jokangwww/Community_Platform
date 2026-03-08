@@ -10,13 +10,14 @@ use Illuminate\View\View;
 
 class VendorBoothApplicationApprovalController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
 
         $applications = VendorBoothApplication::query()
-            ->with(['event', 'vendor', 'organizerReviewer', 'adminReviewer'])
+            ->with(['event', 'vendor', 'organizerReviewer', 'adminReviewer', 'selectedBooth.boothPlace'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($inner) use ($q) {
                     $inner->where('vendor_name_snapshot', 'like', '%' . $q . '%')
@@ -34,6 +35,7 @@ class VendorBoothApplicationApprovalController extends Controller
         ]);
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request, VendorBoothApplication $application): RedirectResponse
     {
         $validated = $request->validate([

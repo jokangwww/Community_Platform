@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Club;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\LuckyDraw;
+use App\Models\TicketPurchase;
 use App\Models\User;
+use App\Notifications\LuckyDrawWinnerNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class LuckyDrawController extends Controller
 {
+    // Read the authenticated club user for lucky draw ownership checks.
     private function authenticatedClub(): User
     {
         /** @var User $user */
@@ -20,13 +23,15 @@ class LuckyDrawController extends Controller
         return $user;
     }
 
-    private function parseNumbers(?string $raw): array
+    // Parse comma/space/newline-separated numbers and reject non-integer tokens.
+    private function parseNumbers(?string $raw, string $field): array
     {
         if (! $raw) {
             return [];
         }
 
-        $tokens = preg_split('/[\s,]+/', trim($raw));
+        $normalized = preg_replace('/\s*-\s*/', '-', trim($raw)) ?? trim($raw);
+        $tokens = preg_split('/[\s,]+/', $normalized);
         if (! is_array($tokens)) {
             return [];
         }
@@ -38,7 +43,7 @@ class LuckyDrawController extends Controller
             }
             if (! ctype_digit($token)) {
                 throw ValidationException::withMessages([
-                    'numbers' => 'Only whole numbers are allowed in number lists.',
+                    $field => 'Only whole numbers are allowed in number lists.',
                 ]);
             }
             $numbers[] = (int) $token;
@@ -47,6 +52,54 @@ class LuckyDrawController extends Controller
         return array_values(array_unique($numbers));
     }
 
+    // Parse number list where each token can be a single number or an inclusive range (e.g. 5-10).
+    private function parseNumbersWithRanges(?string $raw, string $field): array
+    {
+        if (! $raw) {
+            return [];
+        }
+
+        $normalized = preg_replace('/\s*-\s*/', '-', trim($raw)) ?? trim($raw);
+        $tokens = preg_split('/[\s,]+/', $normalized);
+        if (! is_array($tokens)) {
+            return [];
+        }
+
+        $numbers = [];
+        foreach ($tokens as $token) {
+            if ($token === '') {
+                continue;
+            }
+
+            if (preg_match('/^\d+$/', $token) === 1) {
+                $numbers[] = (int) $token;
+                continue;
+            }
+
+            if (preg_match('/^(\d+)-(\d+)$/', $token, $matches) === 1) {
+                $start = (int) $matches[1];
+                $end = (int) $matches[2];
+                if ($end < $start) {
+                    throw ValidationException::withMessages([
+                        $field => 'Invalid range "' . $token . '". End must be greater than or equal to start.',
+                    ]);
+                }
+
+                for ($number = $start; $number <= $end; $number++) {
+                    $numbers[] = $number;
+                }
+                continue;
+            }
+
+            throw ValidationException::withMessages([
+                $field => 'Only numbers or ranges like 5-10 are allowed.',
+            ]);
+        }
+
+        return array_values(array_unique($numbers));
+    }
+
+    // Club lucky draw dashboard lists the club's events with saved range/excluded/winning numbers.
     public function index(): View
     {
         $club = $this->authenticatedClub();
@@ -69,6 +122,7 @@ class LuckyDrawController extends Controller
         ]);
     }
 
+    // Save the lucky draw configuration (range, excluded numbers, and manually entered winners) for an event.
     public function update(Request $request, Event $event)
     {
         $club = $this->authenticatedClub();
@@ -83,11 +137,13 @@ class LuckyDrawController extends Controller
             'winning_numbers' => ['nullable', 'string', 'max:10000'],
         ]);
 
-        $rangeStart = (int) $validated['range_start'];
-        $rangeEnd = (int) $validated['range_end'];
-        $excluded = $this->parseNumbers($validated['excluded_numbers'] ?? null);
-        $winning = $this->parseNumbers($validated['winning_numbers'] ?? null);
+        $participantLimit = (int) ($event->participant_limit ?? 0);
+        $rangeStart = $participantLimit > 0 ? 1 : (int) $validated['range_start'];
+        $rangeEnd = $participantLimit > 0 ? $participantLimit : (int) $validated['range_end'];
+        $excluded = $this->parseNumbersWithRanges($validated['excluded_numbers'] ?? null, 'excluded_numbers');
+        $winning = $this->parseNumbers($validated['winning_numbers'] ?? null, 'winning_numbers');
 
+        // Validate that excluded and winning numbers stay inside the configured range.
         foreach ($excluded as $number) {
             if ($number < $rangeStart || $number > $rangeEnd) {
                 throw ValidationException::withMessages([
@@ -108,6 +164,7 @@ class LuckyDrawController extends Controller
             }
         }
 
+        // Rebuild the draw number list from scratch so updates replace the old configuration cleanly.
         /** @var LuckyDraw $draw */
         $draw = LuckyDraw::query()->updateOrCreate(
             ['event_id' => $event->id],
@@ -134,12 +191,18 @@ class LuckyDrawController extends Controller
         return back()->with('status', 'Lucky draw updated for event: ' . $event->name);
     }
 
-    public function drawOne(Event $event)
+    // Randomly draw one or more winners from the configured range, excluding blocked and already-winning numbers.
+    public function drawOne(Request $request, Event $event)
     {
         $club = $this->authenticatedClub();
         if ($event->club_id !== $club->id) {
             abort(403);
         }
+
+        $validated = $request->validate([
+            'draw_count' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
+        $drawCount = (int) ($validated['draw_count'] ?? 1);
 
         $draw = LuckyDraw::query()
             ->with('numbers')
@@ -150,6 +213,7 @@ class LuckyDrawController extends Controller
             return back()->with('status', 'Please set lucky draw range first for event: ' . $event->name);
         }
 
+        // Build a fast lookup of unavailable numbers (excluded + already picked winners).
         $blocked = $draw->numbers
             ->whereIn('type', ['excluded', 'winning'])
             ->pluck('number')
@@ -165,31 +229,59 @@ class LuckyDrawController extends Controller
             return back()->with('status', 'No available number left to draw for event: ' . $event->name);
         }
 
-        $pickIndex = random_int(1, $availableCount);
-        $currentIndex = 0;
-        $pickedNumber = null;
+        if ($drawCount > $availableCount) {
+            return back()->withErrors([
+                'draw_count' => 'Requested draw count (' . $drawCount . ') exceeds available numbers (' . $availableCount . ').',
+            ]);
+        }
 
+        // Build candidate list once, shuffle, and take N unique winners.
+        $candidates = [];
         for ($number = $rangeStart; $number <= $rangeEnd; $number++) {
-            if (isset($blockedMap[$number])) {
+            if (! isset($blockedMap[$number])) {
+                $candidates[] = $number;
+            }
+        }
+        shuffle($candidates);
+        $pickedNumbers = array_slice($candidates, 0, $drawCount);
+        sort($pickedNumbers);
+
+        foreach ($pickedNumbers as $pickedNumber) {
+            $draw->numbers()->create([
+                'type' => 'winning',
+                'number' => $pickedNumber,
+            ]);
+        }
+
+        // Notify ticket owner(s) where same event + ticket sequence matches lucky draw number.
+        $winningTickets = TicketPurchase::query()
+            ->with('student')
+            ->where('event_id', $event->id)
+            ->where('status', 'completed')
+            ->whereIn('ticket_number_seq', $pickedNumbers)
+            ->get();
+
+        foreach ($winningTickets as $ticket) {
+            $student = $ticket->student;
+            if (! $student || (string) ($student->role ?? '') !== 'student') {
                 continue;
             }
 
-            $currentIndex++;
-            if ($currentIndex === $pickIndex) {
-                $pickedNumber = $number;
-                break;
-            }
+            $student->notify(new LuckyDrawWinnerNotification(
+                $event,
+                (int) $ticket->ticket_number_seq,
+                (string) ($ticket->ticket_number ?? '')
+            ));
         }
 
-        if ($pickedNumber === null) {
-            return back()->with('status', 'Unable to draw number right now. Please try again.');
+        $preview = implode(', ', $pickedNumbers);
+        if (strlen($preview) > 140) {
+            $preview = substr($preview, 0, 140) . '...';
         }
 
-        $draw->numbers()->create([
-            'type' => 'winning',
-            'number' => $pickedNumber,
-        ]);
-
-        return back()->with('status', 'Random winner for ' . $event->name . ': ' . $pickedNumber);
+        return back()->with(
+            'status',
+            'Random winner(s) for ' . $event->name . ' (count: ' . $drawCount . '): ' . $preview
+        );
     }
 }

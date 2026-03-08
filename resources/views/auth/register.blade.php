@@ -161,6 +161,7 @@
             <h1>Create your account</h1>
             <p>Join the community platform to access student services, events, and more. We will send an OTP to verify your email after registration.</p>
 
+            {{-- Display validation errors returned by the registration controller. --}}
             @if ($errors->any())
                 <div style="background:#ffecec;border:1px solid #f5c2c2;color:#7f1d1d;padding:10px 12px;border-radius:6px;margin-bottom:12px;">
                     <strong>Please fix the following:</strong>
@@ -174,9 +175,7 @@
 
             <form method="POST" action="{{ route('register.submit') }}" enctype="multipart/form-data">
                 @csrf
-                @php
-                    $departmentOptions = $departments ?? collect();
-                @endphp
+                {{-- Core identity fields shared by student/admin/club registration. --}}
                 <div class="field">
                     <label for="name">Full name</label>
                     <input id="name" name="name" type="text" placeholder="e.g. Aisyah Lee" value="{{ old('name') }}" required>
@@ -187,11 +186,22 @@
                     <input id="student_id" name="student_id" type="text" placeholder="e.g. 21WMR12345" value="{{ old('student_id') }}">
                 </div>
 
+                <div class="field" id="ic-number-field" style="display:none;">
+                    <label for="ic_number">IC Number</label>
+                    <input id="ic_number" name="ic_number" type="text" placeholder="e.g. 000808-14-XXXX" value="{{ old('ic_number') }}">
+                </div>
+
+                <div class="field" id="programme-field" style="display:none;">
+                    <label for="programme">Programme</label>
+                    <input id="programme" name="programme" type="text" placeholder="e.g. Diploma in Business Information Systems" value="{{ old('programme') }}">
+                </div>
+
                 <div class="field">
                     <label for="email">Email</label>
                     <input id="email" name="email" type="email" placeholder="Your TAR UMT email" value="{{ old('email') }}" required>
                 </div>
 
+                {{-- Password setup section with client-side strength indicator. --}}
                 <div class="grid">
                     <div class="field">
                         <label for="password">Password</label>
@@ -218,28 +228,12 @@
                     <select id="role" name="role" required>
                         <option value="" selected disabled>Select one</option>
                         <option value="student" {{ old('role') === 'student' ? 'selected' : '' }}>Student</option>
-                        <option value="staff" {{ old('role') === 'staff' ? 'selected' : '' }}>Staff</option>
+                        <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
                         <option value="club" {{ old('role') === 'club' ? 'selected' : '' }}>Club</option>
                     </select>
                 </div>
 
-                <div class="field" id="department-field" style="display:none;">
-                    <label for="department">Department</label>
-                    <input
-                        id="department"
-                        name="department"
-                        type="text"
-                        list="department-options"
-                        value="{{ old('department') }}"
-                        placeholder="Type to find and select department"
-                    >
-                    <datalist id="department-options">
-                        @foreach ($departmentOptions as $department)
-                            <option value="{{ $department->name }}"></option>
-                        @endforeach
-                    </datalist>
-                </div>
-
+                {{-- Club-only supporting document for admin account approval workflow. --}}
                 <div class="field" id="club-attachment-field" style="display:none;">
                     <label for="club_attachment">Official club supporting document</label>
                     <input id="club_attachment" name="club_attachment" type="file" accept=".pdf,.jpg,.jpeg,.png">
@@ -262,6 +256,7 @@
     </div>
     <script>
         (function () {
+            // Client-side UI behavior: password strength meter + role-based field visibility toggles.
             var input = document.getElementById('password');
             var bar = document.getElementById('strength-bar');
             var text = document.getElementById('strength-text');
@@ -269,12 +264,16 @@
             var roleSelect = document.getElementById('role');
             var studentIdField = document.getElementById('student-id-field');
             var studentIdInput = document.getElementById('student_id');
-            var departmentField = document.getElementById('department-field');
-            var departmentInput = document.getElementById('department');
+            var icNumberField = document.getElementById('ic-number-field');
+            var icNumberInput = document.getElementById('ic_number');
+            var programmeField = document.getElementById('programme-field');
+            var programmeInput = document.getElementById('programme');
             var clubAttachmentField = document.getElementById('club-attachment-field');
             var clubAttachmentInput = document.getElementById('club_attachment');
+            var form = document.querySelector('form[action="{{ route('register.submit') }}"]');
 
             function scorePassword(value) {
+                // Display the current scoring for the password strength
                 var score = 0;
                 if (value.length >= 8) score += 1;
                 if (value.length >= 12) score += 1;
@@ -314,12 +313,26 @@
                         item.classList.toggle('ok', rules[key]);
                     });
                 }
+
+                var meetsRequirement = value.length >= 8
+                    && /[A-Z]/.test(value)
+                    && /[0-9]/.test(value)
+                    && /[^A-Za-z0-9]/.test(value);
+
+                if (input) {
+                    input.setCustomValidity(
+                        meetsRequirement || value.length === 0
+                            ? ''
+                            : 'Password must have at least 8 characters, one uppercase letter, one number, and one special character.'
+                    );
+                }
             }
 
             input.addEventListener('input', updateStrength);
             updateStrength();
 
             function toggleRoleFields() {
+                // Show/hide and enforce only the fields required for the selected account type.
                 var role = roleSelect ? roleSelect.value : '';
                 var isClub = role === 'club';
                 var isStudent = role === 'student';
@@ -335,6 +348,28 @@
                     }
                 }
 
+                if (icNumberField) {
+                    icNumberField.style.display = isStudent ? 'block' : 'none';
+                }
+
+                if (icNumberInput) {
+                    icNumberInput.required = isStudent;
+                    if (!isStudent) {
+                        icNumberInput.value = '';
+                    }
+                }
+
+                if (programmeField) {
+                    programmeField.style.display = isStudent ? 'block' : 'none';
+                }
+
+                if (programmeInput) {
+                    programmeInput.required = isStudent;
+                    if (!isStudent) {
+                        programmeInput.value = '';
+                    }
+                }
+
                 if (clubAttachmentField) {
                     clubAttachmentField.style.display = isClub ? 'block' : 'none';
                 }
@@ -342,22 +377,21 @@
                 if (clubAttachmentInput) {
                     clubAttachmentInput.required = isClub;
                 }
-
-                if (departmentField) {
-                    departmentField.style.display = isStudent ? 'block' : 'none';
-                }
-
-                if (departmentInput) {
-                    departmentInput.required = isStudent;
-                    if (!isStudent) {
-                        departmentInput.value = '';
-                    }
-                }
             }
 
             if (roleSelect) {
                 roleSelect.addEventListener('change', toggleRoleFields);
                 toggleRoleFields();
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (event) {
+                    updateStrength();
+                    if (input && !input.checkValidity()) {
+                        event.preventDefault();
+                        input.reportValidity();
+                    }
+                });
             }
         })();
     </script>

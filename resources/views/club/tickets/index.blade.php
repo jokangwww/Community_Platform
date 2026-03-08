@@ -6,11 +6,11 @@
     <style>
         .ticket-header {
             padding: 12px 0;
-            border-bottom: 2px solid #1f1f1f;
+            border-bottom: 1px solid #dbe4f0;
         }
         .ticket-header h2 {
             margin: 0;
-            font-size: 22px;
+            font-size: 26px;
         }
         .ticket-header-row {
             display: flex;
@@ -25,8 +25,8 @@
             gap: 8px;
         }
         .ticket-search input {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             padding: 8px 10px;
             font-size: 14px;
             min-width: 260px;
@@ -35,11 +35,12 @@
         .ticket-search button,
         .ticket-search a {
             padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #aac4e6;
+            background: #f8fbff;
             cursor: pointer;
-            color: inherit;
+            color: #0b4ea5;
+            font-weight: 700;
             text-decoration: none;
             font-size: 14px;
             line-height: 1.2;
@@ -50,19 +51,20 @@
             gap: 16px;
         }
         .ticket-card {
-            border: 1px solid #cfcfcf;
-            border-radius: 10px;
-            background: #fff;
+            border: 1px solid #dbe4f0;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fff 0%, #f9fbff 100%);
             padding: 16px 18px;
             display: grid;
             gap: 12px;
+            box-shadow: 0 16px 30px -28px rgba(15, 23, 42, 0.7);
         }
         .ticket-card h3 {
             margin: 0;
             font-size: 20px;
         }
         .ticket-meta {
-            color: #4a4a4a;
+            color: #355070;
             font-size: 14px;
         }
         .ticket-form {
@@ -80,8 +82,8 @@
         }
         .ticket-form input,
         .ticket-form select {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             padding: 8px 10px;
             font-size: 14px;
             background: #fff;
@@ -97,18 +99,20 @@
         }
         .ticket-actions button {
             padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
-            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #0b4ea5;
+            background: #f8fbff;
+            color: #0b4ea5;
+            font-weight: 700;
             cursor: pointer;
         }
         .bundle-box {
-            border: 1px solid #d9d9d9;
-            border-radius: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
             padding: 12px;
             display: grid;
             gap: 10px;
-            background: #fafafa;
+            background: #f8fbff;
         }
         .bundle-header {
             display: flex;
@@ -123,11 +127,13 @@
         }
         .bundle-add {
             padding: 6px 10px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 8px;
+            border: 1px solid #aac4e6;
             background: #fff;
             cursor: pointer;
             font-size: 13px;
+            color: #0b4ea5;
+            font-weight: 700;
         }
         .bundle-list {
             display: grid;
@@ -141,8 +147,8 @@
         }
         .bundle-remove {
             padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #b8b8b8;
+            border-radius: 8px;
+            border: 1px solid #c4d6ed;
             background: #fff;
             cursor: pointer;
             font-size: 13px;
@@ -154,17 +160,19 @@
         .status-banner {
             margin-top: 12px;
             padding: 10px 12px;
-            border: 1px solid #c2c2c2;
-            border-radius: 8px;
-            background: #f7f7f7;
+            border: 1px solid #b8cae5;
+            border-radius: 10px;
+            background: #f6faff;
+            color: #355070;
         }
         .empty-state {
             margin-top: 20px;
             padding: 24px;
-            border: 1px dashed #c2c2c2;
-            border-radius: 10px;
+            border: 1px dashed #bfd2ea;
+            border-radius: 12px;
             text-align: center;
-            color: #4a4a4a;
+            color: #4b6079;
+            background: #f8fbff;
         }
         @media (max-width: 700px) {
             .ticket-search {

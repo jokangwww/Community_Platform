@@ -120,6 +120,7 @@
         <p><strong>Requirements:</strong> {{ $recruitment->requirements ?: 'Not set' }}</p>
         <p><strong>Required skills:</strong> {{ $recruitment->required_skills ?: 'Not set' }}</p>
         <p><strong>Interests:</strong> {{ $recruitment->interests ?: 'Not set' }}</p>
+        <p><strong>Volunteer benefits:</strong> {{ $recruitment->volunteer_benefits ?: 'Not set' }}</p>
     </div>
 
     @if ($applied)

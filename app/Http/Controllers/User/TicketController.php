@@ -8,13 +8,52 @@ use App\Models\EventTicketSetting;
 use App\Models\StudentCalendarEvent;
 use App\Models\TicketPurchase;
 use App\Services\PayPalService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TicketController extends Controller
 {
+    private function isCommitteeMember($student, Event $event): bool
+    {
+        return $event->committeeMembers()->where('users.id', $student->id)->exists();
+    }
+
+    // Calendar cleanup/sync helpers keep ticket-based event entries accurate after transfer or resale.
+    private function cleanupSellerCalendarIfNoTicket($student, Event $event): void
+    {
+        $hasRemainingTickets = TicketPurchase::query()
+            ->where('student_id', $student->id)
+            ->where('event_id', $event->id)
+            ->exists();
+
+        if (! $hasRemainingTickets) {
+            StudentCalendarEvent::query()
+                ->where('student_id', $student->id)
+                ->where('event_id', $event->id)
+                ->where('source', 'ticket')
+                ->delete();
+        }
+    }
+
+    // Helper method: ensure ticket transfer allowed.
+    private function ensureTicketTransferAllowed(TicketPurchase $ticket): ?string
+    {
+        if (($ticket->event?->status ?? 'in_progress') === 'ended') {
+            return 'Cannot transfer/resell ticket for an ended event.';
+        }
+        if ($ticket->attended_at) {
+            return 'Cannot transfer/resell a ticket that has already been used for attendance.';
+        }
+
+        return null;
+    }
+
+    // Helper method: sync calendar entry.
     private function syncCalendarEntry($student, Event $event): void
     {
         $event->loadMissing('subEvents.locationPoint');
@@ -42,6 +81,57 @@ class TicketController extends Controller
         );
     }
 
+    // Student ticket management page: own tickets and resale marketplace listing.
+    public function index(Request $request): View
+    {
+        $user = $request->user();
+        $tab = (string) $request->query('tab', 'mine');
+        if (! in_array($tab, ['mine', 'resell'], true)) {
+            $tab = 'mine';
+        }
+        $search = trim((string) $request->query('q', ''));
+
+        $myTickets = TicketPurchase::query()
+            ->with(['event', 'student'])
+            ->where('student_id', $user->id)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('ticket_number', 'like', '%' . $search . '%')
+                        ->orWhereHas('event', fn ($eventQuery) => $eventQuery->where('name', 'like', '%' . $search . '%'));
+                });
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        $resellListings = TicketPurchase::query()
+            ->with(['event', 'student'])
+            ->where('is_resale_listed', true)
+            ->where('status', 'completed')
+            ->where('student_id', '!=', $user->id)
+            ->whereHas('event', function ($query) {
+                $query->where('approval_status', 'approved')
+                    ->where('status', '!=', 'ended');
+            })
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('ticket_number', 'like', '%' . $search . '%')
+                        ->orWhereHas('event', fn ($eventQuery) => $eventQuery->where('name', 'like', '%' . $search . '%'));
+                });
+            })
+            ->orderByDesc('resale_listed_at')
+            ->get();
+
+        return view('user.tickets.index', [
+            'myTickets' => $myTickets,
+            'resellListings' => $resellListings,
+            'filters' => [
+                'tab' => $tab,
+                'q' => $search,
+            ],
+        ]);
+    }
+
+    // Pricing helpers for normal ticket checkout (bundle discount support).
     private function normalizedBundleDiscounts(?EventTicketSetting $setting): array
     {
         $raw = $setting?->bundle_discounts;
@@ -73,6 +163,7 @@ class TicketController extends Controller
         return array_values($bundles);
     }
 
+    // Helper method: resolve discount percent.
     private function resolveDiscountPercent(int $quantity, array $bundles): float
     {
         foreach ($bundles as $bundle) {
@@ -84,6 +175,7 @@ class TicketController extends Controller
         return 0.0;
     }
 
+    // Helper method: calculate total.
     private function calculateTotal(float $unitPrice, int $quantity, float $discountPercent): float
     {
         $subtotal = $unitPrice * $quantity;
@@ -92,6 +184,7 @@ class TicketController extends Controller
         return round(max($subtotal - $discountAmount, 0), 2);
     }
 
+    // Standard ticket purchase flow (checkout page, create PayPal order, capture payment, success page).
     public function checkout(Request $request, Event $event): View
     {
         $user = $request->user();
@@ -120,6 +213,7 @@ class TicketController extends Controller
         ]);
     }
 
+    // Controller action: create order.
     public function createOrder(Request $request, Event $event, PayPalService $payPal): JsonResponse
     {
         $user = $request->user();
@@ -129,6 +223,9 @@ class TicketController extends Controller
         }
         if (($event->approval_status ?? 'approved') !== 'approved') {
             return response()->json(['message' => 'Event not approved.'], 422);
+        }
+        if ($this->isCommitteeMember($user, $event)) {
+            return response()->json(['message' => 'Committee members cannot register as participants for this event.'], 422);
         }
         if (($event->status ?? 'in_progress') === 'ended') {
             return response()->json(['message' => 'Event ended.'], 422);
@@ -166,6 +263,7 @@ class TicketController extends Controller
         ]);
     }
 
+    // Controller action: capture order.
     public function captureOrder(Request $request, Event $event, PayPalService $payPal): JsonResponse
     {
         $user = $request->user();
@@ -176,6 +274,9 @@ class TicketController extends Controller
         }
         if (($event->approval_status ?? 'approved') !== 'approved') {
             return response()->json(['message' => 'Event not approved.'], 422);
+        }
+        if ($this->isCommitteeMember($user, $event)) {
+            return response()->json(['message' => 'Committee members cannot register as participants for this event.'], 422);
         }
 
         $validated = $request->validate([
@@ -262,6 +363,7 @@ class TicketController extends Controller
         ]);
     }
 
+    // Controller action: success.
     public function success(Request $request, Event $event, TicketPurchase $ticket): View
     {
         $user = $request->user();
@@ -281,5 +383,155 @@ class TicketController extends Controller
             'ticket' => $ticket,
             'tickets' => $tickets,
         ]);
+    }
+
+    // Post-purchase ticket ownership actions: direct transfer and resale marketplace operations.
+    public function transfer(Request $request, TicketPurchase $ticket): RedirectResponse
+    {
+        $user = $request->user();
+        $ticket->load('event', 'student');
+
+        if ((int) $ticket->student_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        if ($message = $this->ensureTicketTransferAllowed($ticket)) {
+            return back()->withErrors(['ticket' => $message]);
+        }
+
+        $validated = $request->validate([
+            'target_student_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        $targetStudent = \App\Models\User::query()
+            ->where('student_id', trim($validated['target_student_id']))
+            ->where('role', 'student')
+            ->first();
+
+        if (! $targetStudent) {
+            return back()->withErrors(['target_student_id' => 'Target student ID not found.']);
+        }
+        if ((int) $targetStudent->id === (int) $user->id) {
+            return back()->withErrors(['target_student_id' => 'Cannot transfer ticket to yourself.']);
+        }
+
+        DB::transaction(function () use ($ticket, $targetStudent, $user): void {
+            $locked = TicketPurchase::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+            $locked->student_id = $targetStudent->id;
+            $locked->is_resale_listed = false;
+            $locked->resale_price = null;
+            $locked->resale_listed_at = null;
+            $locked->last_transferred_at = now();
+            $locked->save();
+
+            $locked->loadMissing('event');
+            if ($locked->event) {
+                $this->syncCalendarEntry($targetStudent, $locked->event);
+                $this->cleanupSellerCalendarIfNoTicket($user, $locked->event);
+            }
+        });
+
+        return back()->with('status', 'Ticket transferred successfully.');
+    }
+
+    // Controller action: list for resale.
+    public function listForResale(Request $request, TicketPurchase $ticket): RedirectResponse
+    {
+        $user = $request->user();
+        $ticket->load('event');
+
+        if ((int) $ticket->student_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        if ($message = $this->ensureTicketTransferAllowed($ticket)) {
+            return back()->withErrors(['ticket' => $message]);
+        }
+
+        $validated = $request->validate([
+            'resale_price' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $price = round((float) $validated['resale_price'], 2);
+        $original = round((float) $ticket->amount, 2);
+
+        if ($price > $original) {
+            return back()->withErrors([
+                'resale_price' => 'Resale price must be same as or lower than original ticket price (' . number_format($original, 2) . ').',
+            ]);
+        }
+
+        $ticket->update([
+            'is_resale_listed' => true,
+            'resale_price' => $price,
+            'resale_listed_at' => Carbon::now(),
+        ]);
+
+        return back()->with('status', 'Ticket listed for resale.');
+    }
+
+    // Controller action: cancel resale.
+    public function cancelResale(Request $request, TicketPurchase $ticket): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ((int) $ticket->student_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $ticket->update([
+            'is_resale_listed' => false,
+            'resale_price' => null,
+            'resale_listed_at' => null,
+        ]);
+
+        return back()->with('status', 'Resale listing cancelled.');
+    }
+
+    // Controller action: buy resale.
+    public function buyResale(Request $request, TicketPurchase $ticket): RedirectResponse
+    {
+        $buyer = $request->user();
+
+        DB::transaction(function () use ($ticket, $buyer): void {
+            $locked = TicketPurchase::query()->with('event')->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+
+            if ((int) $locked->student_id === (int) $buyer->id) {
+                throw ValidationException::withMessages(['ticket' => 'You cannot buy your own ticket.']);
+            }
+            if (! $locked->is_resale_listed || $locked->resale_price === null) {
+                throw ValidationException::withMessages(['ticket' => 'This ticket is not available for resale.']);
+            }
+            if (($locked->event?->status ?? 'in_progress') === 'ended') {
+                throw ValidationException::withMessages(['ticket' => 'This event has ended.']);
+            }
+            if ($locked->attended_at) {
+                throw ValidationException::withMessages(['ticket' => 'This ticket has already been used.']);
+            }
+
+            $originalAmount = round((float) $locked->amount, 2);
+            $resalePrice = round((float) $locked->resale_price, 2);
+            if ($resalePrice > $originalAmount) {
+                throw ValidationException::withMessages(['ticket' => 'Invalid resale price. It exceeds original ticket price.']);
+            }
+
+            $seller = \App\Models\User::query()->find($locked->student_id);
+
+            $locked->student_id = $buyer->id;
+            $locked->is_resale_listed = false;
+            $locked->resale_price = null;
+            $locked->resale_listed_at = null;
+            $locked->last_transferred_at = now();
+            $locked->save();
+
+            if ($locked->event) {
+                $this->syncCalendarEntry($buyer, $locked->event);
+                if ($seller) {
+                    $this->cleanupSellerCalendarIfNoTicket($seller, $locked->event);
+                }
+            }
+        });
+
+        return back()->with('status', 'Resale ticket purchased successfully. Ticket ownership transferred to your account.');
     }
 }

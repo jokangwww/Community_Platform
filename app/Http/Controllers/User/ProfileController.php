@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
 use App\Models\Event;
-use App\Models\EventCommitteePosition;
 use App\Models\EventRegistration;
 use App\Models\TicketPurchase;
 use App\Models\User;
@@ -22,6 +20,7 @@ class ProfileController extends Controller
 {
     private const ELEMENTS = ['cs', 'ctps', 'ts', 'll', 'kk', 'em', 'ls'];
 
+    // Load and render the requested record details page.
     public function show(): View
     {
         /** @var User $user */
@@ -30,13 +29,13 @@ class ProfileController extends Controller
         $softSkill = $this->softSkillSummary($user);
 
         return view('user.profile', [
-            'departments' => Department::query()->orderBy('name')->get(['name']),
             'softSkillBreakdown' => $softSkill['breakdown'],
             'softSkillTotal' => $softSkill['total'],
             'softSkillElementTotals' => $softSkill['element_totals'],
         ]);
     }
 
+    // Controller action: certificate.
     public function certificate(): View
     {
         /** @var User $user */
@@ -61,6 +60,7 @@ class ProfileController extends Controller
         ]);
     }
 
+    // Helper method: soft skill summary.
     private function softSkillSummary(User $user): array
     {
         $attendedRegisterEventIds = EventRegistration::query()
@@ -97,7 +97,7 @@ class ProfileController extends Controller
 
         $participantMap = array_fill_keys($participantEventIds, true);
         $volunteerMap = array_fill_keys($volunteerEventIds, true);
-        $committeePositionMap = EventCommitteePosition::query()
+        $committeePositionMap = DB::table('event_committees')
             ->where('user_id', $user->id)
             ->whereIn('event_id', $eventIds)
             ->pluck('position_name', 'event_id')
@@ -108,7 +108,7 @@ class ProfileController extends Controller
             ->with(['softSkillCategory.positionRules'])
             ->whereIn('id', $eventIds)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'soft_skill_category_id']);
 
         $breakdown = $events->map(function (Event $event) use ($participantMap, $volunteerMap, $committeePositionMap) {
             $category = $event->softSkillCategory;
@@ -171,6 +171,7 @@ class ProfileController extends Controller
         ];
     }
 
+    // Controller action: update photo.
     public function updatePhoto(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -190,6 +191,7 @@ class ProfileController extends Controller
         return back()->with('status', 'Profile photo updated.');
     }
 
+    // Controller action: update password.
     public function updatePassword(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -211,6 +213,7 @@ class ProfileController extends Controller
         return back()->with('password_status', 'Password updated.');
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -219,24 +222,32 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'display_name' => ['nullable', 'string', 'max:255'],
             'role' => ['nullable', 'in:subscriber,student,staff,alumni'],
-            'department' => [
+            'ic_number' => [
+                Rule::requiredIf((string) $request->input('role', $user->role) === 'student'),
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('users', 'ic_number')->ignore($user->id),
+            ],
+            'programme' => [
                 Rule::requiredIf((string) $request->input('role', $user->role) === 'student'),
                 'nullable',
                 'string',
                 'max:255',
-                Rule::exists('departments', 'name'),
             ],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'bio' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $role = $validated['role'] ?? $user->role;
-        $department = $role === 'student' ? ($validated['department'] ?? null) : null;
+        $icNumber = $role === 'student' ? ($validated['ic_number'] ?? null) : null;
+        $programme = $role === 'student' ? ($validated['programme'] ?? null) : null;
 
         $user->name = $validated['name'];
         $user->display_name = $validated['display_name'] ?: $validated['name'];
         $user->role = $role;
-        $user->department = $department;
+        $user->ic_number = $icNumber;
+        $user->programme = $programme;
         $user->email = $validated['email'];
         $user->bio = $validated['bio'];
         $user->save();

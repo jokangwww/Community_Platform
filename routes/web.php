@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegistrationOtpController;
 use App\Http\Controllers\Auth\VendorRegistrationController;
 use App\Http\Controllers\Club\EventController;
+use App\Http\Controllers\Club\EventFeedbackController as ClubEventFeedbackController;
 use App\Http\Controllers\Club\PostingController;
 use App\Http\Controllers\Club\ProfileController as ClubProfileController;
 use App\Http\Controllers\Club\RecruitmentController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\User\NotificationController as UserNotificationControll
 use App\Http\Controllers\User\AppealController as UserAppealController;
 use App\Http\Controllers\User\JoinedEventController as UserJoinedEventController;
 use App\Http\Controllers\User\ClubProfileController as UserClubProfileController;
+use App\Http\Controllers\User\EventFeedbackController as UserEventFeedbackController;
 use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController;
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TicketController as UserTicketController;
@@ -51,7 +53,7 @@ Route::get('/', function () {
 Route::get('/vendor/register', [VendorRegistrationController::class, 'show'])->name('vendor.register');
 Route::post('/vendor/register', [VendorRegistrationController::class, 'store'])->name('vendor.register.store');
 
-Route::middleware(['auth', 'role:student'])->group(function () {
+Route::middleware(['auth', 'role:student,staff'])->group(function () {
     Route::get('/student/appeal', [UserAppealController::class, 'show'])
         ->name('student.appeal.show');
     Route::post('/student/appeal', [UserAppealController::class, 'submit'])
@@ -275,6 +277,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ->name('profile.photo');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
         ->name('profile.password');
+    // Student event discovery and participation flow (browse postings, favorite, register, ticket purchase).
     Route::get('/events/event-posting', [\App\Http\Controllers\User\PostingController::class, 'index'])
         ->name('user.event-posting');
     Route::get('/events/event-posting/favorites', [\App\Http\Controllers\User\PostingController::class, 'favorites'])
@@ -287,6 +290,16 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ->name('user.event-posting.register');
     Route::get('/events/{event}/checkout', [UserTicketController::class, 'checkout'])
         ->name('tickets.checkout');
+    Route::get('/events/e-ticket', [UserTicketController::class, 'index'])
+        ->name('user.tickets.index');
+    Route::post('/events/e-ticket/{ticket}/transfer', [UserTicketController::class, 'transfer'])
+        ->name('user.tickets.transfer');
+    Route::post('/events/e-ticket/{ticket}/resell', [UserTicketController::class, 'listForResale'])
+        ->name('user.tickets.resell');
+    Route::post('/events/e-ticket/{ticket}/resell/cancel', [UserTicketController::class, 'cancelResale'])
+        ->name('user.tickets.resell.cancel');
+    Route::post('/events/e-ticket/{ticket}/buy', [UserTicketController::class, 'buyResale'])
+        ->name('user.tickets.buy');
     Route::post('/events/{event}/paypal/create', [UserTicketController::class, 'createOrder'])
         ->name('tickets.paypal.create');
     Route::post('/events/{event}/paypal/capture', [UserTicketController::class, 'captureOrder'])
@@ -301,6 +314,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ->name('user.recruitment.show');
     Route::post('/events/recruitment/{recruitment}/apply', [UserRecruitmentController::class, 'apply'])
         ->name('user.recruitment.apply');
+    // Student event utilities (calendar, location, stream, lucky draw, attendance, joined events, notifications).
     Route::get('/events/calendar', [UserCalendarController::class, 'index'])
         ->name('user.calendar');
     Route::get('/events/location', [UserLocationController::class, 'index'])
@@ -309,6 +323,11 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ->name('user.live-stream');
     Route::get('/events/lucky-draw', [UserLuckyDrawController::class, 'index'])
         ->name('user.lucky-draw');
+    // Student post-event feedback (attendance is verified before submission).
+    Route::get('/events/feedback', [UserEventFeedbackController::class, 'index'])
+        ->name('user.feedback.index');
+    Route::post('/events/feedback/{event}', [UserEventFeedbackController::class, 'store'])
+        ->name('user.feedback.store');
     Route::get('/events/attendance', [UserAttendanceController::class, 'index'])
         ->name('user.attendance');
     Route::get('/events/joined-events', [UserJoinedEventController::class, 'index'])
@@ -327,6 +346,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         ]);
     })->name('events.section');
 });
+// Shared posting detail route: renders club or student posting page based on authenticated role.
 Route::get('/event-posting/{posting}', function (Posting $posting) {
     $user = Auth::user();
     if (! $user instanceof User) {
@@ -443,6 +463,7 @@ Route::post('/admin/profile/photo', [AdminProfileController::class, 'updatePhoto
 Route::post('/admin/profile/password', [AdminProfileController::class, 'updatePassword'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.profile.password');
+// Admin event governance: proposals, postings moderation, venue/location/departments, soft skill config, approvals.
 Route::get('/admin/event-proposals', [AdminEventProposalController::class, 'index'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-proposals.index');
@@ -557,6 +578,7 @@ Route::post('/admin/locations/maps/{locationMap}/points', [LocationManagementCon
 Route::delete('/admin/locations/maps/{locationMap}/points/{point}', [LocationManagementController::class, 'destroyPoint'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.locations.points.destroy');
+// Club posting management (create/edit/delete event announcements/postings).
 Route::get('/club/event-posting', [PostingController::class, 'index'])
     ->middleware(['auth', 'role:club'])
     ->name('club.event-posting');
@@ -587,6 +609,7 @@ Route::get('/club/event-posting/{posting}', [PostingController::class, 'show'])
 Route::delete('/club/event-posting/{posting}', [PostingController::class, 'destroy'])
     ->middleware(['auth', 'role:club'])
     ->name('club.event-posting.destroy');
+// Club event operations: event CRUD, attendance marking, stream, committee, tickets, recruitment, lucky draw, feedback, venue booking.
 Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::get('/events', [EventController::class, 'index'])->name('club.events.index');
     Route::get('/events/attendance', [EventController::class, 'attendance'])->name('club.events.attendance');
@@ -599,6 +622,8 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::post('/events/{event}/stream', [EventController::class, 'updateStream'])->name('club.events.stream.update');
     Route::post('/events/{event}/committee-positions', [EventController::class, 'updateCommitteePositions'])
         ->name('club.events.committee-positions.update');
+    Route::post('/events/{event}/committee/import-accepted-recruitment', [EventController::class, 'importAcceptedRecruitmentCommittee'])
+        ->name('club.events.committee.import-recruitment');
     Route::post('/events/{event}/attendance/register', [EventController::class, 'markRegistrationAttendance'])
         ->name('club.events.attendance.register');
     Route::post('/events/{event}/attendance/registrations/{registration}', [EventController::class, 'markRegistrationAttendanceRow'])
@@ -607,6 +632,10 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
         ->name('club.events.attendance.ticket');
     Route::post('/events/{event}/attendance/tickets/{ticketPurchase}', [EventController::class, 'markTicketAttendanceRow'])
         ->name('club.events.attendance.ticket.row');
+    Route::get('/events/{event}/committee-attendance', [EventController::class, 'committeeAttendanceShow'])
+        ->name('club.events.attendance.committee.show');
+    Route::post('/events/{event}/committee-attendance/{committeeMember}', [EventController::class, 'markCommitteeAttendanceRow'])
+        ->name('club.events.attendance.committee.row');
     Route::post('/events/committee/validate', [EventController::class, 'validateCommittee'])
         ->name('club.events.committee.validate');
     Route::get('/tickets', [ClubTicketController::class, 'index'])->name('club.tickets.index');
@@ -624,6 +653,7 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::get('/lucky-draw', [ClubLuckyDrawController::class, 'index'])->name('club.lucky-draw.index');
     Route::post('/lucky-draw/{event}', [ClubLuckyDrawController::class, 'update'])->name('club.lucky-draw.update');
     Route::post('/lucky-draw/{event}/draw-one', [ClubLuckyDrawController::class, 'drawOne'])->name('club.lucky-draw.draw-one');
+    Route::get('/feedback', [ClubEventFeedbackController::class, 'index'])->name('club.feedback.index');
     Route::get('/venue-bookings', [ClubVenueBookingController::class, 'index'])->name('club.venue-bookings.index');
     Route::get('/venue-bookings/create', [ClubVenueBookingController::class, 'create'])->name('club.venue-bookings.create');
     Route::post('/venue-bookings', [ClubVenueBookingController::class, 'store'])->name('club.venue-bookings.store');
@@ -632,6 +662,12 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::put('/venue-bookings/{venueBooking}', [ClubVenueBookingController::class, 'update'])->name('club.venue-bookings.update');
     Route::delete('/venue-bookings/{venueBooking}', [ClubVenueBookingController::class, 'destroy'])->name('club.venue-bookings.destroy');
     Route::get('/vendor-booth-applications', [ClubVendorBoothApplicationController::class, 'index'])->name('club.vendor-booth-applications.index');
+    Route::post('/vendor-booth-applications/events/{event}/booth-places', [ClubVendorBoothApplicationController::class, 'storeBoothPlace'])
+        ->name('club.vendor-booth-applications.events.booth-places.store');
+    Route::put('/vendor-booth-applications/events/{event}/booth-places/{place}', [ClubVendorBoothApplicationController::class, 'updateBoothPlace'])
+        ->name('club.vendor-booth-applications.events.booth-places.update');
+    Route::delete('/vendor-booth-applications/events/{event}/booth-places/{place}', [ClubVendorBoothApplicationController::class, 'destroyBoothPlace'])
+        ->name('club.vendor-booth-applications.events.booth-places.destroy');
     Route::put('/vendor-booth-applications/{application}', [ClubVendorBoothApplicationController::class, 'update'])->name('club.vendor-booth-applications.update');
 });
 

@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('buddy_participants', function (Blueprint $table) {
-            $table->foreignId('subject_id')->nullable()->after('is_repeater')
-                ->constrained('buddy_subjects')->onDelete('set null');
-        });
+        if (! Schema::hasColumn('buddy_participants', 'subject_id')) {
+            Schema::table('buddy_participants', function (Blueprint $table) {
+                $table->foreignId('subject_id')->nullable()->after('is_repeater')
+                    ->constrained('buddy_subjects')->onDelete('set null');
+            });
+        }
     }
 
     /**
@@ -22,9 +24,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('buddy_participants', function (Blueprint $table) {
-            $table->dropForeign(['subject_id']);
-            $table->dropColumn('subject_id');
-        });
+        if (Schema::hasColumn('buddy_participants', 'subject_id')) {
+            Schema::table('buddy_participants', function (Blueprint $table) {
+                $table->dropForeign(['subject_id']);
+                $table->dropColumn('subject_id');
+            });
+        }
     }
 };

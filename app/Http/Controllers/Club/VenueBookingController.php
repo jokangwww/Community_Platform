@@ -15,11 +15,13 @@ use Illuminate\View\View;
 
 class VenueBookingController extends Controller
 {
+    // Club booking list page with search/status filters and completed-booking display logic.
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
 
+        // Completed filter includes explicitly completed bookings and approved bookings that already ended.
         $bookings = VenueBooking::query()
             ->with('venue')
             ->where('club_id', $request->user()->id)
@@ -54,6 +56,7 @@ class VenueBookingController extends Controller
         ]);
     }
 
+    // Venue booking application form loads currently active venues for selection.
     public function create(): View
     {
         return view('club.venue-bookings.create', [
@@ -61,10 +64,12 @@ class VenueBookingController extends Controller
         ]);
     }
 
+    // Submit a new venue booking request after validating schedule and checking real-time conflicts.
     public function store(Request $request): RedirectResponse
     {
         [$validated, $startAt, $endAt] = $this->validatedBookingInput($request);
 
+        // Reject booking when selected venue is inactive or the timeslot overlaps an existing blocking booking.
         $venue = Venue::query()->findOrFail($validated['venue_id']);
         if (! $venue->is_active) {
             return back()->withErrors(['venue_id' => 'Selected venue is inactive.'])->withInput();
@@ -87,6 +92,7 @@ class VenueBookingController extends Controller
         return redirect()->route('club.venue-bookings.index')->with('status', 'Booking application submitted.');
     }
 
+    // Edit form for a club-owned booking; keeps the current venue selectable even if now inactive.
     public function edit(Request $request, VenueBooking $venueBooking): View
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
@@ -97,6 +103,7 @@ class VenueBookingController extends Controller
         ]);
     }
 
+    // Update a booking; approved bookings are returned to pending so admin can re-review changes.
     public function update(Request $request, VenueBooking $venueBooking): RedirectResponse
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
@@ -116,6 +123,7 @@ class VenueBookingController extends Controller
             return back()->withErrors(['venue_id' => 'Selected venue is not available for this timeslot.'])->withInput();
         }
 
+        // Editing an approved booking resets review fields and sends it back to pending approval.
         $nextStatus = $venueBooking->status === 'approved' ? 'pending' : $venueBooking->status;
 
         $venueBooking->update([
@@ -137,6 +145,7 @@ class VenueBookingController extends Controller
         return redirect()->route('club.venue-bookings.index')->with('status', $message);
     }
 
+    // Cancel a club-owned booking (soft close via status change, not row deletion).
     public function destroy(Request $request, VenueBooking $venueBooking): RedirectResponse
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
@@ -153,6 +162,7 @@ class VenueBookingController extends Controller
         return back()->with('status', 'Booking cancelled.');
     }
 
+    // AJAX endpoint to check which active venues are free for a selected date/time range.
     public function availability(Request $request): JsonResponse
     {
         $request->validate([
@@ -172,6 +182,7 @@ class VenueBookingController extends Controller
             ], 422);
         }
 
+        // Return a lightweight venue list for the frontend availability checker UI.
         $availableVenues = $this->availableVenuesForRange($startAt, $endAt)
             ->map(fn (Venue $venue) => [
                 'id' => $venue->id,
@@ -189,11 +200,13 @@ class VenueBookingController extends Controller
         ]);
     }
 
+    // Shared ownership guard for edit/update/cancel booking actions.
     private function ensureClubOwnsBooking(Request $request, VenueBooking $venueBooking): void
     {
         abort_unless((int) $venueBooking->club_id === (int) $request->user()->id, 403);
     }
 
+    // Validate booking form fields and convert the submitted date/time into Carbon timestamps.
     private function validatedBookingInput(Request $request): array
     {
         $validated = $request->validate([
@@ -217,6 +230,7 @@ class VenueBookingController extends Controller
         return [$validated, $startAt, $endAt];
     }
 
+    // Conflict check against blocking bookings (pending/approved depending on model scope) for the same venue.
     private function hasConflict(int $venueId, Carbon $startAt, Carbon $endAt, ?int $ignoreId = null): bool
     {
         return VenueBooking::query()
@@ -227,6 +241,7 @@ class VenueBookingController extends Controller
             ->exists();
     }
 
+    // Return active venues that are not blocked by overlapping bookings in the requested timeslot.
     private function availableVenuesForRange(Carbon $startAt, Carbon $endAt): Collection
     {
         $blockedVenueIds = VenueBooking::query()

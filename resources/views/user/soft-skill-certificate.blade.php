@@ -97,7 +97,7 @@
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
-        .cert-student-id {
+        .cert-identity {
             text-align: center;
             font-size: 20px;
             margin-top: -6px;
@@ -268,9 +268,9 @@
                 <div class="cert-certified">It is hereby certified that</div>
 
                 <div class="cert-name">{{ $student->name ?? '-' }}</div>
-                <div class="cert-student-id">({{ $student->student_id ?? 'N/A' }})</div>
+                <div class="cert-identity">({{ $student->ic_number ?? 'N/A' }})</div>
                 <div class="cert-programme">
-                    {{ $student->department ? 'Department of ' . $student->department : 'Student of TAR UMT' }}
+                    {{ $student->programme ?: 'Student of TAR UMT' }}
                 </div>
 
 

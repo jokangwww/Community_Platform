@@ -4,57 +4,104 @@
 
 @section('content')
     <style>
+        .event-page {
+            --text-main: #1a2438;
+            --text-muted: #5a6880;
+            --border-soft: #d5deed;
+            --brand: #2b66db;
+            --brand-dark: #1d4fae;
+            margin-top: 16px;
+            color: var(--text-main);
+        }
         .event-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px 0 12px;
-            border-bottom: 2px solid #1f1f1f;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, #e8f1ff 0%, #f6fbff 55%, #ffffff 100%);
+            border: 1px solid #d2def2;
+            border-radius: 16px;
+            padding: 16px 18px;
+            box-shadow: 0 12px 28px rgba(26, 50, 100, 0.08);
         }
         .event-header h2 {
             margin: 0;
-            font-size: 26px;
+            font-size: 30px;
+            line-height: 1.2;
         }
         .event-header .actions {
             display: flex;
             gap: 10px;
+            margin-left: 0;
         }
         .event-header .action-btn {
-            padding: 8px 16px;
-            border: 1px solid #1f1f1f;
-            border-radius: 6px;
+            padding: 10px 14px;
+            border: 1px solid #94a6c2;
+            border-radius: 10px;
             background: #fff;
             text-decoration: none;
-            color: inherit;
-            font-size: 16px;
+            color: var(--text-main);
+            font-size: 14px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .event-header .action-btn:first-child {
+            border-color: var(--brand);
+            background: var(--brand);
+            color: #fff;
+        }
+        .event-header .action-btn:first-child:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        .event-header .action-btn:hover {
+            background: #f7faff;
         }
         .event-details {
-            margin-top: 18px;
-            max-width: 760px;
+            max-width: 980px;
+            display: grid;
+            gap: 14px;
         }
         .info-card {
-            border: 1px solid #d6d6d6;
-            border-radius: 10px;
-            padding: 18px 20px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
             background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
             display: grid;
-            gap: 16px;
+            gap: 14px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .info-section {
+            border: 1px solid #e0e7f3;
+            border-radius: 12px;
+            padding: 12px;
+            background: #fbfdff;
+        }
+        .info-section:first-child,
+        .info-section:nth-child(2),
+        .info-section:last-child {
+            grid-column: 1 / -1;
         }
         .info-section h3 {
             margin: 0 0 6px;
-            font-size: 18px;
+            font-size: 16px;
         }
         .info-section p {
             margin: 0;
-            color: #4a4a4a;
+            color: var(--text-muted);
             line-height: 1.5;
         }
         .logo-box {
-            width: 260px;
-            height: 260px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            background: #f4f4f4;
+            width: 220px;
+            height: 220px;
+            border-radius: 12px;
+            border: 1px solid #d1dcf0;
+            background: radial-gradient(circle at 20% 20%, #edf3ff 0%, #f7fbff 60%, #ffffff 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -92,7 +139,7 @@
         .subevent-list {
             margin: 0;
             padding-left: 18px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
         .subevent-list li {
             margin-bottom: 4px;
@@ -100,31 +147,32 @@
         .faculty-list {
             margin: 0;
             padding-left: 18px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
         .faculty-list li {
             margin-bottom: 4px;
         }
         .status-banner {
-            margin-top: 12px;
-            padding: 12px 16px;
-            border: 1px solid #c2c2c2;
-            border-radius: 8px;
-            background: #f7f7f7;
+            padding: 12px 14px;
+            border: 1px solid #b8dfc1;
+            border-radius: 10px;
+            background: #ecfaf0;
+            color: #1e6e34;
+            font-weight: 600;
         }
         .registration-panel {
-            margin-top: 18px;
-            border: 1px solid #d6d6d6;
-            border-radius: 10px;
-            padding: 18px 20px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
             background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
         }
         .committee-position-panel {
-            margin-top: 18px;
-            border: 1px solid #d6d6d6;
-            border-radius: 10px;
-            padding: 18px 20px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
             background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
             display: grid;
             gap: 10px;
         }
@@ -134,7 +182,7 @@
         }
         .committee-position-help {
             font-size: 13px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
         .committee-position-list {
             display: grid;
@@ -148,8 +196,8 @@
         }
         .committee-position-row input,
         .committee-position-row select {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #bccadf;
+            border-radius: 10px;
             padding: 9px 10px;
             font-size: 14px;
             background: #fff;
@@ -157,12 +205,14 @@
         .committee-position-row button,
         .committee-position-add,
         .committee-position-save {
-            border: 1px solid #1f1f1f;
+            border: 1px solid #94a6c2;
             background: #fff;
-            border-radius: 6px;
+            border-radius: 9px;
             padding: 8px 12px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .committee-position-add {
             width: fit-content;
@@ -170,7 +220,7 @@
         }
         .committee-position-actions {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             gap: 12px;
             margin-top: 8px;
@@ -178,17 +228,95 @@
         .committee-position-actions .committee-position-add {
             margin-top: 0;
         }
+        .committee-import-panel {
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
+            display: grid;
+            gap: 10px;
+        }
+        .committee-import-panel h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .committee-import-help {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .committee-import-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--text-muted);
+            font-size: 14px;
+            display: grid;
+            gap: 4px;
+        }
+        .committee-import-actions {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .committee-import-actions button {
+            border: 1px solid var(--brand);
+            background: var(--brand);
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .committee-import-actions button:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        .committee-import-note {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
         @media (max-width: 900px) {
+            .event-header h2 {
+                font-size: 26px;
+            }
+            .event-header .actions {
+                width: 100%;
+            }
+            .event-header .action-btn {
+                flex: 1;
+            }
+            .info-card {
+                grid-template-columns: 1fr;
+            }
+            .info-section:first-child,
+            .info-section:nth-child(2),
+            .info-section:last-child {
+                grid-column: 1;
+            }
             .committee-position-row {
                 grid-template-columns: 1fr;
             }
+            .committee-position-actions {
+                justify-content: stretch;
+                flex-wrap: wrap;
+            }
+            .committee-position-actions > * {
+                width: 100%;
+            }
+            .logo-box {
+                width: 100%;
+                height: 220px;
+            }
         }
         .stream-panel {
-            margin-top: 18px;
-            border: 1px solid #d6d6d6;
-            border-radius: 10px;
-            padding: 18px 20px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
             background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
             display: grid;
             gap: 10px;
         }
@@ -204,8 +332,8 @@
         .stream-url-row input {
             flex: 1 1 380px;
             min-width: 240px;
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #bccadf;
+            border-radius: 10px;
             padding: 10px 12px;
         }
         .stream-actions {
@@ -217,16 +345,27 @@
             align-items: center;
         }
         .stream-actions button {
-            border: 1px solid #1f1f1f;
+            border: 1px solid #94a6c2;
             background: #fff;
-            border-radius: 6px;
+            border-radius: 10px;
             padding: 8px 14px;
             cursor: pointer;
             min-width: 138px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .stream-actions button[name="action"][value="start"] {
+            border-color: var(--brand);
+            background: var(--brand);
+            color: #fff;
+        }
+        .stream-actions button[name="action"][value="start"]:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
         }
         .stream-meta {
             font-size: 13px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
         .stream-error {
             color: #b00020;
@@ -245,7 +384,7 @@
         }
         .registration-count {
             font-size: 13px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
         .registration-table {
             width: 100%;
@@ -262,14 +401,15 @@
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #666;
+            color: #6f7d95;
         }
         .registration-empty {
             font-size: 14px;
-            color: #4a4a4a;
+            color: var(--text-muted);
         }
     </style>
 
+    <div class="event-page">
     <div class="event-header">
         <h2>{{ $event->name }}</h2>
         <div class="actions">
@@ -412,74 +552,49 @@
                 </div>
             </form>
         </div>
-        <div class="committee-position-panel">
-            <h3>Committee Positions</h3>
-            <div class="committee-position-help">
-                Set event-specific committee/volunteer positions by entering committee member student ID and position name.
+        <div class="committee-import-panel">
+            <h3>Import Recruitment Applicants to Committee</h3>
+            <div class="committee-import-help">
+                Add students with <strong>accepted</strong> recruitment status (for this event) into the committee list automatically. Then assign their positions below.
             </div>
             @php
-                $committeePositions = $event->committeePositions ?? collect();
-                $adminPositionOptions = $event->softSkillCategory?->positionRules?->pluck('position_name')->values()->all() ?? [];
+                $acceptedApplicants = $acceptedRecruitmentApplicants ?? collect();
+                $existingCommitteeIds = collect($existingCommitteeStudentIds ?? []);
+                $notYetInCommittee = $acceptedApplicants->filter(function ($application) use ($existingCommitteeIds) {
+                    $studentCode = $application->student?->student_id;
+                    return $studentCode && ! $existingCommitteeIds->contains($studentCode);
+                })->values();
             @endphp
-            <form method="POST" action="{{ route('club.events.committee-positions.update', $event) }}">
-                @csrf
-                <div class="committee-position-list" id="committee_position_list">
-                    @if (is_array(old('committee_position_student_id')))
-                        @foreach (old('committee_position_student_id') as $index => $studentId)
-                            <div class="committee-position-row">
-                                <input type="text" name="committee_position_student_id[]" value="{{ $studentId }}" placeholder="Student ID">
-                                <select name="committee_position_name[]">
-                                    <option value="">Select position</option>
-                                    @foreach ($adminPositionOptions as $positionOption)
-                                        <option value="{{ $positionOption }}" @selected(old('committee_position_name.' . $index) === $positionOption)>{{ $positionOption }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="button" class="committee-position-remove">Remove</button>
-                            </div>
-                        @endforeach
-                    @elseif ($committeePositions->isNotEmpty())
-                        @foreach ($committeePositions as $assignment)
-                            <div class="committee-position-row">
-                                <input type="text" name="committee_position_student_id[]" value="{{ $assignment->user?->student_id }}" placeholder="Student ID">
-                                <select name="committee_position_name[]">
-                                    <option value="">Select position</option>
-                                    @foreach ($adminPositionOptions as $positionOption)
-                                        <option value="{{ $positionOption }}" @selected($assignment->position_name === $positionOption)>{{ $positionOption }}</option>
-                                    @endforeach
-                                    @if ($assignment->position_name && ! in_array($assignment->position_name, $adminPositionOptions, true))
-                                        <option value="{{ $assignment->position_name }}" selected>{{ $assignment->position_name }} (Current)</option>
-                                    @endif
-                                </select>
-                                <button type="button" class="committee-position-remove">Remove</button>
-                            </div>
-                        @endforeach
-                    @else
-                        <div class="committee-position-row">
-                            <input type="text" name="committee_position_student_id[]" placeholder="Student ID">
-                            <select name="committee_position_name[]">
-                                <option value="">Select position</option>
-                                @foreach ($adminPositionOptions as $positionOption)
-                                    <option value="{{ $positionOption }}">{{ $positionOption }}</option>
-                                @endforeach
-                            </select>
-                            <button type="button" class="committee-position-remove">Remove</button>
-                        </div>
-                    @endif
+            @if ($acceptedApplicants->isEmpty())
+                <div class="registration-empty">No accepted recruitment applicants found for this event yet.</div>
+            @else
+                <ul class="committee-import-list">
+                    @foreach ($acceptedApplicants as $application)
+                        @php
+                            $studentCode = $application->student?->student_id;
+                            $alreadyCommittee = $studentCode && $existingCommitteeIds->contains($studentCode);
+                        @endphp
+                        <li>
+                            {{ $application->student?->name ?? 'Unknown Student' }}
+                            ({{ $studentCode ?: '-' }})
+                            @if ($alreadyCommittee)
+                                - Already in committee
+                            @else
+                                - Ready to import
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="committee-import-actions">
+                    <form method="POST" action="{{ route('club.events.committee.import-recruitment', $event) }}" style="margin:0;">
+                        @csrf
+                        <button type="submit">Import Accepted Applicants</button>
+                    </form>
+                    <div class="committee-import-note">
+                        {{ $notYetInCommittee->count() }} new applicant(s) can be added.
+                    </div>
                 </div>
-                @if (empty($adminPositionOptions))
-                    <div class="registration-empty">No admin soft skill category / position rules set for this event yet. Ask admin to assign category and rules first.</div>
-                @endif
-                @error('committee_position_student_id.*')
-                    <div class="registration-empty">{{ $message }}</div>
-                @enderror
-                @error('committee_position_name.*')
-                    <div class="registration-empty">{{ $message }}</div>
-                @enderror
-                <div class="committee-position-actions">
-                    <button type="button" class="committee-position-add" id="committee_position_add">Add Position Rule</button>
-                    <button type="submit" class="committee-position-save">Save Committee Positions</button>
-                </div>
-            </form>
+            @endif
         </div>
         <div class="registration-panel">
             <div class="registration-header">
@@ -510,47 +625,6 @@
             @endif
         </div>
     </div>
-    <script>
-        (function () {
-            const list = document.getElementById('committee_position_list');
-            const addBtn = document.getElementById('committee_position_add');
-            const positionOptions = @json($adminPositionOptions ?? []);
-            if (!list || !addBtn) {
-                return;
-            }
-
-            const bindRemove = () => {
-                list.querySelectorAll('.committee-position-remove').forEach((btn) => {
-                    if (btn.dataset.bound) return;
-                    btn.dataset.bound = 'true';
-                    btn.addEventListener('click', () => {
-                        const rows = list.querySelectorAll('.committee-position-row');
-                        if (rows.length <= 1) {
-                            rows[0]?.querySelectorAll('input').forEach((input) => input.value = '');
-                            rows[0]?.querySelectorAll('select').forEach((select) => select.value = '');
-                            return;
-                        }
-                        btn.closest('.committee-position-row')?.remove();
-                    });
-                });
-            };
-
-            addBtn.addEventListener('click', () => {
-                const row = document.createElement('div');
-                row.className = 'committee-position-row';
-                let optionsHtml = '<option value=\"\">Select position</option>';
-                positionOptions.forEach((position) => {
-                    optionsHtml += '<option value=\"' + String(position).replace(/\"/g, '&quot;') + '\">' + String(position) + '</option>';
-                });
-                row.innerHTML =
-                    '<input type="text" name="committee_position_student_id[]" placeholder="Student ID">' +
-                    '<select name="committee_position_name[]">' + optionsHtml + '</select>' +
-                    '<button type="button" class="committee-position-remove">Remove</button>';
-                list.appendChild(row);
-                bindRemove();
-            });
-
-            bindRemove();
-        })();
-    </script>
+    </div>
 @endsection
+

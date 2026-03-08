@@ -33,6 +33,7 @@
             border-radius: 6px;
             padding: 8px 12px;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
         }
         .attendance-list {
@@ -93,17 +94,22 @@
                     $isTicket = ($event->registration_type ?? 'register') === 'ticket';
                     $total = $isTicket ? (int) $event->ticket_purchases_count : (int) $event->registrations_count;
                     $attended = $isTicket ? (int) $event->attended_tickets_count : (int) $event->attended_registrations_count;
+                    $committeeTotal = (int) ($event->committee_members_count ?? 0);
+                    $committeeAttended = (int) ($event->attended_committees_count ?? 0);
                 @endphp
                 <article class="attendance-card">
                     <h3>{{ $event->name }}</h3>
                     <div class="attendance-meta">Event ID: {{ $event->id }}</div>
                     <div class="attendance-meta">Attendance Type: {{ $isTicket ? 'Ticket ID / Ticket Number' : 'Student ID' }}</div>
                     <div class="attendance-meta">Attendance: {{ $attended }} / {{ $total }}</div>
+                    <div class="attendance-meta">Committee Attendance: {{ $committeeAttended }} / {{ $committeeTotal }}</div>
                     <div class="attendance-actions">
                         <a href="{{ route('club.events.attendance.show', $event) }}">Manage Attendance</a>
+                        <a href="{{ route('club.events.attendance.committee.show', $event) }}">Manage Committee Attendance</a>
                     </div>
                 </article>
             @endforeach
         </div>
     @endif
 @endsection
+

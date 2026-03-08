@@ -11,6 +11,7 @@ use Illuminate\View\View;
 
 class DepartmentController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(): View
     {
         return view('admin.departments.index', [
@@ -18,6 +19,7 @@ class DepartmentController extends Controller
         ]);
     }
 
+    // Validate the request and create a new record from submitted form data.
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -31,6 +33,7 @@ class DepartmentController extends Controller
         return back()->with('status', 'Department added successfully.');
     }
 
+    // Delete or close the selected record after access checks.
     public function destroy(Department $department): RedirectResponse
     {
         $department->delete();

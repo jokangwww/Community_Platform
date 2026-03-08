@@ -38,6 +38,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
             font-size: 14px;
             line-height: 1.2;
@@ -159,6 +160,7 @@
                     <h3>{{ $recruitment->title }}</h3>
                     <p><strong>Event:</strong> {{ $recruitment->event->name ?? 'Event' }}</p>
                     <p>{{ $recruitment->description }}</p>
+                    <p><strong>Benefits:</strong> {{ $recruitment->volunteer_benefits ?: 'Not set' }}</p>
                     <div class="recruitment-meta">Posted by {{ $recruitment->club->name ?? 'Club' }}</div>
                     <div class="recruitment-actions">
                         <a href="{{ route('club.recruitment.show', $recruitment) }}">View</a>
@@ -171,3 +173,4 @@
         @endif
     </div>
 @endsection
+

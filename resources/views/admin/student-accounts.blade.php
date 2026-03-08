@@ -97,6 +97,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
             font-size: 14px;
         }
@@ -141,6 +142,7 @@
             border-radius: 6px;
             border: 1px solid #1f1f1f;
             background: #fff;
+            color: #1f1f1f;
             cursor: pointer;
             font-size: 14px;
         }
@@ -247,3 +249,4 @@
         </div>
     @endif
 @endsection
+

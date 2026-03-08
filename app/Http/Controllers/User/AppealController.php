@@ -9,6 +9,7 @@ use Illuminate\View\View;
 
 class AppealController extends Controller
 {
+    // Load and render the requested record details page.
     public function show(Request $request): View
     {
         if ($request->user()->role !== 'student' || $request->user()->account_status !== 'banned') {
@@ -20,6 +21,7 @@ class AppealController extends Controller
         ]);
     }
 
+    // Controller action: submit.
     public function submit(Request $request): RedirectResponse
     {
         $user = $request->user();

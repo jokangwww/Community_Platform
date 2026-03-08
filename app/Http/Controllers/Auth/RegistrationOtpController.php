@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -13,35 +12,50 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class RegistrationOtpController extends Controller
 {
+    // Session key + OTP expiry control the temporary registration state before account creation.
     private const SESSION_KEY = 'pending_registration';
     private const OTP_EXPIRY_MINUTES = 10;
 
+    // Render registration form.
     public function showRegisterForm(): View
     {
-        return view('auth.register', [
-            'departments' => Department::query()->orderBy('name')->get(['name']),
-        ]);
+        return view('auth.register');
     }
 
+    // Step 1: Validate registration input, store pending user data in session, and send OTP email.
     public function register(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'student_id' => ['nullable', 'string', 'max:255', 'unique:users,student_id'],
-            'department' => [
+            'ic_number' => [
+                Rule::requiredIf((string) $request->input('role') === 'student'),
+                'nullable',
+                'string',
+                'max:20',
+                'unique:users,ic_number',
+            ],
+            'programme' => [
                 Rule::requiredIf((string) $request->input('role') === 'student'),
                 'nullable',
                 'string',
                 'max:255',
-                Rule::exists('departments', 'name'),
             ],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', 'in:student,staff,club'],
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
+            'role' => ['required', 'in:student,admin,club'],
             'club_attachment' => [
                 Rule::requiredIf((string) $request->input('role') === 'club'),
                 'nullable',
@@ -52,18 +66,21 @@ class RegistrationOtpController extends Controller
             'terms' => ['accepted'],
         ]);
 
+        // Club accounts require a supporting attachment and remain pending admin approval after verification.
         $clubAttachmentPath = null;
         if ((string) $validated['role'] === 'club' && $request->hasFile('club_attachment')) {
             $clubAttachmentPath = $request->file('club_attachment')->store('club-attachments');
         }
 
+        // Store a temporary registration payload in session until OTP is successfully verified.
         $otp = (string) random_int(100000, 999999);
         $expiresAt = now()->addMinutes(self::OTP_EXPIRY_MINUTES);
 
         $request->session()->put(self::SESSION_KEY, [
             'name' => trim($validated['name']),
             'student_id' => (string) $validated['role'] === 'club' ? null : ($validated['student_id'] ?? null),
-            'department' => (string) $validated['role'] === 'student' ? ($validated['department'] ?? null) : null,
+            'ic_number' => (string) $validated['role'] === 'student' ? ($validated['ic_number'] ?? null) : null,
+            'programme' => (string) $validated['role'] === 'student' ? ($validated['programme'] ?? null) : null,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
@@ -79,6 +96,7 @@ class RegistrationOtpController extends Controller
             ->with('status', 'We sent a 6-digit OTP to your email.');
     }
 
+    // Render OTP verification page only when a pending registration exists in session.
     public function showVerifyForm(Request $request): RedirectResponse|View
     {
         $pending = $request->session()->get(self::SESSION_KEY);
@@ -91,6 +109,7 @@ class RegistrationOtpController extends Controller
         ]);
     }
 
+    // Step 2: Verify OTP and create the real user record from the pending session payload.
     public function verify(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -119,7 +138,8 @@ class RegistrationOtpController extends Controller
         $user = User::create([
             'name' => (string) $pending['name'],
             'student_id' => $pending['student_id'] ?? null,
-            'department' => $pending['department'] ?? null,
+            'ic_number' => $pending['ic_number'] ?? null,
+            'programme' => $pending['programme'] ?? null,
             'email' => (string) $pending['email'],
             'password' => (string) $pending['password'],
             'role' => (string) $pending['role'],
@@ -131,18 +151,37 @@ class RegistrationOtpController extends Controller
 
         $request->session()->forget(self::SESSION_KEY);
 
+        // Club users are redirected to login after verification because admin approval is still required.
         if ($user->role === 'club') {
             return redirect()
                 ->route('login')
                 ->with('status', 'Registration complete. Your club account is pending admin approval.');
         }
 
+        // Non-club users are logged in immediately after successful verification.
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('home');
+        if ((string) $user->role === 'student') {
+            return redirect()->route('home');
+        }
+
+        if ((string) $user->role === 'admin') {
+            return redirect()->route('admin.home');
+        }
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->withErrors([
+                'email' => 'Your account role is not allowed to access the student portal. Please sign in again.',
+            ]);
     }
 
+    // Regenerate and resend OTP while keeping the same pending registration payload in session.
     public function resend(Request $request): RedirectResponse
     {
         $pending = $request->session()->get(self::SESSION_KEY);
@@ -173,6 +212,7 @@ class RegistrationOtpController extends Controller
         return back()->with('status', 'A new OTP has been sent to your email.');
     }
 
+    // Simple mail delivery for OTP; email content is intentionally minimal.
     private function sendOtp(string $email, string $otp): void
     {
         Mail::raw(

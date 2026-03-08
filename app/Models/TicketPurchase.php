@@ -19,6 +19,10 @@ class TicketPurchase extends Model
         'ticket_number',
         'ticket_number_seq',
         'status',
+        'is_resale_listed',
+        'resale_price',
+        'resale_listed_at',
+        'last_transferred_at',
         'attended_at',
         'attendance_marked_by',
     ];
@@ -27,6 +31,10 @@ class TicketPurchase extends Model
     {
         return [
             'attended_at' => 'datetime',
+            'is_resale_listed' => 'boolean',
+            'resale_price' => 'decimal:2',
+            'resale_listed_at' => 'datetime',
+            'last_transferred_at' => 'datetime',
         ];
     }
 

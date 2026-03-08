@@ -134,6 +134,7 @@
             padding: 8px 10px;
             font-size: 14px;
             background: #fff;
+            color: #1f1f1f;
         }
         .joined-controls button {
             border-color: #1f1f1f;
@@ -296,3 +297,4 @@
         @endif
     </section>
 @endsection
+

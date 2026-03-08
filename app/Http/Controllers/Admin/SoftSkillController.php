@@ -14,6 +14,7 @@ class SoftSkillController extends Controller
 {
     private const ELEMENTS = ['cs', 'ctps', 'ts', 'll', 'kk', 'em', 'ls'];
 
+    // Helper method: parse element array.
     private function parseElementArray(array $validated, string $prefix): array
     {
         $result = [];
@@ -24,6 +25,7 @@ class SoftSkillController extends Controller
         return $result;
     }
 
+    // Helper method: parse position rule rows.
     private function parsePositionRuleRows(array $input): array
     {
         $names = $input['rule_position_name'] ?? [];
@@ -72,6 +74,7 @@ class SoftSkillController extends Controller
             ->all();
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $keyword = trim((string) $request->query('q', ''));
@@ -103,6 +106,7 @@ class SoftSkillController extends Controller
         ]);
     }
 
+    // Controller action: store category.
     public function storeCategory(Request $request)
     {
         $validated = $request->validate([
@@ -137,6 +141,7 @@ class SoftSkillController extends Controller
         return back()->with('status', 'Soft skill category created: ' . $category->name);
     }
 
+    // Controller action: update category.
     public function updateCategory(Request $request, SoftSkillCategory $category)
     {
         $validated = $request->validate([
@@ -172,6 +177,7 @@ class SoftSkillController extends Controller
         return back()->with('status', 'Soft skill category updated: ' . $category->name);
     }
 
+    // Controller action: assign event category.
     public function assignEventCategory(Request $request, Event $event)
     {
         $validated = $request->validate([
@@ -185,6 +191,7 @@ class SoftSkillController extends Controller
         return back()->with('status', 'Event category updated for: ' . $event->name);
     }
 
+    // Controller action: apply category to all.
     public function applyCategoryToAll(Request $request)
     {
         $validated = $request->validate([

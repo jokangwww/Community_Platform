@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
 use App\Models\ProfileChangeLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +13,7 @@ use Illuminate\View\View;
 
 class UserProfileCorrectionController extends Controller
 {
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -25,7 +25,8 @@ class UserProfileCorrectionController extends Controller
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', '%' . $search . '%')
                     ->orWhere('email', 'like', '%' . $search . '%')
-                    ->orWhere('student_id', 'like', '%' . $search . '%');
+                    ->orWhere('student_id', 'like', '%' . $search . '%')
+                    ->orWhere('ic_number', 'like', '%' . $search . '%');
             });
         }
 
@@ -44,6 +45,7 @@ class UserProfileCorrectionController extends Controller
         ]);
     }
 
+    // Load the edit form for an existing record after ownership/access checks.
     public function edit(User $user): View
     {
         $adminMeta = $this->adminMeta($user);
@@ -57,11 +59,11 @@ class UserProfileCorrectionController extends Controller
         return view('admin.user-profile-corrections.edit', [
             'targetUser' => $user,
             'adminMeta' => $adminMeta,
-            'departments' => Department::query()->orderBy('name')->get(['name']),
             'logs' => $logs,
         ]);
     }
 
+    // Validate the request and update the existing record.
     public function update(Request $request, User $user): RedirectResponse
     {
         $validated = $request->validate([
@@ -69,12 +71,18 @@ class UserProfileCorrectionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'student_id' => ['nullable', 'string', 'max:255', Rule::unique('users', 'student_id')->ignore($user->id)],
-            'department' => [
+            'ic_number' => [
+                Rule::requiredIf((string) $request->input('role') === 'student'),
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('users', 'ic_number')->ignore($user->id),
+            ],
+            'programme' => [
                 Rule::requiredIf((string) $request->input('role') === 'student'),
                 'nullable',
                 'string',
                 'max:255',
-                Rule::exists('departments', 'name'),
             ],
             'display_name' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:1000'],
@@ -89,7 +97,8 @@ class UserProfileCorrectionController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'student_id' => $user->student_id,
-            'department' => $user->department,
+            'ic_number' => $user->ic_number,
+            'programme' => $user->programme,
             'display_name' => $user->display_name,
             'bio' => $user->bio,
         ];
@@ -103,7 +112,8 @@ class UserProfileCorrectionController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'student_id' => $normalizedStudentId,
-            'department' => $validated['department'] ?? null,
+            'ic_number' => ($validated['role'] ?? '') === 'student' ? ($validated['ic_number'] ?? null) : null,
+            'programme' => ($validated['role'] ?? '') === 'student' ? ($validated['programme'] ?? null) : null,
             'display_name' => $validated['display_name'] ?? null,
             'bio' => $validated['bio'] ?? null,
         ]);
@@ -170,6 +180,7 @@ class UserProfileCorrectionController extends Controller
         return back()->with('status', 'Profile corrected and logged successfully.');
     }
 
+    // Helper method: admin meta.
     private function adminMeta(User $user): object
     {
         if ($user->role !== 'admin') {

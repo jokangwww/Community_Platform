@@ -4,11 +4,58 @@
 
 @section('content')
     <style>
+        .event-page {
+            --text-main: #1a2438;
+            --text-muted: #5a6880;
+            --border-soft: #d5deed;
+            --brand: #2b66db;
+            --brand-dark: #1d4fae;
+            margin-top: 16px;
+            color: var(--text-main);
+        }
+        .event-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .event-title {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.2;
+        }
+        .event-subtitle {
+            margin: 6px 0 0;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-soft);
+            background: #fff;
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .back-link:hover {
+            background: #f7faff;
+        }
         .event-form {
-            margin-top: 20px;
-            max-width: 720px;
+            max-width: 980px;
             display: grid;
-            gap: 16px;
+            gap: 14px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
         }
         .event-form .field {
             display: flex;
@@ -17,16 +64,29 @@
         }
         .event-form label {
             font-size: 14px;
-            color: #2f2f2f;
+            font-weight: 700;
+            color: var(--text-main);
         }
         .event-form input,
         .event-form select,
         .event-form textarea {
-            border: 1px solid #cfcfcf;
-            border-radius: 6px;
+            border: 1px solid #bccadf;
+            border-radius: 10px;
             padding: 10px 12px;
             font-size: 15px;
             background: #fff;
+            color: var(--text-main);
+        }
+        .event-form input:focus,
+        .event-form select:focus,
+        .event-form textarea:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(43, 102, 219, 0.14);
+        }
+        .event-form input[type="file"] {
+            background: #f9fbff;
+            border-style: dashed;
         }
         .event-form textarea {
             min-height: 140px;
@@ -35,20 +95,37 @@
         .form-actions {
             display: flex;
             gap: 12px;
+            max-width: 720px;
         }
         .form-actions button,
         .form-actions a {
             padding: 10px 16px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 10px;
+            border: 1px solid #94a6c2;
             background: #fff;
             text-decoration: none;
-            color: inherit;
+            color: var(--text-main);
             cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .form-actions button {
+            border-color: var(--brand);
+            background: var(--brand);
+            color: #fff;
+        }
+        .form-actions button:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        .form-actions a:hover {
+            background: #f7faff;
         }
         .helper-text {
             font-size: 13px;
-            color: #6a6a6a;
+            color: var(--text-muted);
         }
         .error-text {
             color: #b00020;
@@ -60,10 +137,12 @@
         }
         .committee-input button {
             padding: 10px 14px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 10px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .committee-search {
             margin-top: 8px;
@@ -72,17 +151,18 @@
             list-style: none;
             padding: 0;
             margin: 8px 0 0;
-            border: 1px solid #d6d6d6;
-            border-radius: 6px;
+            border: 1px solid #d6deeb;
+            border-radius: 10px;
             max-height: 180px;
             overflow-y: auto;
+            background: #fbfdff;
         }
         .committee-list li {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 8px 10px;
-            border-bottom: 1px solid #ededed;
+            border-bottom: 1px solid #e8edf7;
         }
         .committee-list li:last-child {
             border-bottom: 0;
@@ -111,10 +191,12 @@
         }
         .subevent-row button {
             padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .subevent-list {
             display: grid;
@@ -124,11 +206,13 @@
         .subevent-add {
             margin-top: 8px;
             padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
             width: fit-content;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .faculty-row {
             display: grid;
@@ -138,10 +222,12 @@
         }
         .faculty-row button {
             padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
         }
         .faculty-list {
             display: grid;
@@ -151,19 +237,139 @@
         .faculty-add {
             margin-top: 8px;
             padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #1f1f1f;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
             background: #fff;
             cursor: pointer;
             width: fit-content;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .committee-position-panel {
+            margin-top: 4px;
+            max-width: 980px;
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(25, 46, 90, 0.06);
+        }
+        .committee-position-panel h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+        .committee-position-help {
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .committee-position-list {
+            display: grid;
+            gap: 10px;
+        }
+        .committee-position-row {
+            display: grid;
+            grid-template-columns: 220px 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .committee-position-row input,
+        .committee-position-row select {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid #bccadf;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #fff;
+        }
+        .committee-position-row button {
+            padding: 8px 10px;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
+            background: #fff;
+            cursor: pointer;
+            color: var(--text-main);
+        }
+        .committee-position-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .committee-position-actions button {
+            padding: 8px 12px;
+            border-radius: 9px;
+            border: 1px solid #94a6c2;
+            background: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .subevent-remove,
+        .faculty-remove,
+        .committee-position-remove {
+            border-color: #d8a2ad;
+            background: #fff5f7;
+            color: #a41635;
+        }
+        .committee-position-actions button[type="submit"] {
+            border-color: var(--brand);
+            background: var(--brand);
+            color: #fff;
+        }
+        .committee-position-actions button[type="submit"]:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        .registration-empty {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        @media (max-width: 900px) {
+            .event-title {
+                font-size: 26px;
+            }
+            .committee-position-row {
+                grid-template-columns: 1fr;
+            }
+            .committee-position-actions {
+                justify-content: stretch;
+                flex-wrap: wrap;
+            }
+            .committee-position-actions button {
+                width: 100%;
+            }
+            .subevent-row {
+                grid-template-columns: 1fr;
+            }
+            .faculty-row {
+                grid-template-columns: 1fr;
+            }
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+            .form-actions button,
+            .form-actions a {
+                width: 100%;
+            }
+            .back-link {
+                width: 100%;
+            }
         }
     </style>
 
-    <div class="tabs">
-        <div class="tab">Update Event</div>
+    <div class="event-page">
+    <div class="event-hero">
+        <div>
+            <h2 class="event-title">Update Event</h2>
+            <p class="event-subtitle">Maintain event details, members, and rules in one place.</p>
+        </div>
+        <a class="back-link" href="{{ route('club.events.show', $event) }}">Back to Event Details</a>
     </div>
 
-    <form class="event-form" action="{{ route('club.events.update', $event) }}" method="POST" enctype="multipart/form-data">
+    <form id="event_edit_form" class="event-form" action="{{ route('club.events.update', $event) }}" method="POST" enctype="multipart/form-data">
         @csrf
         @method('PUT')
         <div class="field">
@@ -276,21 +482,6 @@
             @enderror
         </div>
         <div class="field">
-            <label for="attachment">Replace Attachment (optional)</label>
-            <input id="attachment" name="attachment" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx">
-            @if ($event->attachment_path)
-                <div class="helper-text">
-                    Current file:
-                    <a href="{{ asset('storage/' . $event->attachment_path) }}" target="_blank" rel="noopener">
-                        View attachment
-                    </a>
-                </div>
-            @endif
-            @error('attachment')
-                <div class="error-text">{{ $message }}</div>
-            @enderror
-        </div>
-        <div class="field">
             <label>Sub events</label>
             <div id="subevent_list" class="subevent-list">
                 @if (is_array(old('sub_event_title')))
@@ -382,12 +573,130 @@
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
-        <div class="form-actions">
-            <button type="submit">Save Changes</button>
-            <a href="{{ route('club.events.show', $event) }}">Cancel</a>
-        </div>
     </form>
 
+    <div class="committee-position-panel">
+        <h3>Committee Positions</h3>
+        <div class="committee-position-help">
+            Set event-specific committee/volunteer positions by entering committee member student ID and selecting position.
+        </div>
+        @php
+            $committeeAssignments = ($event->committeeMembers ?? collect())
+                ->filter(fn ($member) => filled($member->pivot->position_name ?? null))
+                ->sortBy(fn ($member) => strtolower((string) ($member->pivot->position_name ?? '')))
+                ->values();
+            $adminPositionOptions = $event->softSkillCategory?->positionRules?->pluck('position_name')->values()->all() ?? [];
+        @endphp
+        <form method="POST" action="{{ route('club.events.committee-positions.update', $event) }}">
+            @csrf
+            <div class="committee-position-list" id="committee_position_list">
+                @if (is_array(old('committee_position_student_id')))
+                    @foreach (old('committee_position_student_id') as $index => $studentId)
+                        <div class="committee-position-row">
+                            <input type="text" name="committee_position_student_id[]" value="{{ $studentId }}" placeholder="Student ID">
+                            <select name="committee_position_name[]">
+                                <option value="">Select position</option>
+                                @foreach ($adminPositionOptions as $positionOption)
+                                    <option value="{{ $positionOption }}" @selected(old('committee_position_name.' . $index) === $positionOption)>{{ $positionOption }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="committee-position-remove">Remove</button>
+                        </div>
+                    @endforeach
+                @elseif ($committeeAssignments->isNotEmpty())
+                    @foreach ($committeeAssignments as $assignment)
+                        <div class="committee-position-row">
+                            <input type="text" name="committee_position_student_id[]" value="{{ $assignment->student_id }}" placeholder="Student ID">
+                            <select name="committee_position_name[]">
+                                <option value="">Select position</option>
+                                @foreach ($adminPositionOptions as $positionOption)
+                                    <option value="{{ $positionOption }}" @selected(($assignment->pivot->position_name ?? '') === $positionOption)>{{ $positionOption }}</option>
+                                @endforeach
+                                @if (($assignment->pivot->position_name ?? null) && ! in_array($assignment->pivot->position_name, $adminPositionOptions, true))
+                                    <option value="{{ $assignment->pivot->position_name }}" selected>{{ $assignment->pivot->position_name }} (Current)</option>
+                                @endif
+                            </select>
+                            <button type="button" class="committee-position-remove">Remove</button>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="committee-position-row">
+                        <input type="text" name="committee_position_student_id[]" placeholder="Student ID">
+                        <select name="committee_position_name[]">
+                            <option value="">Select position</option>
+                            @foreach ($adminPositionOptions as $positionOption)
+                                <option value="{{ $positionOption }}">{{ $positionOption }}</option>
+                            @endforeach
+                        </select>
+                        <button type="button" class="committee-position-remove">Remove</button>
+                    </div>
+                @endif
+            </div>
+            @if (empty($adminPositionOptions))
+                <div class="registration-empty">No admin soft skill category / position rules set for this event yet. Ask admin to assign category and rules first.</div>
+            @endif
+            @error('committee_position_student_id.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            @error('committee_position_name.*')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+            <div class="committee-position-actions">
+                <button type="button" id="committee_position_add">Add Position Rule</button>
+                <button type="submit">Save Committee Positions</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="form-actions" style="margin-top: 12px;">
+        <button type="submit" form="event_edit_form">Save Changes</button>
+        <a href="{{ route('club.events.show', $event) }}">Cancel</a>
+    </div>
+    </div>
+
+    <script>
+        (function () {
+            const list = document.getElementById('committee_position_list');
+            const addBtn = document.getElementById('committee_position_add');
+            const positionOptions = @json($adminPositionOptions ?? []);
+            if (!list || !addBtn) {
+                return;
+            }
+
+            const bindRemove = () => {
+                list.querySelectorAll('.committee-position-remove').forEach((btn) => {
+                    if (btn.dataset.bound) return;
+                    btn.dataset.bound = 'true';
+                    btn.addEventListener('click', () => {
+                        const rows = list.querySelectorAll('.committee-position-row');
+                        if (rows.length <= 1) {
+                            rows[0]?.querySelectorAll('input').forEach((input) => input.value = '');
+                            rows[0]?.querySelectorAll('select').forEach((select) => select.value = '');
+                            return;
+                        }
+                        btn.closest('.committee-position-row')?.remove();
+                    });
+                });
+            };
+
+            addBtn.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'committee-position-row';
+                let optionsHtml = '<option value=\"\">Select position</option>';
+                positionOptions.forEach((position) => {
+                    optionsHtml += '<option value=\"' + String(position).replace(/\"/g, '&quot;') + '\">' + String(position) + '</option>';
+                });
+                row.innerHTML =
+                    '<input type=\"text\" name=\"committee_position_student_id[]\" placeholder=\"Student ID\">' +
+                    '<select name=\"committee_position_name[]\">' + optionsHtml + '</select>' +
+                    '<button type=\"button\" class=\"committee-position-remove\">Remove</button>';
+                list.appendChild(row);
+                bindRemove();
+            });
+
+            bindRemove();
+        })();
+    </script>
     <script>
         (function () {
             var hidden = document.getElementById('committee_student_ids');

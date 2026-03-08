@@ -10,7 +10,7 @@
             align-items: center;
             gap: 16px;
             padding: 12px 0;
-            border-bottom: 2px solid #1f1f1f;
+            border-bottom: 1px solid #dbe4f0;
         }
         .posting-header h2 {
             margin: 0;
@@ -25,14 +25,14 @@
             width: 100%;
             max-width: 520px;
             padding: 8px 12px;
-            border: 1px solid #3a3a3a;
-            border-radius: 4px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             font-size: 16px;
         }
         .search-bar select {
             padding: 8px 10px;
-            border: 1px solid #3a3a3a;
-            border-radius: 4px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
             font-size: 14px;
             background: #fff;
         }
@@ -48,12 +48,12 @@
             align-items: center;
             gap: 16px;
             padding: 14px 0 10px;
-            border-bottom: 1px solid #1f1f1f;
+            border-bottom: 1px solid #dbe4f0;
         }
         .posting-tabs a {
             color: inherit;
             text-decoration: none;
-            font-size: 20px;
+            font-size: 18px;
         }
         .posting-tabs .active {
             font-weight: 700;
@@ -67,14 +67,15 @@
             grid-template-columns: 420px 1fr;
             gap: 24px;
             padding: 18px 0;
-            border-bottom: 1px solid #d0d0d0;
+            border-bottom: 1px solid #dbe4f0;
             align-items: stretch;
         }
         .posting-media {
             aspect-ratio: 1 / 1;
             width: 420px;
-            background: #ececec;
-            border: 1px solid #2f2f2f;
+            background: #f2f7ff;
+            border: 1px solid #cfddee;
+            border-radius: 12px;
             font-size: 40px;
             color: #1f1f1f;
             overflow: hidden;
@@ -154,8 +155,9 @@
             flex-direction: column;
         }
         .posting-desc {
-            background: #f5f5f5;
-            border: 1px solid #2f2f2f;
+            background: #f8fbff;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
             font-size: 20px;
             color: #1f1f1f;
             padding: 12px;
@@ -293,16 +295,27 @@
             margin-top: 8px;
         }
         .meta-pill {
-            border: 1px solid #d0d0d0;
+            border: 1px solid #b8cde8;
             border-radius: 999px;
             padding: 2px 10px;
-            background: #fff;
+            background: #f4f9ff;
             font-weight: 500;
             font-size: 11px;
         }
+        .ticket-info {
+            margin-top: 10px;
+            border: 1px solid #c9dbf3;
+            background: #f3f8ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #24446f;
+            display: grid;
+            gap: 6px;
+        }
         .register-btn {
             padding: 8px 14px;
-            border-radius: 6px;
+            border-radius: 10px;
             border: 1px solid #1a73e8;
             background: #1a73e8;
             color: #fff;
@@ -406,6 +419,7 @@
                     $limit = $posting->event->participant_limit ?? null;
                     $currentCount = $eventRegistrationCounts[$eventId] ?? 0;
                     $isFull = $limit && $currentCount >= $limit;
+                    $isCommittee = in_array((int) ($eventId ?? 0), $committeeEventIds ?? [], true);
                     $isOutdated = $posting->outdated_at && $posting->outdated_at->lte(now());
                     $statusValue = $posting->status ?? 'open';
                     $statusClass = $statusValue === 'open'
@@ -476,20 +490,56 @@
                                 </span>
                             </div>
                             <div>{{ $posting->description }}</div>
+                            @php
+                                $joinType = $posting->event->registration_type ?? 'register';
+                                $ticketSetting = $posting->event->ticketSetting;
+                                $bundleDiscounts = collect($ticketSetting?->bundle_discounts ?? [])
+                                    ->filter(function ($row) {
+                                        return is_array($row)
+                                            && (int) ($row['quantity'] ?? 0) >= 2
+                                            && (float) ($row['discount_percent'] ?? 0) > 0;
+                                    })
+                                    ->sortBy('quantity')
+                                    ->values();
+                            @endphp
+                            @if ($joinType === 'ticket')
+                                <div class="ticket-info">
+                                    <div>
+                                        <strong>Ticket Price:</strong>
+                                        @if ($ticketSetting && (float) ($ticketSetting->price ?? 0) > 0)
+                                            {{ $ticketSetting->currency ?: 'MYR' }} {{ number_format((float) $ticketSetting->price, 2) }}
+                                        @else
+                                            Not set
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <strong>Bundle Discount:</strong>
+                                        @if ($bundleDiscounts->isEmpty())
+                                            None
+                                        @else
+                                            @foreach ($bundleDiscounts as $index => $bundle)
+                                                Qty {{ (int) $bundle['quantity'] }}: {{ rtrim(rtrim(number_format((float) $bundle['discount_percent'], 2), '0'), '.') }}%@if (! $loop->last), @endif
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                         <div class="posting-footer-row">
                             <div>
-                                @if (!empty($canRegister) && ($posting->status ?? 'open') === 'open')
+                                @if (!empty($canRegister))
                                     @if ($isRegistered)
                                         <button type="button" class="register-btn" disabled>Registered</button>
+                                    @elseif ($isCommittee)
+                                        <button type="button" class="register-btn" disabled>Committee Member</button>
                                     @elseif ($isOutdated)
                                         <button type="button" class="register-btn" disabled>Outdated</button>
                                     @elseif ($isFull)
                                         <button type="button" class="register-btn" disabled>Full</button>
+                                    @elseif (($posting->status ?? 'open') !== 'open')
+                                        <button type="button" class="register-btn" disabled>Closed</button>
                                     @else
                                         @php
-                                            $joinType = $posting->event->registration_type ?? 'register';
-                                            $ticketSetting = $posting->event->ticketSetting;
                                             $eventEnded = ($posting->event->status ?? 'in_progress') === 'ended';
                                         @endphp
                                         @if ($eventEnded)

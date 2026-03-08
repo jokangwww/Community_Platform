@@ -12,6 +12,7 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
+    // Helper method: require student.
     private function requireStudent(): User
     {
         /** @var User $user */
@@ -20,6 +21,7 @@ class AttendanceController extends Controller
         return $user;
     }
 
+    // Helper method: registration rows.
     private function registrationRows(User $student): Collection
     {
         return collect(EventRegistration::query()
@@ -38,6 +40,7 @@ class AttendanceController extends Controller
             ->all());
     }
 
+    // Helper method: ticket rows.
     private function ticketRows(User $student): Collection
     {
         return collect(TicketPurchase::query()
@@ -56,6 +59,7 @@ class AttendanceController extends Controller
             ->all());
     }
 
+    // Load the main page listing and apply request filters if provided.
     public function index(Request $request): View
     {
         $student = $this->requireStudent();

@@ -17,6 +17,7 @@ class Recruitment extends Model
         'requirements',
         'required_skills',
         'interests',
+        'volunteer_benefits',
     ];
 
     public function event()

@@ -255,6 +255,17 @@
             font-weight: 500;
             font-size: 11px;
         }
+        .ticket-info {
+            margin-top: 10px;
+            border: 1px solid #c9dbf3;
+            background: #f3f8ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #24446f;
+            display: grid;
+            gap: 6px;
+        }
         .register-btn {
             padding: 8px 14px;
             border-radius: 6px;
@@ -366,6 +377,7 @@
                 $limit = $posting->event->participant_limit ?? null;
                 $currentCount = $eventRegistrationCounts[$eventId] ?? 0;
                 $isFull = $limit && $currentCount >= $limit;
+                $isCommittee = in_array((int) ($eventId ?? 0), $committeeEventIds ?? [], true);
                 $isOutdated = $posting->outdated_at && $posting->outdated_at->lte(now());
                 $statusValue = $posting->status ?? 'open';
                 $statusClass = $statusValue === 'open'
@@ -404,6 +416,40 @@
                     </span>
                 </div>
                 <div>{{ $posting->description }}</div>
+                @php
+                    $joinType = $posting->event->registration_type ?? 'register';
+                    $ticketSetting = $posting->event->ticketSetting;
+                    $bundleDiscounts = collect($ticketSetting?->bundle_discounts ?? [])
+                        ->filter(function ($row) {
+                            return is_array($row)
+                                && (int) ($row['quantity'] ?? 0) >= 2
+                                && (float) ($row['discount_percent'] ?? 0) > 0;
+                        })
+                        ->sortBy('quantity')
+                        ->values();
+                @endphp
+                @if ($joinType === 'ticket')
+                    <div class="ticket-info">
+                        <div>
+                            <strong>Ticket Price:</strong>
+                            @if ($ticketSetting && (float) ($ticketSetting->price ?? 0) > 0)
+                                {{ $ticketSetting->currency ?: 'MYR' }} {{ number_format((float) $ticketSetting->price, 2) }}
+                            @else
+                                Not set
+                            @endif
+                        </div>
+                        <div>
+                            <strong>Bundle Discount:</strong>
+                            @if ($bundleDiscounts->isEmpty())
+                                None
+                            @else
+                                @foreach ($bundleDiscounts as $bundle)
+                                    Qty {{ (int) $bundle['quantity'] }}: {{ rtrim(rtrim(number_format((float) $bundle['discount_percent'], 2), '0'), '.') }}%@if (! $loop->last), @endif
+                                @endforeach
+                            @endif
+                        </div>
+                    </div>
+                @endif
             </div>
             @php
                 $draw = $posting->event?->luckyDraw;
@@ -420,17 +466,19 @@
             @endif
             <div class="posting-footer-row">
                 <div>
-                    @if (!empty($canRegister) && ($posting->status ?? 'open') === 'open')
+                    @if (!empty($canRegister))
                         @if ($isRegistered)
                             <button type="button" class="register-btn" disabled>Registered</button>
+                        @elseif ($isCommittee)
+                            <button type="button" class="register-btn" disabled>Committee Member</button>
                         @elseif ($isOutdated)
                             <button type="button" class="register-btn" disabled>Outdated</button>
                         @elseif ($isFull)
                             <button type="button" class="register-btn" disabled>Full</button>
+                        @elseif (($posting->status ?? 'open') !== 'open')
+                            <button type="button" class="register-btn" disabled>Closed</button>
                         @else
                             @php
-                                $joinType = $posting->event->registration_type ?? 'register';
-                                $ticketSetting = $posting->event->ticketSetting;
                                 $eventEnded = ($posting->event->status ?? 'in_progress') === 'ended';
                             @endphp
                             @if ($eventEnded)

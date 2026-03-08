@@ -18,6 +18,7 @@ class Event extends Model
         'name',
         'description',
         'venue',
+        'booth_locations',
         'status',
         'approval_status',
         'rejection_reason',
@@ -42,12 +43,8 @@ class Event extends Model
     public function committeeMembers()
     {
         return $this->belongsToMany(User::class, 'event_committees')
+            ->withPivot('position_name', 'attended_at', 'attendance_marked_by')
             ->withTimestamps();
-    }
-
-    public function committeePositions(): HasMany
-    {
-        return $this->hasMany(EventCommitteePosition::class)->with('user')->orderBy('position_name');
     }
 
     public function subEvents()
@@ -90,6 +87,11 @@ class Event extends Model
         return $this->hasMany(EventRegistration::class);
     }
 
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(EventFeedback::class);
+    }
+
     public function luckyDraw(): HasOne
     {
         return $this->hasOne(LuckyDraw::class);
@@ -103,6 +105,11 @@ class Event extends Model
     public function streamViewers(): HasMany
     {
         return $this->hasMany(EventStreamViewer::class);
+    }
+
+    public function boothPlaces(): HasMany
+    {
+        return $this->hasMany(EventBoothPlace::class)->orderBy('id');
     }
 
     public function softSkillCategory(): BelongsTo
@@ -134,5 +141,19 @@ class Event extends Model
         return $this->streamViewers()
             ->where('last_seen_at', '>=', now()->subSeconds($windowSeconds))
             ->count();
+    }
+
+    public function boothLocationOptions(): array
+    {
+        $raw = (string) ($this->booth_locations ?? '');
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $raw) ?: [];
+        $cleaned = array_map(fn ($line) => trim((string) $line), $lines);
+        $filled = array_values(array_filter($cleaned, fn ($line) => $line !== ''));
+
+        return array_values(array_unique($filled));
     }
 }
