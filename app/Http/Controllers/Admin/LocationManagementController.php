@@ -32,10 +32,10 @@ class LocationManagementController extends Controller
             'map_image' => ['required', 'image', 'max:5120'],
         ]);
 
-        // Store the map image on the public disk so the admin/student UI can display it.
+        // Store the map image on the public disk
         $imagePath = $request->file('map_image')->store('maps', 'public');
 
-        // Create the map record that references the uploaded image path.
+        // Create the map record
         LocationMap::create([
             'name' => $validated['name'],
             'image_path' => $imagePath,
