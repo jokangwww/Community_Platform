@@ -4,71 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Dashboard')</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap" rel="stylesheet" />
     <style>
         * { box-sizing: border-box; }
+
+        :root {
+            --ink-900: #0f172a;
+            --ink-700: #334155;
+            --ink-500: #64748b;
+            --line-soft: #dbe4f0;
+            --line-strong: #c5d5ea;
+            --surface: #ffffff;
+            --surface-soft: #f8fbff;
+            --brand-600: #0a5ac2;
+            --brand-700: #094597;
+            --danger-600: #c02828;
+            --sidebar-start: #0a4ca6;
+            --sidebar-end: #083a7d;
+            --shadow-soft: 0 18px 48px -26px rgba(15, 23, 42, 0.45);
+            --radius-lg: 18px;
+            --radius-md: 12px;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f5f6f7;
+            font-family: "Plus Jakarta Sans", "Segoe UI", Tahoma, sans-serif;
+            color: var(--ink-900);
+            background:
+                radial-gradient(circle at 5% 0%, #dff1ff 0, rgba(223, 241, 255, 0.15) 32%, transparent 55%),
+                radial-gradient(circle at 92% 10%, #fff1ce 0, rgba(255, 241, 206, 0.12) 30%, transparent 55%),
+                linear-gradient(160deg, #f1f6ff 0%, #eef5ff 40%, #f7fbff 100%);
         }
+
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 20px;
-            background: #fff;
-            border-bottom: 4px solid #2e63e6;
+            gap: 14px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid var(--line-soft);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 30;
         }
+
         .logo {
             display: flex;
             align-items: center;
             gap: 10px;
+            transition: transform 0.2s ease;
         }
-        .logo-mark {
-            width: 40px;
-            height: 40px;
-            background: #c62828;
-            border-radius: 6px;
+
+        .logo:hover {
+            transform: translateY(-1px);
         }
-        .logo-text {
-            font-size: 22px;
-            font-weight: bold;
-            color: #0f5aa2;
-            line-height: 1.1;
-        }
+
         .user-area {
             display: flex;
             align-items: center;
-            gap: 16px;
-            font-size: 18px;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--ink-700);
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
+
+        .welcome-text {
+            font-weight: 600;
+            color: var(--ink-900);
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: var(--surface-soft);
+            border: 1px solid var(--line-soft);
+        }
+
         .notification-link {
             position: relative;
             text-decoration: none;
-            color: #0f5aa2;
-            font-size: 20px;
+            color: var(--brand-700);
+            font-size: 17px;
             line-height: 1;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+
+        .notification-link:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-soft);
+        }
+
         .notification-count {
             position: absolute;
-            top: -8px;
-            right: -12px;
+            top: -6px;
+            right: -7px;
             min-width: 18px;
             height: 18px;
             padding: 0 4px;
             border-radius: 999px;
-            background: #d12020;
+            background: var(--danger-600);
             color: #fff;
             font-size: 11px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            font-weight: 700;
+            border: 1px solid #fff;
         }
+
         .pill-btn {
-            padding: 10px 18px;
-            border-radius: 24px;
-            border: 1px solid #ccc;
-            background: #f7f7f7;
+            padding: 9px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--line-strong);
+            background: var(--surface-soft);
             cursor: pointer;
             text-decoration: none;
             color: inherit;
@@ -76,39 +133,62 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 13px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
         }
+
         .pill-btn.icon-btn {
-            width: 24px;
-            height: 24px;
+            width: 38px;
+            height: 38px;
             padding: 0;
-            border: 0;
-            background: transparent;
+            border-radius: 10px;
         }
+
         .pill-btn.icon-btn svg {
             width: 20px;
             height: 20px;
             display: block;
         }
-        .pill-btn:hover { background: #eee; }
+
+        .pill-btn:hover {
+            background: #fff;
+            border-color: #9fbcde;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-soft);
+        }
+
         .layout {
             display: grid;
-            grid-template-columns: 240px 1fr;
-            min-height: calc(100vh - 64px);
+            grid-template-columns: 280px minmax(0, 1fr);
+            min-height: calc(100vh - 71px);
+            gap: 20px;
+            padding: 20px;
         }
+
         .sidebar {
-            background: #65a4f6;
-            color: #0f2c57;
+            background: linear-gradient(180deg, var(--sidebar-start), var(--sidebar-end));
+            color: #e6f2ff;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            box-shadow: var(--shadow-soft);
+            position: sticky;
+            top: 92px;
+            height: fit-content;
         }
+
         .sidebar-title {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             color: #fff;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             width: 100%;
         }
+
         .sidebar-toggle {
             display: flex;
             align-items: center;
@@ -116,18 +196,22 @@
             width: 100%;
             gap: 12px;
             margin: 0;
-            padding: 10px 12px;
-            background: none;
-            border:none;
-            border-bottom: 3px solid rgba(86, 78, 78, 0.35);
+            padding: 11px 12px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
             color: inherit;
             font: inherit;
             cursor: pointer;
+            font-weight: 700;
+            transition: background 0.2s ease, transform 0.2s ease;
         }
+
         .sidebar-toggle:hover {
-            background: rgba(255, 255, 255, 0.22);
-            border-color: rgba(255, 255, 255, 0.55);
+            background: rgba(255, 255, 255, 0.16);
+            transform: translateY(-1px);
         }
+
         .sidebar-toggle .chevron {
             display: inline-flex;
             align-items: center;
@@ -138,76 +222,237 @@
             font-weight: 700;
             font-size: 16px;
         }
+
         .sidebar-toggle .label {
-            margin-left: 8px;
+            margin-left: 2px;
         }
+
         .nav-list {
             list-style: none;
             padding: 0;
-            margin: 0;
-            color: #0f2c57;
-            font-size: 16px;
-            line-height: 1.8;
+            margin: 10px 0 0;
+            color: #d8e9ff;
+            font-size: 14px;
+            line-height: 1.4;
+            display: grid;
+            gap: 6px;
         }
+
         .nav-link {
-            display: inline-block;
+            display: inline-flex;
             width: 100%;
-            padding: 2px 6px;
+            padding: 10px 12px;
             color: inherit;
             text-decoration: none;
-            border-radius: 6px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+            font-weight: 500;
         }
+
         .nav-link:hover {
-            background: rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.24);
+            transform: translateX(2px);
         }
+
+        .nav-link.is-active {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.38);
+            color: #fff;
+            font-weight: 700;
+        }
+
         .nav-list.is-collapsed {
             display: none;
         }
-        .nav-list li { padding-left: 8px; }
-        .content {
-            background: #fff;
-            padding: 0 24px 24px;
+
+        .nav-list li {
+            padding-left: 0;
         }
+
+        .content {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            padding: 0 24px 24px;
+            min-width: 0;
+            animation: panel-in 0.35s ease;
+        }
+
+        .content > * {
+            animation: content-rise 0.35s ease;
+        }
+
+        .content h1,
+        .content h2,
+        .content h3 {
+            color: var(--ink-900);
+            letter-spacing: -0.02em;
+        }
+
         .tabs {
             display: flex;
             align-items: center;
-            gap: 20px;
-            padding: 16px 0 8px;
-            border-bottom: 2px solid #b8b8b8;
+            gap: 14px;
+            padding: 16px 0 12px;
+            border-bottom: 1px solid var(--line-soft);
+            flex-wrap: wrap;
         }
+
         .tab {
-            font-size: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 999px;
+            border: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+            padding: 8px 13px;
             cursor: pointer;
         }
+
         .actions {
             margin-left: auto;
             display: flex;
-            gap: 16px;
-            font-size: 24px;
+            gap: 10px;
+            font-size: 18px;
         }
+
         .action-icon {
-            color: inherit;
+            color: var(--brand-700);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+
         .action-icon:hover {
-            background: #f0f2f8;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-soft);
+            background: #fff;
         }
+
         .main-card {
             margin-top: 24px;
-            border: 2px solid #9a9a9a;
-            background: #e4e4e4;
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-md);
+            background: #f6faff;
             min-height: 420px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            color: #2b2b2b;
+            font-size: clamp(22px, 2vw, 34px);
+            color: var(--ink-700);
+            font-weight: 700;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .content input,
+        .content select,
+        .content textarea {
+            border: 1px solid var(--line-strong);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-family: inherit;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .content input:focus,
+        .content select:focus,
+        .content textarea:focus {
+            outline: none;
+            border-color: #8bb3e8;
+            box-shadow: 0 0 0 3px rgba(94, 160, 242, 0.18);
+        }
+
+        .content button,
+        .content .btn {
+            border: 1px solid var(--brand-700);
+            background: linear-gradient(180deg, #0d67db, var(--brand-700));
+            color: #fff;
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .content button:hover,
+        .content .btn:hover {
+            filter: brightness(1.03);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .content a {
+            color: var(--brand-700);
+        }
+
+        @keyframes panel-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes content-rise {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .layout {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                padding: 14px;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                padding: 10px 12px;
+            }
+
+            .logo img {
+                width: 110px;
+                height: auto;
+            }
+
+            .user-area {
+                gap: 8px;
+                font-size: 13px;
+            }
+
+            .welcome-text {
+                width: 100%;
+                text-align: center;
+            }
+
+            .content {
+                padding: 0 14px 18px;
+            }
         }
     </style>
 </head>
@@ -220,7 +465,7 @@
             <img src="{{ asset('images/tunku-abdul-rahman-university-of-management-and-technology-tar-umt.png') }}" alt="Logo" width="140">
         </a>
         <div class="user-area">
-            <span>@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'User'))</span>
+            <span class="welcome-text">@yield('welcome_text', 'Welcome, ' . (auth()->user()->name ?? 'User'))</span>
             <a href="{{ route('profile') }}" class="pill-btn icon-btn" title="Profile" aria-label="Profile">
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.3 0-6 2.1-6 4.6 0 .8.7 1.4 1.5 1.4h9c.8 0 1.5-.6 1.5-1.4C18 16.1 15.3 14 12 14Z" fill="currentColor"/>
@@ -243,20 +488,20 @@
             <div class="sidebar-title">
                 <button class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="event-nav">
                     <span class="label">Event</span>
-                    <span class="chevron">►</span>
+                    <span class="chevron">&#9654;</span>
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
-                <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
-                <li><a class="nav-link" href="{{ route('user.event-posting') }}">- Event Posting</a></li>
-                <li><a class="nav-link" href="{{ route('user.recruitment') }}">- Recruitment</a></li>
-                <li><a class="nav-link" href="{{ route('user.calendar') }}">- Calendar</a></li>
-                <li><a class="nav-link" href="{{ route('user.location') }}">- Location</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
-                <li><a class="nav-link" href="{{ route('user.live-stream') }}">- Live Stream</a></li>
-                <li><a class="nav-link" href="{{ route('user.lucky-draw') }}">- Lucky Draw</a></li>
-                <li><a class="nav-link" href="{{ route('user.attendance') }}">- Event Attendance</a></li>
+                <li><a class="nav-link {{ request()->routeIs('buddy-programme') ? 'is-active' : '' }}" href="{{ route('buddy-programme') }}">Buddy Programme</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.event-posting*') ? 'is-active' : '' }}" href="{{ route('user.event-posting') }}">Event Posting</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.recruitment*') ? 'is-active' : '' }}" href="{{ route('user.recruitment') }}">Recruitment</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.calendar') ? 'is-active' : '' }}" href="{{ route('user.calendar') }}">Calendar</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.location') ? 'is-active' : '' }}" href="{{ route('user.location') }}">Location</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.feedback.*') ? 'is-active' : '' }}" href="{{ route('user.feedback.index') }}">Feedback</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.tickets.*') ? 'is-active' : '' }}" href="{{ route('user.tickets.index') }}">E-Ticket</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.live-stream') ? 'is-active' : '' }}" href="{{ route('user.live-stream') }}">Live Stream</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.lucky-draw') ? 'is-active' : '' }}" href="{{ route('user.lucky-draw') }}">Lucky Draw</a></li>
+                <li><a class="nav-link {{ request()->routeIs('user.attendance') ? 'is-active' : '' }}" href="{{ route('user.attendance') }}">Event Attendance</a></li>
             </ul>
         </aside>
         <main class="content">
@@ -276,7 +521,7 @@
             sidebarToggle.setAttribute('aria-expanded', String(startExpanded));
             eventNav.classList.toggle('is-collapsed', !startExpanded);
             if (chevron) {
-                chevron.textContent = startExpanded ? '▼' : '►';
+                chevron.textContent = startExpanded ? '\u25BC' : '\u25B6';
             }
 
             sidebarToggle.onclick = () => {
@@ -285,7 +530,7 @@
                 sidebarToggle.setAttribute('aria-expanded', String(nextExpanded));
                 eventNav.classList.toggle('is-collapsed', !nextExpanded);
                 if (chevron) {
-                    chevron.textContent = nextExpanded ? '▼' : '►';
+                    chevron.textContent = nextExpanded ? '\u25BC' : '\u25B6';
                 }
                 localStorage.setItem('eventNavExpanded', String(nextExpanded));
             };
