@@ -369,7 +369,10 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
 
     // Moderation notifications for current user
     Route::get('/moderation-notices', function () {
-        $user = auth()->user();
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            abort(403);
+        }
         $notices = $user->unreadNotifications()
             ->where('type', \App\Notifications\ModerationActionNotification::class)
             ->get()
@@ -382,7 +385,10 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
     })->name('moderation.notices');
 
     Route::post('/moderation-notices/{id}/read', function (string $id) {
-        $user = auth()->user();
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            abort(403);
+        }
         $notification = $user->notifications()->where('id', $id)->first();
         if ($notification) {
             $notification->markAsRead();
