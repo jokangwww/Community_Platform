@@ -240,7 +240,7 @@ export function MatchingDashboard() {
             <button
               onClick={fetchPreview}
               disabled={previewLoading || isRunningMatch}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {previewLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -252,7 +252,7 @@ export function MatchingDashboard() {
             <button
               onClick={runAutoMatch}
               disabled={isRunningMatch}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {isRunningMatch ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

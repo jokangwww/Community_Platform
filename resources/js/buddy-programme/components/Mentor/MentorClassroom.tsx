@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, Upload, Download, Trash2, Plus, X, Clock, CheckCircle, AlertCircle, Award, Users, Loader2, Edit } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Plus, X, Clock, CheckCircle, AlertCircle, Award, Users, Loader2, Edit, Star } from 'lucide-react';
 
 interface StudyMaterial {
   id: string;
@@ -41,6 +41,7 @@ interface Assignment {
   title: string;
   description: string;
   dueDate: string;
+  totalMarks?: number;
   attachments: string[];
   createdDate: string;
 }
@@ -131,6 +132,13 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
   const [viewingAssignment, setViewingAssignment] = useState<Assignment | null>(null);
   const [assignmentSubmissions, setAssignmentSubmissions] = useState<AssignmentSubmission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [currentAssignmentTotalMarks, setCurrentAssignmentTotalMarks] = useState<number>(0);
+
+  // Grading state
+  const [gradingSubmission, setGradingSubmission] = useState<AssignmentSubmission | null>(null);
+  const [gradeMarks, setGradeMarks] = useState<number>(0);
+  const [gradeFeedback, setGradeFeedback] = useState<string>('');
+  const [savingGrade, setSavingGrade] = useState(false);
 
   // Fetch classroom data
   const fetchClassroomData = useCallback(async () => {
@@ -516,10 +524,49 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
       }
       const data = await response.json();
       setAssignmentSubmissions(data.submissions || []);
+      if (data.assignment?.totalMarks !== undefined) {
+        setCurrentAssignmentTotalMarks(data.assignment.totalMarks);
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to fetch submissions');
     } finally {
       setLoadingSubmissions(false);
+    }
+  };
+
+  const handleGradeSubmission = async () => {
+    if (!gradingSubmission || !viewingAssignment) return;
+    try {
+      setSavingGrade(true);
+      const response = await fetch(
+        `/api/buddy/classroom/${matchId}/assignments/${viewingAssignment.id}/submissions/${gradingSubmission.id}/grade`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          },
+          body: JSON.stringify({ marks: gradeMarks, feedback: gradeFeedback }),
+        }
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to save grade');
+      }
+      const data = await response.json();
+      // Update in-place
+      setAssignmentSubmissions(prev =>
+        prev.map(s =>
+          s.id === gradingSubmission.id
+            ? { ...s, marks: data.submission.marks, feedback: data.submission.feedback }
+            : s
+        )
+      );
+      setGradingSubmission(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save grade');
+    } finally {
+      setSavingGrade(false);
     }
   };
 
@@ -541,7 +588,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchClassroomData}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
         >
           Try Again
         </button>
@@ -570,7 +617,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('materials')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'materials'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -581,7 +628,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           </button>
           <button
             onClick={() => setActiveTab('quizzes')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'quizzes'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -592,7 +639,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           </button>
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'assignments'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -611,7 +658,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
             <h3 className="text-gray-900">Study Materials</h3>
             <button
               onClick={() => setShowMaterialModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Upload Material
@@ -636,7 +683,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                       <div className="flex items-center gap-4 text-gray-500">
                         <button
                           onClick={() => handlePreviewMaterial(material.id, material.fileName)}
-                          className="flex items-center gap-1 text-blue-600 hover:underline"
+                          className="flex items-center gap-1 text-blue-600 hover:underline cursor-pointer"
                         >
                           <FileText className="w-4 h-4" />
                           {material.fileName}
@@ -648,14 +695,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleOpenEditMaterial(material)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                         title="Edit"
                       >
                         <Edit className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteMaterial(material.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                         title="Delete"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -676,7 +723,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
             <h3 className="text-gray-900">Skill Assessment Quizzes</h3>
             <button
               onClick={() => setShowQuizModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Create Quiz
@@ -696,7 +743,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="text-gray-900">{quiz.title}</h4>
-                        <span className={`px-3 py-1 rounded-full ${
+                        <span className={`px-3 py-1 rounded-full cursor-pointer ${
                           quiz.status === 'open' 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
@@ -718,14 +765,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleOpenEditQuiz(quiz)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         <Edit className="w-4 h-4 inline mr-1" />
                         Edit
                       </button>
                       <button
                         onClick={() => handleViewQuizResults(quiz)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         View Results
                       </button>
@@ -745,7 +792,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
             <h3 className="text-gray-900">Assignments</h3>
             <button
               onClick={() => setShowAssignmentModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Create Assignment
@@ -787,7 +834,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                                 <button 
                                   key={index} 
                                   onClick={() => window.open(`api/buddy/classroom/${matchId}/assignments/${assignment.id}/attachment/${encodeURIComponent(file)}`, '_blank')}
-                                  className="flex items-center gap-2 text-blue-600 hover:underline"
+                                  className="flex items-center gap-2 text-blue-600 hover:underline cursor-pointer"
                                 >
                                   <Download className="w-4 h-4" />
                                   {file}
@@ -800,14 +847,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEditAssignment(assignment)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                           <Edit className="w-4 h-4 inline mr-1" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleViewSubmissions(assignment)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                           View Submissions
                         </button>
@@ -891,14 +938,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                   setEditingMaterial(null);
                 }}
                 disabled={uploadingMaterial}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUploadMaterial}
                 disabled={!newMaterial.name || (!editingMaterial && !newMaterial.file) || uploadingMaterial}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
                   newMaterial.name && (editingMaterial || newMaterial.file) && !uploadingMaterial
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -986,7 +1033,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                                     questions: newQuiz.questions.filter((_, i) => i !== index)
                                   });
                                 }}
-                                className="text-blue-600 hover:bg-blue-50 p-1 rounded"
+                                className="text-blue-600 hover:bg-blue-50 p-1 rounded cursor-pointer"
                                 title="Edit"
                               >
                                 <Edit className="w-4 h-4" />
@@ -996,7 +1043,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                                   ...newQuiz,
                                   questions: newQuiz.questions.filter((_, i) => i !== index)
                                 })}
-                                className="text-red-600 hover:bg-red-50 p-1 rounded"
+                                className="text-red-600 hover:bg-red-50 p-1 rounded cursor-pointer"
                                 title="Delete"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1059,7 +1106,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                   <p className="text-gray-600">Select the radio button for the correct answer</p>
                   <button
                     onClick={handleAddQuestion}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                   >
                     Add Question
                   </button>
@@ -1076,14 +1123,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                   setEditingQuiz(null);
                 }}
                 disabled={creatingQuiz}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateQuiz}
                 disabled={!newQuiz.title || newQuiz.questions.length === 0 || creatingQuiz}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
                   newQuiz.title && newQuiz.questions.length > 0 && !creatingQuiz
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1178,14 +1225,14 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                   setEditingAssignment(null);
                 }}
                 disabled={creatingAssignment}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateAssignment}
                 disabled={!newAssignment.title || !newAssignment.description || !newAssignment.dueDate || creatingAssignment}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
                   newAssignment.title && newAssignment.description && newAssignment.dueDate && !creatingAssignment
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1280,7 +1327,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                           <div className="flex items-center gap-3 mb-2">
                             <h5 className="text-gray-900">{submission.studentName}</h5>
                             <span className="text-gray-600">({submission.studentId})</span>
-                            <span className={`px-3 py-1 rounded-full ${
+                            <span className={`px-3 py-1 rounded-full cursor-pointer ${
                               submission.status === 'on-time' 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-red-100 text-red-800'
@@ -1293,7 +1340,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                               <Download className="w-4 h-4" />
                               <button
                                 onClick={() => handlePreviewAssignment(viewingAssignment.id, submission.id, submission.fileName)}
-                                className="text-blue-600 hover:underline"
+                                className="text-blue-600 hover:underline cursor-pointer"
                               >
                                 {submission.fileName}
                               </button>
@@ -1301,11 +1348,35 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                             <span>•</span>
                             <span>Submitted: {submission.submittedDate}</span>
                           </div>
-                          {submission.feedback && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded">
-                              <p className="text-gray-700">Feedback: {submission.feedback}</p>
+                          {submission.marks !== null && submission.marks !== undefined ? (
+                            <div className="mt-2 flex items-center gap-3">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                                <Star className="w-4 h-4" />
+                                {submission.marks} / {currentAssignmentTotalMarks} marks
+                              </span>
+                              {submission.feedback && (
+                                <span className="text-gray-600 text-sm italic">"{submission.feedback}"</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-2">
+                              <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">Not marked yet</span>
                             </div>
                           )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              setGradingSubmission(submission);
+                              setGradeMarks(submission.marks ?? 0);
+                              setGradeFeedback(submission.feedback ?? '');
+                              setShowSubmissionsViewer(false);
+                            }}
+                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-sm"
+                          >
+                            <Star className="w-4 h-4" />
+                            {submission.marks !== null && submission.marks !== undefined ? 'Edit Grade' : 'Grade'}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1322,7 +1393,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                     setViewingAssignment(null);
                     setAssignmentSubmissions([]);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Close
                 </button>
@@ -1331,6 +1402,77 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           </div>
         );
       })()}
+
+      {/* Grading Modal */}
+      {gradingSubmission && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]"
+          onClick={() => !savingGrade && setGradingSubmission(null)}
+        >
+          <div
+            className="bg-white rounded-xl max-w-md w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-gray-900 mb-1">Mark Submission</h3>
+            <p className="text-gray-600 text-sm mb-4">
+              {gradingSubmission.studentName} &mdash; {gradingSubmission.studentId}
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-700 text-sm">{gradingSubmission.fileName}</span>
+              <button
+                onClick={() => handlePreviewAssignment(viewingAssignment!.id, gradingSubmission.id, gradingSubmission.fileName)}
+                className="ml-auto text-blue-600 text-sm hover:underline cursor-pointer"
+              >
+                Preview
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-gray-700 mb-1">Marks (out of {currentAssignmentTotalMarks}) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={currentAssignmentTotalMarks}
+                  value={gradeMarks}
+                  onChange={e => setGradeMarks(Math.min(currentAssignmentTotalMarks, Math.max(0, Number(e.target.value))))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 mb-1">Feedback (Optional)</label>
+                <textarea
+                  value={gradeFeedback}
+                  onChange={e => setGradeFeedback(e.target.value)}
+                  rows={3}
+                  placeholder="Write feedback for the mentee..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setGradingSubmission(null)}
+                disabled={savingGrade}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGradeSubmission}
+                disabled={savingGrade}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {savingGrade && <Loader2 className="w-4 h-4 animate-spin" />}
+                {savingGrade ? 'Saving...' : 'Save Grade'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* View Quiz Results Modal */}
       {viewingQuizResults && (
@@ -1421,7 +1563,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                           <span>•</span>
                           <span>Completed: {attempt.completedDate}</span>
                         </div>
-                        <div className={`inline-block px-3 py-1 rounded-full ${
+                        <div className={`inline-block px-3 py-1 rounded-full cursor-pointer ${
                           (attempt.score / attempt.totalMarks) >= 0.7 
                             ? 'bg-green-100 text-green-800' 
                             : (attempt.score / attempt.totalMarks) >= 0.5
@@ -1446,7 +1588,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                   setViewingQuizResults(null);
                   setQuizAttempts([]);
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Close
               </button>

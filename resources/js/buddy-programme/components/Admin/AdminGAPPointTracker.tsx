@@ -108,7 +108,7 @@ export function AdminGAPPointTracker() {
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchAttendanceData}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
         >
           Retry
         </button>
@@ -177,7 +177,7 @@ export function AdminGAPPointTracker() {
             <button
               onClick={() => setShowPreview(true)}
               disabled={attendanceData.length === 0}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
                 attendanceData.length === 0 
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                   : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -189,7 +189,7 @@ export function AdminGAPPointTracker() {
             <button
               onClick={downloadEligibilityReport}
               disabled={exporting || attendanceData.length === 0}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
                 attendanceData.length === 0 
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                   : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -237,7 +237,7 @@ export function AdminGAPPointTracker() {
                     <td className="py-3 px-4 text-gray-900">{student.name}</td>
                     <td className="py-3 px-4 text-gray-600">{student.studentId}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded ${
+                      <span className={`px-2 py-1 rounded cursor-pointer ${
                         student.role === 'mentor' 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-purple-100 text-purple-800'
@@ -251,7 +251,7 @@ export function AdminGAPPointTracker() {
                       {student.attendedSessions} / {student.totalSessions}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-3 py-1 rounded ${
+                      <span className={`px-3 py-1 rounded cursor-pointer ${
                         student.attendanceRate >= 80
                           ? 'bg-green-100 text-green-800'
                           : student.attendanceRate >= 70
@@ -296,7 +296,7 @@ export function AdminGAPPointTracker() {
               <h3 className="text-gray-900">GAP Point Submission Report Preview</h3>
               <button
                 onClick={() => setShowPreview(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 cursor-pointer"
               >
                 <XCircle className="w-6 h-6" />
               </button>

@@ -59,6 +59,7 @@ class User extends Authenticatable
         'appealed_at',
         'appeal_reviewed_at',
         'bio',
+        'muted_until',
     ];
 
     /**
@@ -84,6 +85,7 @@ class User extends Authenticatable
             'banned_at' => 'datetime',
             'appealed_at' => 'datetime',
             'appeal_reviewed_at' => 'datetime',
+            'muted_until' => 'datetime',
             'password' => 'hashed',
         ];
     }

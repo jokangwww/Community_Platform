@@ -204,7 +204,7 @@ export function TestimonialGenerator({ mentorStats, isEligible, isApproved = fal
             </p>
             <div className="space-y-2 text-gray-700">
               <div className="flex items-center gap-2">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center cursor-pointer ${
                   mentorStats.attendanceRate >= 80 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                 }`}>
                   {mentorStats.attendanceRate >= 80 ? '✓' : '✗'}
@@ -212,7 +212,7 @@ export function TestimonialGenerator({ mentorStats, isEligible, isApproved = fal
                 <span>Minimum 80% attendance (Current: {mentorStats.attendanceRate}%)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center cursor-pointer ${
                   mentorStats.totalSessions >= 10 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                 }`}>
                   {mentorStats.totalSessions >= 10 ? '✓' : '✗'}
@@ -264,7 +264,7 @@ export function TestimonialGenerator({ mentorStats, isEligible, isApproved = fal
             </p>
             <button
               onClick={downloadTestimonial}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
             >
               <Download className="w-4 h-4 inline mr-2" />
               Download PDF

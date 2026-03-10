@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, Upload, Download, Clock, CheckCircle, AlertCircle, Award, Loader2, X } from 'lucide-react';
+import { FileText, Upload, Download, Clock, CheckCircle, AlertCircle, Award, Loader2, X, Star } from 'lucide-react';
 
 interface StudyMaterial {
   id: string;
@@ -266,7 +266,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchClassroomData}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
         >
           Try Again
         </button>
@@ -289,7 +289,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('materials')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'materials'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -300,7 +300,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
           </button>
           <button
             onClick={() => setActiveTab('quizzes')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'quizzes'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -311,7 +311,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
           </button>
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'assignments'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -348,7 +348,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                       <div className="flex items-center gap-4 text-gray-500">
                         <button
                           onClick={() => handlePreviewMaterial(material.id, material.fileName)}
-                          className="flex items-center gap-1 text-blue-600 hover:underline"
+                          className="flex items-center gap-1 text-blue-600 hover:underline cursor-pointer"
                         >
                           <FileText className="w-4 h-4" />
                           {material.fileName}
@@ -386,7 +386,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="text-gray-900">{quiz.title}</h4>
-                          <span className={`px-3 py-1 rounded-full ${
+                          <span className={`px-3 py-1 rounded-full cursor-pointer ${
                             (quiz as any).hasAttempted
                               ? 'bg-blue-100 text-blue-800'
                               : quiz.status === 'open' 
@@ -411,7 +411,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                         {quiz.status === 'open' && !((quiz as any).hasAttempted) ? (
                           <button
                             onClick={() => handleStartQuiz(quiz)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                           >
                             Start Quiz
                           </button>
@@ -425,7 +425,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                                 setQuizResult(attempt);
                               }
                             }}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors cursor-pointer"
                           >
                             View Details
                           </button>
@@ -456,7 +456,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                 {takingQuiz?.questions.map((q, index) => {
                   const isCorrect = quizAnswers[index] === q.correctAnswer;
                   return (
-                    <div key={q.id} className={`border rounded-lg p-4 ${
+                    <div key={q.id} className={`border rounded-lg p-4 cursor-pointer ${
                       isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
                     }`}>
                       <div className="flex items-start gap-2 mb-3">
@@ -471,7 +471,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                             {q.options.map((option, optIndex) => (
                               <div
                                 key={optIndex}
-                                className={`p-2 rounded ${
+                                className={`p-2 rounded cursor-pointer ${
                                   optIndex === q.correctAnswer
                                     ? 'bg-green-100 text-green-800'
                                     : optIndex === quizAnswers[index] && !isCorrect
@@ -498,7 +498,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                   setQuizResult(null);
                   setQuizAnswers([]);
                 }}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 Back to Quizzes
               </button>
@@ -551,14 +551,14 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                     setQuizAnswers([]);
                   }}
                   disabled={submittingQuiz}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSubmitQuiz}
                   disabled={quizAnswers.some(a => a === -1) || submittingQuiz}
-                  className={`flex-1 px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
                     quizAnswers.some(a => a === -1) || submittingQuiz
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
@@ -617,7 +617,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                                 <button 
                                   key={index} 
                                   onClick={() => window.open(`/api/buddy/classroom/${matchId}/assignments/${assignment.id}/attachment/${encodeURIComponent(file)}`, '_blank')}
-                                  className="flex items-center gap-2 text-blue-600 hover:underline"
+                                  className="flex items-center gap-2 text-blue-600 hover:underline cursor-pointer"
                                 >
                                   <Download className="w-4 h-4" />
                                   {file}
@@ -634,7 +634,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                               setSelectedAssignment(assignment);
                               setShowSubmissionModal(true);
                             }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                           >
                             Submit Assignment
                           </button>
@@ -644,7 +644,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                               setViewingAssignment(assignment);
                               setShowAssignmentDetailsModal(true);
                             }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 cursor-pointer"
                           >
                             <CheckCircle className="w-4 h-4" />
                             View Details
@@ -702,14 +702,14 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                   setSubmissionFile(null);
                 }}
                 disabled={submittingAssignment}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmitAssignment}
                 disabled={!submissionFile || submittingAssignment}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
                   submissionFile && !submittingAssignment
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -788,7 +788,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                       alert('Failed to preview file');
                     }
                   }}
-                  className="text-blue-600 hover:underline text-sm mt-1 flex items-center gap-1"
+                  className="text-blue-600 hover:underline text-sm mt-1 flex items-center gap-1 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   {(viewingAssignment as any).submission.fileName}
@@ -796,6 +796,32 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
               )}
             </div>
 
+            {/* Marks & Feedback Section */}
+            {(viewingAssignment as any).submission?.marks !== null &&
+             (viewingAssignment as any).submission?.marks !== undefined ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-gray-900">Grade</h4>
+                </div>
+                <p className="text-blue-900 font-semibold text-lg">
+                  {(viewingAssignment as any).submission.marks} / {viewingAssignment.totalMarks ?? (viewingAssignment as any).totalMarks} marks
+                </p>
+                {(viewingAssignment as any).submission?.feedback && (
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <p className="text-gray-600 text-sm font-medium">Mentor's Feedback:</p>
+                    <p className="text-gray-700 text-sm mt-1 italic">"{(viewingAssignment as any).submission.feedback}"</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <p className="text-amber-800 text-sm">Not marked yet. Your mentor will review and grade your submission.</p>
+              </div>
+            )}
+
+            {((viewingAssignment as any).submission?.marks === null || (viewingAssignment as any).submission?.marks === undefined) ? (
             <div className="space-y-3 mb-6">
               {/* <button
                 onClick={async () => {
@@ -808,7 +834,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                     alert('Failed to download submission');
                   }
                 }}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 Download Submission
@@ -820,7 +846,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                   setSelectedAssignment(viewingAssignment);
                   setShowSubmissionModal(true);
                 }}
-                className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Upload className="w-4 h-4" />
                 Reupload Submission
@@ -856,16 +882,17 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                     alert(err instanceof Error ? err.message : 'Failed to remove submission');
                   }
                 }}
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <X className="w-4 h-4" />
                 Remove Submission
               </button>
             </div>
+            ) : null}
 
             <button
               onClick={() => setShowAssignmentDetailsModal(false)}
-              className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Close
             </button>

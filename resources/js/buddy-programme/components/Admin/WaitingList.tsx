@@ -75,7 +75,7 @@ export function WaitingList() {
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchWaitingList}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
         >
           Retry
         </button>

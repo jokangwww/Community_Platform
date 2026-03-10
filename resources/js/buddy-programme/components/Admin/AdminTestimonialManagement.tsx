@@ -145,7 +145,7 @@ export function AdminTestimonialManagement() {
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchTestimonials}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
         >
           Retry
         </button>
@@ -205,7 +205,7 @@ export function AdminTestimonialManagement() {
                       <h4 className="text-gray-900">{testimonial.mentorName}</h4>
                       <p className="text-gray-600">{testimonial.mentorId}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded ${
+                    <span className={`px-3 py-1 rounded cursor-pointer ${
                       testimonial.status === 'approved' 
                         ? 'bg-green-100 text-green-800'
                         : testimonial.status === 'rejected'
@@ -241,7 +241,7 @@ export function AdminTestimonialManagement() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedTestimonial(testimonial)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 cursor-pointer"
                   >
                     <Eye className="w-4 h-4" />
                     Review
@@ -250,13 +250,13 @@ export function AdminTestimonialManagement() {
                     <>
                       <button
                         onClick={() => approveTestimonial(testimonial.id)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
                       >
                         <CheckCircle className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => rejectTestimonial(testimonial.id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" />
                       </button>
@@ -284,7 +284,7 @@ export function AdminTestimonialManagement() {
               <h3 className="text-gray-900">Testimonial Preview</h3>
               <button
                 onClick={() => setSelectedTestimonial(null)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 cursor-pointer"
               >
                 <XCircle className="w-6 h-6" />
               </button>
@@ -355,14 +355,14 @@ export function AdminTestimonialManagement() {
                   <button
                     onClick={() => rejectTestimonial(selectedTestimonial.id)}
                     disabled={processing}
-                    className="px-6 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {processing ? 'Processing...' : 'Reject'}
                   </button>
                   <button
                     onClick={() => approveTestimonial(selectedTestimonial.id)}
                     disabled={processing}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {processing ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
