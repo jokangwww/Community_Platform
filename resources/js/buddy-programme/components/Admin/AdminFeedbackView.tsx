@@ -108,7 +108,7 @@ export function AdminFeedbackView() {
         <p className="text-red-800">{error}</p>
         <button
           onClick={fetchEvaluations}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
         >
           Retry
         </button>
@@ -192,7 +192,7 @@ export function AdminFeedbackView() {
           <button
             onClick={exportReport}
             disabled={exporting || feedbackRecords.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {exporting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -233,7 +233,7 @@ export function AdminFeedbackView() {
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
                       key={star}
-                      className={`w-4 h-4 ${
+                      className={`w-4 h-4 cursor-pointer ${
                         star <= record.rating
                           ? 'fill-amber-400 text-amber-400'
                           : 'text-gray-300'

@@ -193,7 +193,7 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => setSelectedMentor(mentor)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <Eye className="w-4 h-4" />
                     View Details
@@ -219,7 +219,7 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
               <h2 className="text-gray-900">Mentor Application Details</h2>
               <button
                 onClick={() => setSelectedMentor(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -281,7 +281,7 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
                   </div>
                   <button 
                     onClick={() => handleDownloadDocument(selectedMentor.id)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     Download
@@ -294,7 +294,7 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
               <button
                 onClick={() => handleApprove(selectedMentor.id)}
                 disabled={actionLoading === selectedMentor.id}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading === selectedMentor.id ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -306,7 +306,7 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
               <button
                 onClick={() => handleReject(selectedMentor.id)}
                 disabled={actionLoading === selectedMentor.id}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading === selectedMentor.id ? (
                   <Loader2 className="w-5 h-5 animate-spin" />

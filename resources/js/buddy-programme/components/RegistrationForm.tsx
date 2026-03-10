@@ -54,7 +54,13 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectCode, setNewSubjectCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [skillSearch, setSkillSearch] = useState('');
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false);
+  const [showAddNewSkill, setShowAddNewSkill] = useState(false);
+  const [newSkillName, setNewSkillName] = useState('');
+  const [isCreatingSkill, setIsCreatingSkill] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const skillSearchRef = useRef<HTMLDivElement>(null);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,7 +75,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
         const response = await fetch('/api/buddy/skills');
         if (response.ok) {
           const data = await response.json();
-          setSkills(data);
+          setSkills(data.data || []);
         }
       } catch (error) {
         console.error('Failed to fetch skills:', error);
@@ -78,11 +84,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     fetchSkills();
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+      }
+      if (skillSearchRef.current && !skillSearchRef.current.contains(event.target as Node)) {
+        setShowSkillDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -99,10 +108,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/buddy/subjects/search?q=${encodeURIComponent(searchQuery)}`);
+        const response = await fetch(`/api/buddy/subjects/search?q=${encodeURIComponent(searchQuery)}&type=subject`);
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data);
+          setSearchResults(data.data || []);
           setShowDropdown(true);
         }
       } catch (error) {
@@ -177,9 +186,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
       });
 
       if (response.ok) {
-        const newSubject = await response.json();
+        const result = await response.json();
+        const newSubject = result.data || result;
         setSelectedSubject(newSubject);
-        setSearchQuery(newSubject.display_name);
+        setSearchQuery(newSubject.display_name || newSubject.name);
         setShowAddNew(false);
         setNewSubjectName('');
         setNewSubjectCode('');
@@ -191,6 +201,47 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
       setApiError('Failed to create subject');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleCreateNewSkill = async () => {
+    if (!newSkillName.trim()) return;
+
+    setIsCreatingSkill(true);
+    try {
+      const response = await fetch('/api/buddy/subjects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({
+          name: newSkillName.trim(),
+          code: null,
+          type: 'skill',
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const newSkill: Skill = {
+          id: (result.data || result).id,
+          name: newSkillName.trim(),
+          type: 'skill',
+        };
+        setSelectedSkill(newSkill);
+        setSkillSearch(newSkillName.trim());
+        setSkills(prev => [...prev, newSkill]);
+        setShowAddNewSkill(false);
+        setNewSkillName('');
+      } else {
+        const error = await response.json();
+        setApiError(error.message || 'Failed to create skill');
+      }
+    } catch (error) {
+      setApiError('Failed to create skill');
+    } finally {
+      setIsCreatingSkill(false);
     }
   };
 
@@ -379,7 +430,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
           {/* <button
             onClick={onBack}
-            className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
           >
             Back to Role Selection
           </button> */}
@@ -392,7 +443,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     <div className="max-w-3xl mx-auto">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Role Selection
@@ -418,7 +469,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                   errors.fullName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your full name"
@@ -440,7 +491,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.studentId}
                   onChange={(e) => handleInputChange('studentId', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.studentId ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 24WMR00123"
@@ -464,7 +515,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   max="4.0"
                   value={formData.cgpa}
                   onChange={(e) => handleInputChange('cgpa', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.cgpa ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 4.00"
@@ -489,7 +540,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               <select
                 value={formData.faculty}
                 onChange={(e) => handleInputChange('faculty', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                   errors.faculty ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -515,7 +566,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.course}
                   onChange={(e) => handleInputChange('course', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.course ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Computer Science"
@@ -535,7 +586,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 <select
                   value={formData.yearOfStudy}
                   onChange={(e) => handleInputChange('yearOfStudy', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
                     errors.yearOfStudy ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -591,8 +642,9 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 onClick={() => {
                   setSelectionType('subject');
                   setSelectedSkill(null);
+                  setErrors(prev => { const e = {...prev}; delete e.subject; return e; });
                 }}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 font-medium border-b-2 transition-colors cursor-pointer ${
                   selectionType === 'subject'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -606,8 +658,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   setSelectionType('skill');
                   setSelectedSubject(null);
                   setSearchQuery('');
+                  setSkillSearch('');
+                  setErrors(prev => { const e = {...prev}; delete e.subject; return e; });
                 }}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 font-medium border-b-2 transition-colors cursor-pointer ${
                   selectionType === 'skill'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -619,30 +673,33 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
             {/* Subject Search (Autocomplete) */}
             {selectionType === 'subject' && (
-              <div ref={searchRef} className="relative">
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setSelectedSubject(null);
-                    }}
-                    onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              <div ref={searchRef} style={{ position: 'relative' }}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af', width: '16px', height: '16px' }} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSelectedSubject(null);
+                      }}
+                      onFocus={() => (searchQuery?.length ?? 0) >= 2 && setShowDropdown(true)}
+                    className={`w-full h-11 pr-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.subject ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Search by subject name or code (e.g., BMCS2203 Data Structures)"
-                  />
-                  {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 animate-spin" />
-                  )}
+                    style={{ paddingLeft: '2.5rem' }}
+                      placeholder="Search by subject name or code (e.g., BMCS2203 Data Structures)"
+                    />
+                    {isSearching && (
+                      <Loader2 style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', width: '16px', height: '16px' }} className="animate-spin" />
+                    )}
+                  </div>
                 </div>
 
                 {/* Search Results Dropdown */}
                 {showDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: '4px' }} className="w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {searchResults.length > 0 ? (
                       <>
                         {searchResults.map((subject) => (
@@ -650,7 +707,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                             key={subject.id}
                             type="button"
                             onClick={() => handleSelectSubject(subject)}
-                            className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center justify-between"
+                            className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center justify-between cursor-pointer"
                           >
                             <span>{subject.display_name}</span>
                             {subject.code && (
@@ -661,7 +718,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                         <button
                           type="button"
                           onClick={handleAddNewSubject}
-                          className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2 cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
                           Add "{searchQuery}" as new subject
@@ -671,7 +728,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                       <button
                         type="button"
                         onClick={handleAddNewSubject}
-                        className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
                         Add "{searchQuery}" as new subject
@@ -695,7 +752,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                         setSelectedSubject(null);
                         setSearchQuery('');
                       }}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-600 hover:text-blue-800 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -732,7 +789,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                           type="button"
                           onClick={handleCreateNewSubject}
                           disabled={isCreating || !newSubjectName.trim()}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                         >
                           {isCreating ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -748,7 +805,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                             setNewSubjectName('');
                             setNewSubjectCode('');
                           }}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -759,28 +816,140 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               </div>
             )}
 
-            {/* Skill Selection (Radio Buttons) */}
+            {/* Skill Selection (Autocomplete — mirrors Subject search) */}
             {selectionType === 'skill' && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {skills.map((skill) => (
-                  <label
-                    key={skill.id}
-                    className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedSkill?.id === skill.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+              <div ref={skillSearchRef} style={{ position: 'relative' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af', width: '16px', height: '16px' }} />
+                  <input
+                    type="text"
+                    value={skillSearch}
+                    onChange={(e) => {
+                      setSkillSearch(e.target.value);
+                      setSelectedSkill(null);
+                      setShowSkillDropdown(e.target.value.length >= 2);
+                    }}
+                    onFocus={() => skillSearch.length >= 2 && setShowSkillDropdown(true)}
+                    className={`w-full h-11 pr-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.subject ? 'border-red-500' : 'border-gray-300'
                     }`}
-                  >
-                    <input
-                      type="radio"
-                      name="skill"
-                      checked={selectedSkill?.id === skill.id}
-                      onChange={() => handleSelectSkill(skill)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-700">{skill.name}</span>
-                  </label>
-                ))}
+                    style={{ paddingLeft: '2.5rem' }}
+                    placeholder="Search by skill name (e.g., Time Management)"
+                  />
+                </div>
+
+                {/* Skill Dropdown */}
+                {showSkillDropdown && (
+                  <div style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: '4px' }} className="w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {skills.filter(s => s.name.toLowerCase().includes(skillSearch.toLowerCase())).length > 0 ? (
+                      <>
+                        {skills
+                          .filter(s => s.name.toLowerCase().includes(skillSearch.toLowerCase()))
+                          .map(skill => (
+                            <button
+                              key={skill.id}
+                              type="button"
+                              onClick={() => {
+                                handleSelectSkill(skill);
+                                setSkillSearch(skill.name);
+                                setShowSkillDropdown(false);
+                              }}
+                              className="w-full px-4 py-2 text-left hover:bg-blue-50 cursor-pointer"
+                            >
+                              {skill.name}
+                            </button>
+                          ))
+                        }
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddNewSkill(true);
+                            setNewSkillName(skillSearch);
+                            setShowSkillDropdown(false);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add "{skillSearch}" as new skill
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddNewSkill(true);
+                          setNewSkillName(skillSearch);
+                          setShowSkillDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add "{skillSearch}" as new skill
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Selected Skill Chip */}
+                {selectedSkill && (
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <span className="font-medium text-blue-900">{selectedSkill.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSkill(null);
+                        setSkillSearch('');
+                      }}
+                      className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Add New Skill Form */}
+                {showAddNewSkill && (
+                  <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h4 className="font-medium text-gray-900 mb-3">Add New Skill</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-1">Skill Name *</label>
+                        <input
+                          type="text"
+                          value={newSkillName}
+                          onChange={(e) => setNewSkillName(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., Communication Skills"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCreateNewSkill}
+                          disabled={isCreatingSkill || !newSkillName.trim()}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                        >
+                          {isCreatingSkill ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                          Add Skill
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddNewSkill(false);
+                            setNewSkillName('');
+                          }}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             
@@ -842,7 +1011,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   <button
                     type="button"
                     onClick={() => setUploadedFile(null)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -873,14 +1042,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               type="button"
               onClick={onBack}
               disabled={isLoading}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
               {isLoading ? (
                 <>

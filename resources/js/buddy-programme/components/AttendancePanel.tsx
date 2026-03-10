@@ -216,7 +216,7 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
         </div>
         <button
           onClick={fetchSessions}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
         >
           Retry
         </button>
@@ -300,7 +300,7 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
                     <button
                       onClick={() => handleCheckIn(session.id)}
                       disabled={submitting && selectedSessionId === session.id}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                     >
                       {submitting && selectedSessionId === session.id ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Checking in...</>
@@ -319,7 +319,7 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
 
               <div className="grid md:grid-cols-2 gap-3">
                 {/* Mentor Check-in Status */}
-                <div className={`p-3 rounded-lg border ${
+                <div className={`p-3 rounded-lg border cursor-pointer ${
                   session.mentorCheckIn 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-gray-50 border-gray-200'
@@ -343,7 +343,7 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
                 </div>
 
                 {/* Mentee Check-in Status */}
-                <div className={`p-3 rounded-lg border ${
+                <div className={`p-3 rounded-lg border cursor-pointer ${
                   session.menteeCheckIn 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-gray-50 border-gray-200'

@@ -20,10 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
 
-        // // Exclude API routes from CSRF verification
-        // $middleware->validateCsrfTokens(except: [
-        //     'api/buddy/*',
-        // ]);
+        // Exclude evaluations endpoint from CSRF verification (temporary)
+        $middleware->validateCsrfTokens(except: [
+            'api/buddy/evaluations',
+            'api/buddy/evaluations/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

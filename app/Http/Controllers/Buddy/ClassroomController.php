@@ -60,16 +60,23 @@ class ClassroomController extends Controller
 
         // Get quizzes with questions (hide correct answers for mentees)
         $quizzes = BuddyQuiz::where('match_id', $matchId)
-            ->with(['questions', 'attempts' => function ($query) use ($participant) {
-                $query->where('participant_id', $participant->id);
+            ->with(['questions', 'attempts' => function ($query) use ($participant, $isMentor) {
+                if ($isMentor) {
+                    // Load all attempts for mentor so we can report attemptsCount
+                    $query->latest('completed_at');
+                } else {
+                    // For mentee, only load their own attempt
+                    $query->where('participant_id', $participant->id);
+                }
             }])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($quiz) use ($isMentor, $participant) {
-                $attempt = $quiz->attempts->first();
+                // Mentee: check their own attempt; Mentor: no personal attempt
+                $attempt = $isMentor ? null : $quiz->attempts->first();
                 $hasAttempted = $attempt !== null;
-                
-                return [
+
+                $data = [
                     'id' => (string) $quiz->id,
                     'title' => $quiz->title,
                     'totalMarks' => $quiz->total_marks,
@@ -94,19 +101,35 @@ class ClassroomController extends Controller
                         ];
                     })->toArray(),
                 ];
+
+                // For mentor: include attempt statistics for activity feed
+                if ($isMentor) {
+                    $latestAttempt = $quiz->attempts->first();
+                    $data['attemptsCount'] = $quiz->attempts->count();
+                    $data['latestAttemptAt'] = $latestAttempt
+                        ? $latestAttempt->completed_at->format('Y-m-d')
+                        : null;
+                }
+
+                return $data;
             });
 
         // Get assignments
         $assignments = BuddyAssignment::where('match_id', $matchId)
-            ->with(['submissions' => function ($query) use ($participant) {
-                $query->where('participant_id', $participant->id);
+            ->with(['submissions' => function ($query) use ($participant, $isMentor) {
+                if ($isMentor) {
+                    // For mentors, load all submissions ordered by latest to get count & latest date
+                    $query->latest('submitted_at');
+                } else {
+                    $query->where('participant_id', $participant->id);
+                }
             }])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($assignment) {
+            ->map(function ($assignment) use ($isMentor) {
                 $submission = $assignment->submissions->first();
-                
-                return [
+
+                $data = [
                     'id' => (string) $assignment->id,
                     'title' => $assignment->title,
                     'description' => $assignment->description,
@@ -127,6 +150,16 @@ class ClassroomController extends Controller
                         'feedback' => $submission->feedback,
                     ] : null,
                 ];
+
+                // Include submission statistics for mentor view
+                if ($isMentor) {
+                    $data['submissionsCount'] = $assignment->submissions->count();
+                    $data['latestSubmissionAt'] = $submission
+                        ? $submission->submitted_at->format('Y-m-d')
+                        : null;
+                }
+
+                return $data;
             });
 
         // Get mentees for this match (for mentor view)

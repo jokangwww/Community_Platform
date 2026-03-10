@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Calendar, BookOpen, Clock } from 'lucide-react';
+
+interface SemesterSetting {
+  id: number;
+  academic_year: string;
+  semester: number;
+  duration_type: string;
+  total_weeks: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
 
 export function AdminSettings() {
   const [settingsLoading, setSettingsLoading] = useState<string | null>(null);
@@ -12,6 +23,16 @@ export function AdminSettings() {
     type: 'priority' | 'registration' | 'evaluation' | 'testimonial';
     newValue: boolean;
   } | null>(null);
+
+  // Semester setting states
+  const [semesterSetting, setSemesterSetting] = useState<SemesterSetting | null>(null);
+  const [semAcademicYear, setSemAcademicYear] = useState('');
+  const [semSemester, setSemSemester] = useState<number>(1);
+  const [semDurationType, setSemDurationType] = useState<'long' | 'short'>('long');
+  const [semStartDate, setSemStartDate] = useState('');
+  const [semEndDate, setSemEndDate] = useState('');
+  const [semesterSaving, setSemesterSaving] = useState(false);
+  const [semesterMessage, setSemesterMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const getCsrfToken = () => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -34,10 +55,29 @@ export function AdminSettings() {
     }
   };
 
+  const fetchSemesterSetting = async () => {
+    try {
+      const response = await fetch('/api/buddy/admin/semester-setting', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setSemesterSetting(result.data);
+        setSemAcademicYear(result.data.academic_year);
+        setSemSemester(result.data.semester);
+        setSemDurationType(result.data.duration_type as 'long' | 'short');
+        setSemStartDate(result.data.start_date);
+        setSemEndDate(result.data.end_date);
+      }
+    } catch (error) {
+      console.error('Failed to fetch semester setting:', error);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await fetchSettings();
+      await Promise.all([fetchSettings(), fetchSemesterSetting()]);
       setIsLoading(false);
     };
     loadData();
@@ -157,6 +197,51 @@ export function AdminSettings() {
     setConfirmAction(null);
   };
 
+  const saveSemesterSetting = async () => {
+    if (!semAcademicYear || !semStartDate || !semEndDate) {
+      setSemesterMessage({ type: 'error', text: 'Please fill in all required fields.' });
+      return;
+    }
+    setSemesterSaving(true);
+    setSemesterMessage(null);
+    try {
+      const response = await fetch('/api/buddy/admin/semester-setting', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          academic_year: semAcademicYear,
+          semester: semSemester,
+          duration_type: semDurationType,
+          start_date: semStartDate,
+          end_date: semEndDate,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSemesterSetting(result.data);
+        setSemesterMessage({ type: 'success', text: 'Semester setting saved successfully.' });
+      } else {
+        setSemesterMessage({ type: 'error', text: result.message || 'Failed to save semester setting.' });
+      }
+    } catch (error) {
+      console.error('Failed to save semester setting:', error);
+      setSemesterMessage({ type: 'error', text: 'Failed to save semester setting.' });
+    } finally {
+      setSemesterSaving(false);
+    }
+  };
+
+  // Generate academic year options (current year -1 to +2)
+  const currentYear = new Date().getFullYear();
+  const academicYearOptions = Array.from({ length: 4 }, (_, i) => {
+    const y = currentYear - 1 + i;
+    return `${y}/${y + 1}`;
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -169,13 +254,113 @@ export function AdminSettings() {
   return (
     <>
       <div className="space-y-6">
+        {/* Semester Setting */}
+        <div className="border border-blue-200 bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5 text-blue-600" />
+            <h3 className="text-gray-900">Semester Setting</h3>
+          </div>
+
+          {semesterSetting && (
+            <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+              <p className="text-gray-600 mb-1">
+                <span className="font-medium text-gray-900">Current:</span>{' '}
+                {semesterSetting.academic_year} — Semester {semesterSetting.semester} ({semesterSetting.duration_type === 'long' ? 'Long' : 'Short'} Sem, {semesterSetting.total_weeks} weeks)
+              </p>
+              <p className="text-gray-500 text-sm">
+                {semesterSetting.start_date} to {semesterSetting.end_date}
+              </p>
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 mb-1">Academic Year</label>
+              <select
+                value={semAcademicYear}
+                onChange={(e) => setSemAcademicYear(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
+              >
+                <option value="">-- Select Year --</option>
+                {academicYearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 mb-1">Semester</label>
+              <select
+                value={semSemester}
+                onChange={(e) => setSemSemester(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
+              >
+                <option value={1}>Semester 1</option>
+                <option value={2}>Semester 2</option>
+                <option value={3}>Semester 3</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 mb-1">Duration</label>
+              <select
+                value={semDurationType}
+                onChange={(e) => setSemDurationType(e.target.value as 'long' | 'short')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
+              >
+                <option value="long">Long Semester (14 weeks)</option>
+                <option value="short">Short Semester (7 weeks)</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={semStartDate}
+                    onChange={(e) => setSemStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={semEndDate}
+                    onChange={(e) => setSemEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {semesterMessage && (
+            <div className={`mt-3 p-3 rounded-lg text-sm ${
+              semesterMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {semesterMessage.text}
+            </div>
+          )}
+
+          <button
+            onClick={saveSemesterSetting}
+            disabled={semesterSaving}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            {semesterSaving ? 'Saving...' : 'Save Semester Setting'}
+          </button>
+        </div>
+
         {/* Priority Allocation System */}
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-gray-900">Priority Allocation System</h3>
-                <span className={`px-2 py-1 rounded text-white ${
+                <span className={`px-2 py-1 rounded text-white cursor-pointer ${
                   priorityAllocationEnabled ? 'bg-green-600' : 'bg-red-600'
                 }`}>
                   {priorityAllocationEnabled ? 'Enabled' : 'Disabled'}
@@ -204,14 +389,14 @@ export function AdminSettings() {
             <button
               onClick={handlePriorityAllocationToggle}
               disabled={settingsLoading === 'priority_allocation_enabled'}
-              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 cursor-pointer ${
                 priorityAllocationEnabled ? 'bg-green-600' : 'bg-red-600'
               }`}
               role="switch"
               aria-checked={priorityAllocationEnabled}
             >
               <span
-                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform cursor-pointer ${
                   priorityAllocationEnabled ? 'translate-x-11' : 'translate-x-1'
                 }`}
               />
@@ -225,7 +410,7 @@ export function AdminSettings() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-gray-900">Registration Phase</h3>
-                <span className={`px-2 py-1 rounded text-white ${
+                <span className={`px-2 py-1 rounded text-white cursor-pointer ${
                   registrationOpen ? 'bg-green-600' : 'bg-red-600'
                 }`}>
                   {registrationOpen ? 'Open' : 'Closed'}
@@ -239,14 +424,14 @@ export function AdminSettings() {
             <button
               onClick={handleRegistrationToggle}
               disabled={settingsLoading === 'registration_open'}
-              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 cursor-pointer ${
                 registrationOpen ? 'bg-green-600' : 'bg-red-600'
               }`}
               role="switch"
               aria-checked={registrationOpen}
             >
               <span
-                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform cursor-pointer ${
                   registrationOpen ? 'translate-x-11' : 'translate-x-1'
                 }`}
               />
@@ -260,7 +445,7 @@ export function AdminSettings() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-gray-900">Evaluation Phase</h3>
-                <span className={`px-2 py-1 rounded text-white ${
+                <span className={`px-2 py-1 rounded text-white cursor-pointer ${
                   evaluationEnabled ? 'bg-green-600' : 'bg-red-600'
                 }`}>
                   {evaluationEnabled ? 'Enabled' : 'Disabled'}
@@ -274,14 +459,14 @@ export function AdminSettings() {
             <button
               onClick={handleEvaluationToggle}
               disabled={settingsLoading === 'evaluation_enabled'}
-              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 cursor-pointer ${
                 evaluationEnabled ? 'bg-green-600' : 'bg-red-600'
               }`}
               role="switch"
               aria-checked={evaluationEnabled}
             >
               <span
-                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform cursor-pointer ${
                   evaluationEnabled ? 'translate-x-11' : 'translate-x-1'
                 }`}
               />
@@ -295,7 +480,7 @@ export function AdminSettings() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-gray-900">Testimonial Phase</h3>
-                <span className={`px-2 py-1 rounded text-white ${
+                <span className={`px-2 py-1 rounded text-white cursor-pointer ${
                   testimonialEnabled ? 'bg-green-600' : 'bg-red-600'
                 }`}>
                   {testimonialEnabled ? 'Enabled' : 'Disabled'}
@@ -309,14 +494,14 @@ export function AdminSettings() {
             <button
               onClick={handleTestimonialToggle}
               disabled={settingsLoading === 'testimonial_enabled'}
-              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+              className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 cursor-pointer ${
                 testimonialEnabled ? 'bg-green-600' : 'bg-red-600'
               }`}
               role="switch"
               aria-checked={testimonialEnabled}
             >
               <span
-                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform cursor-pointer ${
                   testimonialEnabled ? 'translate-x-11' : 'translate-x-1'
                 }`}
               />

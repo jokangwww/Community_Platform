@@ -50,7 +50,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
     startTime: '',
     endTime: ''
   });
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledMeeting, setScheduledMeeting] = useState<ScheduledMeeting | null>(null);
@@ -219,8 +219,8 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
   };
 
   const handleVoteSubmit = async () => {
-    if (!selectedSlotId) {
-      alert('Please select a time slot to vote');
+    if (selectedSlotIds.length === 0) {
+      alert('Please select at least one time slot to vote');
       return;
     }
 
@@ -235,16 +235,16 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
         },
         body: JSON.stringify({
           student_id: studentId,
-          slot_id: parseInt(selectedSlotId),
+          slot_ids: selectedSlotIds.map(id => parseInt(id)),
         }),
       });
 
       const result = await response.json();
       
       if (result.success) {
-        // Update local vote count
-        setTimeSlots(prev => prev.map(slot => 
-          slot.id === selectedSlotId 
+        // Update local vote counts for all selected slots
+        setTimeSlots(prev => prev.map(slot =>
+          selectedSlotIds.includes(slot.id)
             ? { ...slot, votes: slot.votes + 1 }
             : slot
         ));
@@ -255,6 +255,37 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
     } catch (err) {
       alert('Failed to submit vote');
       console.error('Error submitting vote:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResetVotes = async () => {
+    if (!confirm('This will clear all current votes and allow mentees to vote again. Continue?')) return;
+
+    try {
+      setSubmitting(true);
+
+      const response = await fetch('/api/buddy/user/schedule/reset-votes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({ student_id: studentId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTimeSlots(prev => prev.map(slot => ({ ...slot, votes: 0 })));
+        alert('Votes have been reset. Mentees can now vote again.');
+      } else {
+        alert(result.message || 'Failed to reset votes');
+      }
+    } catch (err) {
+      alert('Failed to reset votes');
+      console.error('Error resetting votes:', err);
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +347,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
         </div>
         <button
           onClick={fetchScheduleData}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
         >
           Retry
         </button>
@@ -402,7 +433,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                     <button
                       onClick={handleAddSlot}
                       disabled={submitting || !newSlot.day || !newSlot.startTime || !newSlot.endTime}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       {submitting ? 'Adding...' : 'Add Slot'}
                     </button>
@@ -452,7 +483,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                         <button
                           onClick={() => handleRemoveSlot(slot.id)}
                           disabled={submitting}
-                          className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                          className="text-red-600 hover:text-red-700 disabled:opacity-50 cursor-pointer"
                         >
                           Remove
                         </button>
@@ -467,21 +498,50 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                 <button
                   onClick={handlePublishSlots}
                   disabled={submitting}
-                  className="mt-4 w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="mt-4 w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   {submitting ? 'Publishing...' : 'Publish Slots for Mentee Voting'}
                 </button>
               )}
 
-              {slotsPublished && (
-                <button
-                  onClick={handleConfirmSchedule}
-                  disabled={submitting || !timeSlots.some(slot => slot.votes > 0)}
-                  className="mt-4 w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? 'Confirming...' : timeSlots.some(slot => slot.votes > 0) ? 'Confirm Schedule (Select Most Voted)' : 'Waiting for Votes...'}
-                </button>
-              )}
+              {slotsPublished && (() => {
+                const maxVotes = Math.max(...timeSlots.map(s => s.votes), 0);
+                const hasTie = maxVotes > 0 && timeSlots.filter(s => s.votes === maxVotes).length > 1;
+                return (
+                  <div className="mt-4 space-y-3">
+                    {hasTie ? (
+                      // Tie: show suggestion box with ONLY a blue Reset button — Confirm is hidden
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-gray-600 font-medium">System Suggestion</p>
+                            <p className="text-gray-500 mt-1">
+                              Multiple time slots have equal votes. We suggest letting mentees vote again or discussing among yourselves to decide.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleResetVotes}
+                          disabled={submitting}
+                          className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          {submitting ? 'Resetting...' : 'Reset Votes & Reopen Voting'}
+                        </button>
+                      </div>
+                    ) : (
+                      // No tie: show Confirm button
+                      <button
+                        onClick={handleConfirmSchedule}
+                        disabled={submitting || !timeSlots.some(slot => slot.votes > 0)}
+                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      >
+                        {submitting ? 'Confirming...' : timeSlots.some(slot => slot.votes > 0) ? 'Confirm Schedule (Select Most Voted)' : 'Waiting for Votes...'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Voting Status */}
@@ -540,34 +600,42 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
               </p>
             </div>
           ) : !hasVoted ? (
-            // Voting Interface
+            // Voting Interface – multi-select checkboxes
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Vote className="w-6 h-6 text-blue-600" />
                 <h3 className="text-gray-900">Vote for Your Preferred Time</h3>
               </div>
 
-              <p className="text-gray-600 mb-6">
-                Select your preferred meeting time. The most voted time will be selected as the group's meeting schedule.
+              <p className="text-gray-600 mb-1">
+                Select <strong>all time slots that work for you</strong>. Voting for multiple options helps avoid a tie.
+              </p>
+              <p className="text-gray-500 text-sm mb-6">
+                The time slot with the most votes will be chosen as the weekly meeting schedule.
               </p>
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-4">
                 {timeSlots.map(slot => (
                   <label
                     key={slot.id}
                     className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedSlotId === slot.id
+                      selectedSlotIds.includes(slot.id)
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <input
-                        type="radio"
-                        name="timeSlot"
-                        checked={selectedSlotId === slot.id}
-                        onChange={() => setSelectedSlotId(slot.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        type="checkbox"
+                        checked={selectedSlotIds.includes(slot.id)}
+                        onChange={() => {
+                          setSelectedSlotIds(prev =>
+                            prev.includes(slot.id)
+                              ? prev.filter(id => id !== slot.id)
+                              : [...prev, slot.id]
+                          );
+                        }}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         disabled={submitting}
                       />
                       <div className="flex items-center gap-4">
@@ -587,16 +655,22 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                 ))}
               </div>
 
+              {selectedSlotIds.length > 0 && (
+                <p className="text-blue-600 text-sm mb-3">
+                  {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''} selected
+                </p>
+              )}
+
               <button
                 onClick={handleVoteSubmit}
-                disabled={!selectedSlotId || submitting}
-                className={`w-full px-6 py-3 rounded-lg transition-colors ${
-                  selectedSlotId && !submitting
+                disabled={selectedSlotIds.length === 0 || submitting}
+                className={`w-full px-6 py-3 rounded-lg transition-colors cursor-pointer ${
+                  selectedSlotIds.length > 0 && !submitting
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {submitting ? 'Submitting...' : 'Submit Vote'}
+                {submitting ? 'Submitting...' : `Submit Vote${selectedSlotIds.length > 1 ? 's' : ''}`}
               </button>
             </div>
           ) : (

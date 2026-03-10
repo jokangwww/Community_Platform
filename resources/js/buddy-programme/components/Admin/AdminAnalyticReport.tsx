@@ -194,7 +194,7 @@ export function AdminAnalyticReport({ isOpen, onClose }: AdminAnalyticReportProp
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -316,7 +316,7 @@ export function AdminAnalyticReport({ isOpen, onClose }: AdminAnalyticReportProp
                 <button 
                   onClick={handleDownloadPDF}
                   disabled={isDownloading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isDownloading ? (
                     <>

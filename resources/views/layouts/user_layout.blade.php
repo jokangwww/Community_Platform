@@ -562,16 +562,18 @@
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
-                <li><a class="nav-link {{ request()->routeIs('buddy-programme') ? 'is-active' : '' }}" href="{{ route('buddy-programme') }}">Buddy Programme</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.event-posting*') ? 'is-active' : '' }}" href="{{ route('user.event-posting') }}">Event Posting</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.recruitment*') ? 'is-active' : '' }}" href="{{ route('user.recruitment') }}">Recruitment</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.calendar') ? 'is-active' : '' }}" href="{{ route('user.calendar') }}">Calendar</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.location') ? 'is-active' : '' }}" href="{{ route('user.location') }}">Location</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.feedback.*') ? 'is-active' : '' }}" href="{{ route('user.feedback.index') }}">Feedback</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.tickets.*') ? 'is-active' : '' }}" href="{{ route('user.tickets.index') }}">E-Ticket</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.live-stream') ? 'is-active' : '' }}" href="{{ route('user.live-stream') }}">Live Stream</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.lucky-draw') ? 'is-active' : '' }}" href="{{ route('user.lucky-draw') }}">Lucky Draw</a></li>
-                <li><a class="nav-link {{ request()->routeIs('user.attendance') ? 'is-active' : '' }}" href="{{ route('user.attendance') }}">Event Attendance</a></li>
+                <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
+                <li><a class="nav-link" href="{{ route('forum') }}">- Forum</a></li>
+                <li><a class="nav-link" href="{{ route('poll-petition') }}">- Polls & Petitions</a></li>
+                <li><a class="nav-link" href="{{ route('user.event-posting') }}">- Event Posting</a></li>
+                <li><a class="nav-link" href="{{ route('user.recruitment') }}">- Recruitment</a></li>
+                <li><a class="nav-link" href="{{ route('user.calendar') }}">- Calendar</a></li>
+                <li><a class="nav-link" href="{{ route('user.location') }}">- Location</a></li>
+                <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
+                <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
+                <li><a class="nav-link" href="{{ route('user.live-stream') }}">- Live Stream</a></li>
+                <li><a class="nav-link" href="{{ route('user.lucky-draw') }}">- Lucky Draw</a></li>
+                <li><a class="nav-link" href="{{ route('user.attendance') }}">- Event Attendance</a></li>
             </ul>
         </aside>
         <main class="content">

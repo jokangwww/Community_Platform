@@ -39,6 +39,7 @@ use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TicketController as UserTicketController;
 use App\Http\Controllers\Vendor\VendorBoothController;
+use App\Http\Controllers\Buddy\AdminController;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -62,11 +63,23 @@ Route::middleware(['auth', 'role:student,staff'])->group(function () {
     Route::get('/home', function () {
         return view('user.home');
     })->name('home');
+});
 
-// Buddy Programme Routes
-Route::get('/buddy-programme', function () {
-    return view('buddy-programme');
-})->name('buddy-programme');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/buddy-programme', function () {
+        return view('buddy-programme');
+    })->name('buddy-programme');
+
+    // Forum Routes
+    Route::get('/forum', function () {
+        return view('forum');
+    })->name('forum');
+
+    // Polls Routes
+    Route::get('/poll-petition', function () {
+        return view('poll-petition');
+    })->name('poll-petition');
+});
 
 // Buddy Programme API Routes
 Route::prefix('api/buddy')->name('buddy.')->group(function () {
@@ -84,6 +97,11 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
     Route::middleware(['auth'])->group(function () {
         Route::get('/admin/settings', [\App\Http\Controllers\Buddy\AdminController::class, 'getSettings'])
             ->name('admin.settings');
+        Route::get('/admin/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'getSemesterSetting'])
+            ->name('admin.semester-setting.read');
+        // Unambiguous, non-admin alias used by mentor/mentee header
+        Route::get('/semester-info', [\App\Http\Controllers\Buddy\AdminController::class, 'getSemesterSetting'])
+            ->name('semester-info');
     });
 
     // Admin Routes - Require admin role
@@ -104,6 +122,10 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('waiting-list');
         Route::post('/settings', [\App\Http\Controllers\Buddy\AdminController::class, 'updateSetting'])
             ->name('update-setting');
+        Route::get('/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'getSemesterSetting'])
+            ->name('semester-setting');
+        Route::post('/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'saveSemesterSetting'])
+            ->name('save-semester-setting');
         Route::get('/report-data', [\App\Http\Controllers\Buddy\AdminController::class, 'getReportData'])
             ->name('report-data');
     });
@@ -202,6 +224,8 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('publish');
         Route::post('/vote', [\App\Http\Controllers\Buddy\UserController::class, 'voteTimeSlot'])
             ->name('vote');
+        Route::post('/reset-votes', [\App\Http\Controllers\Buddy\UserController::class, 'resetVotes'])
+            ->name('reset-votes');
         Route::post('/confirm', [\App\Http\Controllers\Buddy\UserController::class, 'confirmSchedule'])
             ->name('confirm');
     });
@@ -248,6 +272,8 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('assignments.submissions');
         Route::get('/assignments/{assignmentId}/submissions/{submissionId}/download', [\App\Http\Controllers\Buddy\ClassroomController::class, 'downloadSubmission'])
             ->name('assignments.download');
+        Route::post('/assignments/{assignmentId}/submissions/{submissionId}/grade', [\App\Http\Controllers\Buddy\ClassroomController::class, 'gradeSubmission'])
+            ->name('assignments.grade');
     });
 
     // Evaluation Routes - Require authentication and buddy participant status
@@ -265,6 +291,104 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         Route::get('/check', [\App\Http\Controllers\Buddy\TestimonialController::class, 'checkRequest'])
             ->name('check');
     });
+});
+
+// Forum API Routes
+Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function () {
+    // Categories
+    Route::get('/categories', [\App\Http\Controllers\Forum\ForumCategoryController::class, 'index'])
+        ->name('categories.index');
+    Route::post('/categories', [\App\Http\Controllers\Forum\ForumCategoryController::class, 'store'])
+        ->name('categories.store');
+    Route::put('/categories/{id}', [\App\Http\Controllers\Forum\ForumCategoryController::class, 'update'])
+        ->name('categories.update');
+    Route::delete('/categories/{id}', [\App\Http\Controllers\Forum\ForumCategoryController::class, 'destroy'])
+        ->name('categories.destroy');
+
+    // Posts
+    Route::get('/posts', [\App\Http\Controllers\Forum\ForumPostController::class, 'index'])
+        ->name('posts.index');
+    Route::post('/posts', [\App\Http\Controllers\Forum\ForumPostController::class, 'store'])
+        ->name('posts.store');
+    Route::get('/posts/{id}', [\App\Http\Controllers\Forum\ForumPostController::class, 'show'])
+        ->name('posts.show');
+    Route::post('/posts/{id}/like', [\App\Http\Controllers\Forum\ForumPostController::class, 'toggleLike'])
+        ->name('posts.like');
+    Route::put('/posts/{id}', [\App\Http\Controllers\Forum\ForumPostController::class, 'update'])
+        ->name('posts.update');
+    Route::delete('/posts/{id}', [\App\Http\Controllers\Forum\ForumPostController::class, 'destroy'])
+        ->name('posts.destroy');
+    Route::get('/posts/search/hashtag', [\App\Http\Controllers\Forum\ForumPostController::class, 'searchByHashtag'])
+        ->name('posts.searchByHashtag');
+    Route::get('/dashboard', [\App\Http\Controllers\Forum\ForumPostController::class, 'userDashboard'])
+        ->name('dashboard');
+
+    // Answers
+    Route::get('/posts/{postId}/answers', [\App\Http\Controllers\Forum\ForumAnswerController::class, 'index'])
+        ->name('answers.index');
+    Route::post('/posts/{postId}/answers', [\App\Http\Controllers\Forum\ForumAnswerController::class, 'store'])
+        ->name('answers.store');
+    Route::post('/answers/{answerId}/vote', [\App\Http\Controllers\Forum\ForumAnswerController::class, 'vote'])
+        ->name('answers.vote');
+    Route::post('/answers/{answerId}/accept', [\App\Http\Controllers\Forum\ForumAnswerController::class, 'acceptAnswer'])
+        ->name('answers.accept');
+    Route::post('/answers/{answerId}/react', [\App\Http\Controllers\Forum\ForumAnswerController::class, 'react'])
+        ->name('answers.react');
+
+    // Comments
+    Route::get('/posts/{postId}/comments', [\App\Http\Controllers\Forum\ForumCommentController::class, 'index'])
+        ->name('comments.index');
+    Route::post('/posts/{postId}/comments', [\App\Http\Controllers\Forum\ForumCommentController::class, 'store'])
+        ->name('comments.store');
+    Route::post('/comments/{commentId}/like', [\App\Http\Controllers\Forum\ForumCommentController::class, 'toggleLike'])
+        ->name('comments.like');
+    Route::put('/comments/{commentId}', [\App\Http\Controllers\Forum\ForumCommentController::class, 'update'])
+        ->name('comments.update');
+    Route::delete('/comments/{commentId}', [\App\Http\Controllers\Forum\ForumCommentController::class, 'destroy'])
+        ->name('comments.destroy');
+
+    // Hashtags
+    Route::get('/hashtags', [\App\Http\Controllers\Forum\ForumHashtagController::class, 'index'])
+        ->name('hashtags.index');
+    Route::get('/hashtags/trending', [\App\Http\Controllers\Forum\ForumHashtagController::class, 'trending'])
+        ->name('hashtags.trending');
+    Route::get('/hashtags/search', [\App\Http\Controllers\Forum\ForumHashtagController::class, 'search'])
+        ->name('hashtags.search');
+
+    // Reports
+    Route::post('/reports', [\App\Http\Controllers\Forum\ForumReportController::class, 'store'])
+        ->name('reports.store');
+    Route::get('/reports', [\App\Http\Controllers\Forum\ForumReportController::class, 'index'])
+        ->name('reports.index');
+    Route::put('/reports/{reportId}/review', [\App\Http\Controllers\Forum\ForumReportController::class, 'review'])
+        ->name('reports.review');
+    Route::get('/reports/{reportId}/author-history', [\App\Http\Controllers\Forum\ForumReportController::class, 'contentAuthorHistory'])
+        ->name('reports.author-history');
+    Route::get('/admin/stats', [\App\Http\Controllers\Forum\ForumReportController::class, 'adminStats'])
+        ->name('admin.stats');
+
+    // Moderation notifications for current user
+    Route::get('/moderation-notices', function () {
+        $user = auth()->user();
+        $notices = $user->unreadNotifications()
+            ->where('type', \App\Notifications\ModerationActionNotification::class)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                ...(array) $n->data,
+                'created_at' => $n->created_at->diffForHumans(),
+            ]);
+        return response()->json(['notices' => $notices]);
+    })->name('moderation.notices');
+
+    Route::post('/moderation-notices/{id}/read', function (string $id) {
+        $user = auth()->user();
+        $notification = $user->notifications()->where('id', $id)->first();
+        if ($notification) {
+            $notification->markAsRead();
+        }
+        return response()->json(['success' => true]);
+    })->name('moderation.notices.read');
 });
 
     Route::get('/profile', [ProfileController::class, 'show'])
@@ -345,8 +469,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             'section' => $title,
         ]);
     })->name('events.section');
-});
-// Shared posting detail route: renders club or student posting page based on authenticated role.
+
 Route::get('/event-posting/{posting}', function (Posting $posting) {
     $user = Auth::user();
     if (! $user instanceof User) {
@@ -463,7 +586,14 @@ Route::post('/admin/profile/photo', [AdminProfileController::class, 'updatePhoto
 Route::post('/admin/profile/password', [AdminProfileController::class, 'updatePassword'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.profile.password');
-// Admin event governance: proposals, postings moderation, venue/location/departments, soft skill config, approvals.
+// Admin-only Forum & Poll-Petition dashboard views
+Route::get('/admin/forum', fn() => view('admin-forum'))
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.forum');
+Route::get('/admin/poll-petition', fn() => view('admin-poll-petition'))
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.poll-petition');
+
 Route::get('/admin/event-proposals', [AdminEventProposalController::class, 'index'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-proposals.index');
@@ -677,6 +807,69 @@ Route::prefix('vendor')->middleware(['auth', 'role:vendor'])->group(function () 
     })->name('vendor.home');
     Route::get('/booth-applications', [VendorBoothController::class, 'index'])->name('vendor.booth-applications.index');
     Route::post('/booth-applications/{event}', [VendorBoothController::class, 'store'])->name('vendor.booth-applications.store');
+});
+
+// Poll & Petition API Routes
+Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')->group(function () {
+    // Polls
+    Route::get('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'index'])
+        ->name('polls.index');
+    Route::get('/polls/can-create', [\App\Http\Controllers\PollPetition\PollController::class, 'canCreate'])
+        ->name('polls.canCreate');
+    Route::get('/polls/archived', [\App\Http\Controllers\PollPetition\PollController::class, 'archived'])
+        ->name('polls.archived');
+    Route::post('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'store'])
+        ->name('polls.store');
+    Route::get('/polls/{id}', [\App\Http\Controllers\PollPetition\PollController::class, 'show'])
+        ->name('polls.show');
+    Route::post('/polls/{id}/vote', [\App\Http\Controllers\PollPetition\PollController::class, 'vote'])
+        ->name('polls.vote');
+    Route::post('/polls/{id}/rate', [\App\Http\Controllers\PollPetition\PollController::class, 'rate'])
+        ->name('polls.rate');
+    Route::get('/polls/dashboard/my', [\App\Http\Controllers\PollPetition\PollController::class, 'userDashboard'])
+        ->name('polls.dashboard');
+
+    // Petitions
+    Route::get('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'index'])
+        ->name('petitions.index');
+    Route::get('/petitions/can-create', [\App\Http\Controllers\PollPetition\PetitionController::class, 'canCreate'])
+        ->name('petitions.canCreate');
+    Route::post('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'store'])
+        ->name('petitions.store');
+    Route::get('/petitions/{id}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'show'])
+        ->name('petitions.show');
+    Route::post('/petitions/{id}/support', [\App\Http\Controllers\PollPetition\PetitionController::class, 'support'])
+        ->name('petitions.support');
+    Route::get('/petitions/{petitionId}/attachments/{attachmentId}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'downloadAttachment'])
+        ->name('petitions.attachment');
+    Route::get('/petitions/dashboard/my', [\App\Http\Controllers\PollPetition\PetitionController::class, 'userDashboard'])
+        ->name('petitions.dashboard');
+
+    // Dashboard (combined polls + petitions for user dashboard)
+    Route::get('/dashboard', [\App\Http\Controllers\PollPetition\PollPetitionDashboardController::class, 'index'])
+        ->name('dashboard');
+
+    // Admin
+    Route::get('/admin/polls', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'polls'])
+        ->name('admin.polls');
+    Route::get('/admin/petitions', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'petitions'])
+        ->name('admin.petitions');
+    Route::post('/admin/polls/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePoll'])
+        ->name('admin.polls.disable');
+    Route::post('/admin/petitions/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePetition'])
+        ->name('admin.petitions.disable');
+    Route::post('/admin/polls/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPollDeadline'])
+        ->name('admin.polls.extend');
+    Route::post('/admin/petitions/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPetitionDeadline'])
+        ->name('admin.petitions.extend');
+    Route::post('/admin/polls/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPoll'])
+        ->name('admin.polls.official');
+    Route::post('/admin/petitions/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPetition'])
+        ->name('admin.petitions.official');
+    Route::get('/admin/analytics', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'analytics'])
+        ->name('admin.analytics');
+    Route::get('/admin/analytics/export', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'exportAnalytics'])
+        ->name('admin.analytics.export');
 });
 
 Route::get('/register', [RegistrationOtpController::class, 'showRegisterForm'])->name('register');

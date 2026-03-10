@@ -73,7 +73,7 @@ export function AdminAttendanceRecords() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h4 className="text-gray-900">{record.sessionTopic}</h4>
-                  <span className={`px-2 py-1 rounded text-white ${
+                  <span className={`px-2 py-1 rounded text-white cursor-pointer ${
                     record.status === 'present'
                       ? 'bg-green-600'
                       : record.status === 'partial'
@@ -95,7 +95,7 @@ export function AdminAttendanceRecords() {
 
             <div className="grid md:grid-cols-2 gap-3">
               {/* Mentor Check-in */}
-              <div className={`p-3 rounded-lg border ${
+              <div className={`p-3 rounded-lg border cursor-pointer ${
                 record.mentorCheckInTime
                   ? 'bg-green-50 border-green-200'
                   : 'bg-gray-50 border-gray-200'
@@ -119,7 +119,7 @@ export function AdminAttendanceRecords() {
               </div>
 
               {/* Mentee Check-in */}
-              <div className={`p-3 rounded-lg border ${
+              <div className={`p-3 rounded-lg border cursor-pointer ${
                 record.menteeCheckInTime
                   ? 'bg-green-50 border-green-200'
                   : 'bg-gray-50 border-gray-200'

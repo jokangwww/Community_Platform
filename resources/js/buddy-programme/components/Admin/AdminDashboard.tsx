@@ -71,7 +71,7 @@ export function AdminDashboard() {
           </div>
           <button
             onClick={handleDownloadReport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Download PDF Report
@@ -123,7 +123,7 @@ export function AdminDashboard() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveTab('verifications')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'verifications'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -133,7 +133,7 @@ export function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'attendance'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -143,7 +143,7 @@ export function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('feedback')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'feedback'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -153,7 +153,7 @@ export function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('testimonials')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'testimonials'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -163,7 +163,7 @@ export function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('gap')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'gap'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
@@ -173,7 +173,7 @@ export function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 ${
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
                 activeTab === 'settings'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
