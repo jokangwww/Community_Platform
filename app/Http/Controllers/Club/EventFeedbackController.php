@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\EventFeedback;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -43,6 +44,49 @@ class EventFeedbackController extends Controller
         return view('club.feedback.index', [
             'eventFeedbackSummary' => $summary,
             'filters' => ['q' => $q],
+        ]);
+    }
+
+    // Detailed comments page per event with filter options (date range, rating, sort).
+    public function comments(Request $request, Event $event): View
+    {
+        $club = $request->user();
+        abort_unless((int) $event->club_id === (int) $club->id, 403);
+
+        $validated = $request->validate([
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'sort' => ['nullable', 'in:latest,oldest'],
+        ]);
+
+        $rating = isset($validated['rating']) ? (int) $validated['rating'] : null;
+        $dateFrom = $validated['date_from'] ?? '';
+        $dateTo = $validated['date_to'] ?? '';
+        $sort = $validated['sort'] ?? 'latest';
+
+        $comments = EventFeedback::query()
+            ->with('student')
+            ->where('event_id', $event->id)
+            ->whereNotNull('comment')
+            ->where('comment', '<>', '')
+            ->when($rating !== null, fn ($query) => $query->where('rating', $rating))
+            ->when($dateFrom !== '', fn ($query) => $query->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo !== '', fn ($query) => $query->whereDate('created_at', '<=', $dateTo))
+            ->when($sort === 'oldest', fn ($query) => $query->orderBy('created_at'))
+            ->when($sort !== 'oldest', fn ($query) => $query->orderByDesc('created_at'))
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('club.feedback.comments', [
+            'event' => $event,
+            'comments' => $comments,
+            'filters' => [
+                'rating' => $rating ? (string) $rating : '',
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'sort' => $sort,
+            ],
         ]);
     }
 }

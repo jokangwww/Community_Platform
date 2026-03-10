@@ -28,15 +28,33 @@ class VendorBoothApplicationController extends Controller
         return array_values(array_unique($booths));
     }
 
-    // Organizer-stage vendor booth review list for this club's events with search/status filters.
+    // Organizer booth setup page for this club's approved events.
     public function index(Request $request): View
     {
         $club = $request->user();
-        $q = trim((string) $request->query('q', ''));
         $eventQ = trim((string) $request->query('event_q', ''));
+
+        $events = Event::query()
+            ->with('boothPlaces.booths')
+            ->where('club_id', $club->id)
+            ->where('approval_status', 'approved')
+            ->when($eventQ !== '', fn ($query) => $query->where('name', 'like', '%' . $eventQ . '%'))
+            ->orderByDesc('start_date')
+            ->get(['id', 'name']);
+
+        return view('club.vendor-booth-applications.index', [
+            'events' => $events,
+            'filters' => ['event_q' => $eventQ],
+        ]);
+    }
+
+    // Organizer-stage vendor application review page with search/status filters.
+    public function applications(Request $request): View
+    {
+        $club = $request->user();
+        $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
 
-        // Filter applications by vendor snapshot fields and event name so clubs can review faster.
         $applications = VendorBoothApplication::query()
             ->with(['event', 'vendor', 'selectedBooth.boothPlace'])
             ->whereHas('event', fn ($query) => $query->where('club_id', $club->id))
@@ -51,18 +69,9 @@ class VendorBoothApplicationController extends Controller
             ->latest()
             ->get();
 
-        $events = Event::query()
-            ->with('boothPlaces.booths')
-            ->where('club_id', $club->id)
-            ->where('approval_status', 'approved')
-            ->when($eventQ !== '', fn ($query) => $query->where('name', 'like', '%' . $eventQ . '%'))
-            ->orderByDesc('start_date')
-            ->get(['id', 'name']);
-
-        return view('club.vendor-booth-applications.index', [
+        return view('club.vendor-booth-applications.applications', [
             'applications' => $applications,
-            'events' => $events,
-            'filters' => ['q' => $q, 'event_q' => $eventQ, 'status' => $status],
+            'filters' => ['q' => $q, 'status' => $status],
         ]);
     }
 

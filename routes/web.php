@@ -654,6 +654,7 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::post('/lucky-draw/{event}', [ClubLuckyDrawController::class, 'update'])->name('club.lucky-draw.update');
     Route::post('/lucky-draw/{event}/draw-one', [ClubLuckyDrawController::class, 'drawOne'])->name('club.lucky-draw.draw-one');
     Route::get('/feedback', [ClubEventFeedbackController::class, 'index'])->name('club.feedback.index');
+    Route::get('/feedback/events/{event}/comments', [ClubEventFeedbackController::class, 'comments'])->name('club.feedback.comments');
     Route::get('/venue-bookings', [ClubVenueBookingController::class, 'index'])->name('club.venue-bookings.index');
     Route::get('/venue-bookings/create', [ClubVenueBookingController::class, 'create'])->name('club.venue-bookings.create');
     Route::post('/venue-bookings', [ClubVenueBookingController::class, 'store'])->name('club.venue-bookings.store');
@@ -662,6 +663,7 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::put('/venue-bookings/{venueBooking}', [ClubVenueBookingController::class, 'update'])->name('club.venue-bookings.update');
     Route::delete('/venue-bookings/{venueBooking}', [ClubVenueBookingController::class, 'destroy'])->name('club.venue-bookings.destroy');
     Route::get('/vendor-booth-applications', [ClubVendorBoothApplicationController::class, 'index'])->name('club.vendor-booth-applications.index');
+    Route::get('/vendor-booth-applications/applications', [ClubVendorBoothApplicationController::class, 'applications'])->name('club.vendor-booth-applications.applications');
     Route::post('/vendor-booth-applications/events/{event}/booth-places', [ClubVendorBoothApplicationController::class, 'storeBoothPlace'])
         ->name('club.vendor-booth-applications.events.booth-places.store');
     Route::put('/vendor-booth-applications/events/{event}/booth-places/{place}', [ClubVendorBoothApplicationController::class, 'updateBoothPlace'])
