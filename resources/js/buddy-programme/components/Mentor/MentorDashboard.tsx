@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Users, Calendar, BookOpen, MessageSquare, Award, Loader2, AlertCircle, Clock, Bell, FileText, CheckCircle } from 'lucide-react';
+import { Users, Calendar, BookOpen, MessageSquare, Award, Loader2, AlertCircle, Clock, Bell, FileText, CheckCircle, Archive } from 'lucide-react';
 import { MentorMentees } from './MentorMentees';
 import { MentorSchedule } from './MentorSchedule';
 import { MentorClassroom } from './MentorClassroom';
 import { MentorEvaluation } from './MentorEvaluation';
 import { MentorTestimonial } from './MentorTestimonial';
+import { SemesterSelector } from '../SemesterSelector';
 
 interface Mentee {
   id: string;
@@ -109,9 +110,11 @@ type TabType = 'overview' | 'mentees' | 'schedule' | 'classroom' | 'evaluation' 
 
 interface MentorDashboardProps {
   studentId?: string;
+  selectedSemesterId?: number | null;
+  onSemesterChange?: (id: number | null, role?: string) => void;
 }
 
-export function MentorDashboard({ studentId }: MentorDashboardProps) {
+export function MentorDashboard({ studentId, selectedSemesterId = null, onSemesterChange }: MentorDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +124,7 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [evaluationEnabled, setEvaluationEnabled] = useState(false);
   const [testimonialEnabled, setTestimonialEnabled] = useState(false);
+  const [isReadonly, setIsReadonly] = useState(false);
 
   const fetchDashboardData = async () => {
     if (!studentId) {
@@ -133,9 +137,10 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
       setLoading(true);
       setError(null);
 
+      const semParam = selectedSemesterId ? `&semester_id=${selectedSemesterId}` : '';
       const [dashboardResponse, scheduleResponse, settingsResponse] = await Promise.all([
-        fetch(`/api/buddy/mentor/dashboard?student_id=${studentId}`),
-        fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}`),
+        fetch(`/api/buddy/mentor/dashboard?student_id=${studentId}${semParam}`),
+        fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}${semParam}`),
         fetch('/api/buddy/admin/settings')
       ]);
 
@@ -146,6 +151,7 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
       if (result.success) {
         setDashboardData(result.data);
         setAttendanceRecords(result.data.attendanceRecords || []);
+        setIsReadonly(result.data.is_readonly ?? false);
 
         if (scheduleResult.success) {
           setScheduleData(scheduleResult.data);
@@ -263,7 +269,23 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [studentId]);
+  }, [studentId, selectedSemesterId]);
+
+  // Refresh mentee data when switching to mentees tab (lightweight, no full page reload)
+  useEffect(() => {
+    if (activeTab === 'mentees' && dashboardData && studentId) {
+      const semParam = selectedSemesterId ? `&semester_id=${selectedSemesterId}` : '';
+      fetch(`/api/buddy/mentor/dashboard?student_id=${studentId}${semParam}`)
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            setDashboardData(result.data);
+            setAttendanceRecords(result.data.attendanceRecords || []);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab]);
 
   const markNotificationRead = (notifId: string) => {
     setNotifications(prev => prev.map(notif =>
@@ -311,6 +333,57 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Header — always visible */}
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="mb-2">Welcome back, {mentor.name}!</h2>
+            <p className="text-purple-100">
+              Student ID: {mentor.studentId} | Role: Mentor
+            </p>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                <span className="text-purple-100">Subjects: {mentor.subjects.join(', ') || 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                <span className="text-purple-100">Mentees: {mentor.totalMentees}</span>
+              </div>
+            </div>
+            {isReadonly && (
+              <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 bg-white/20 text-white rounded text-xs">
+                <Archive className="w-3 h-3" />
+                Read-only — archived view
+              </span>
+            )}
+          </div>
+          <div className="text-right flex flex-col items-end gap-3">
+            {onSemesterChange && (
+              <div className="bg-white/10 rounded-lg p-1">
+                <SemesterSelector
+                  selectedSemesterId={selectedSemesterId ?? null}
+                  onSelect={onSemesterChange}
+                />
+              </div>
+            )}
+            <div>
+              <p className="text-purple-100">Your Rating</p>
+              <div className="flex items-center gap-2">
+                <span className="text-white">{mentor.rating.toFixed(1)}</span>
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span key={star} className={star <= mentor.rating ? 'text-yellow-300' : 'text-purple-300'}>
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Navigation Tabs */}
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="bg-white rounded-xl border border-gray-200 p-2">
@@ -415,6 +488,7 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
                 status: m.status,
               }))}
               onAttendanceSubmitted={handleAttendanceSubmitted}
+              isReadonly={isReadonly}
             />
           )}
 
@@ -422,6 +496,9 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
             <MentorSchedule
               studentId={mentor.studentId}
               scheduleData={scheduleData}
+              onScheduleUpdated={fetchDashboardData}
+              isReadonly={isReadonly}
+              semesterId={selectedSemesterId}
             />
           )}
 
@@ -429,6 +506,7 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
             <MentorClassroom
               mentorName={mentor.name}
               matchId={weeklySchedules && weeklySchedules.length > 0 ? weeklySchedules[0].matchId : scheduleData?.matchId}
+              isReadonly={isReadonly}
             />
           )}
 
@@ -436,6 +514,7 @@ export function MentorDashboard({ studentId }: MentorDashboardProps) {
             <MentorEvaluation
               mentees={mentees}
               mentorStudentId={mentor.studentId}
+              isReadonly={isReadonly}
             />
           )}
 
@@ -490,43 +569,8 @@ function OverviewContent({
 
   return (
     <>
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="mb-2">Welcome back, {mentor.name}!</h2>
-            <p className="text-purple-100">
-              Student ID: {mentor.studentId} | Role: Mentor
-            </p>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                <span className="text-purple-100">Subjects: {mentor.subjects.join(', ') || 'N/A'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                <span className="text-purple-100">Mentees: {mentor.totalMentees}</span>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-purple-100">Your Rating</p>
-            <div className="flex items-center gap-2">
-              <span className="text-white">{mentor.rating.toFixed(1)}</span>
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <span key={star} className={star <= mentor.rating ? 'text-yellow-300' : 'text-purple-300'}>
-                    ★
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Quick Stats */}
-      <div className="grid md:grid-cols-4 gap-4 mt-6">
+      <div className="grid md:grid-cols-4 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-gray-600">Total Mentees</p>

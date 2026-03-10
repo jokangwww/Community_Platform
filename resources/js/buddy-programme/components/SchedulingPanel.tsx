@@ -37,9 +37,12 @@ interface SchedulingPanelProps {
   userRole: 'mentor' | 'mentee';
   studentId: string;
   initialData?: ScheduleData | null;
+  onScheduleUpdated?: () => void;
+  isReadonly?: boolean;
+  semesterId?: number | null;
 }
 
-export function SchedulingPanel({ userRole, studentId, initialData }: SchedulingPanelProps) {
+export function SchedulingPanel({ userRole, studentId, initialData, onScheduleUpdated, isReadonly, semesterId }: SchedulingPanelProps) {
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,7 +66,8 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}`);
+      const semParam = semesterId ? `&semester_id=${semesterId}` : '';
+      const response = await fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}${semParam}`);
       const result = await response.json();
       
       if (result.success) {
@@ -207,6 +211,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
         setSlotsPublished(true);
         setTimeSlots(prev => prev.map(slot => ({ ...slot, status: 'voting' as const })));
         alert('Time slots published successfully! Mentees will now be able to vote.');
+        onScheduleUpdated?.();
       } else {
         alert(result.message || 'Failed to publish time slots');
       }
@@ -379,7 +384,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
         !isScheduled ? (
           <div className="space-y-6">
             {/* Add Time Slot Form */}
-            {!slotsPublished && (
+            {!isReadonly && !slotsPublished && (
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <h3 className="text-gray-900 mb-4">Add Available Time Slots</h3>
                 
@@ -479,7 +484,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                           </div>
                         )}
                       </div>
-                      {!slotsPublished && (
+                      {!isReadonly && !slotsPublished && (
                         <button
                           onClick={() => handleRemoveSlot(slot.id)}
                           disabled={submitting}
@@ -494,7 +499,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
               )}
 
               {/* Action Buttons */}
-              {!slotsPublished && timeSlots.length > 0 && (
+              {!isReadonly && !slotsPublished && timeSlots.length > 0 && (
                 <button
                   onClick={handlePublishSlots}
                   disabled={submitting}
@@ -504,7 +509,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                 </button>
               )}
 
-              {slotsPublished && (() => {
+              {!isReadonly && slotsPublished && (() => {
                 const maxVotes = Math.max(...timeSlots.map(s => s.votes), 0);
                 const hasTie = maxVotes > 0 && timeSlots.filter(s => s.votes === maxVotes).length > 1;
                 return (
@@ -636,7 +641,7 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                           );
                         }}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        disabled={submitting}
+                        disabled={submitting || isReadonly}
                       />
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
@@ -661,17 +666,19 @@ export function SchedulingPanel({ userRole, studentId, initialData }: Scheduling
                 </p>
               )}
 
-              <button
-                onClick={handleVoteSubmit}
-                disabled={selectedSlotIds.length === 0 || submitting}
-                className={`w-full px-6 py-3 rounded-lg transition-colors cursor-pointer ${
-                  selectedSlotIds.length > 0 && !submitting
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {submitting ? 'Submitting...' : `Submit Vote${selectedSlotIds.length > 1 ? 's' : ''}`}
-              </button>
+              {!isReadonly && (
+                <button
+                  onClick={handleVoteSubmit}
+                  disabled={selectedSlotIds.length === 0 || submitting}
+                  className={`w-full px-6 py-3 rounded-lg transition-colors cursor-pointer ${
+                    selectedSlotIds.length > 0 && !submitting
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {submitting ? 'Submitting...' : `Submit Vote${selectedSlotIds.length > 1 ? 's' : ''}`}
+                </button>
+              )}
             </div>
           ) : (
             // Vote Submitted

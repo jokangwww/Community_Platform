@@ -4,9 +4,11 @@ import { AdminFeedbackView } from './AdminFeedbackView';
 import { AdminTestimonialManagement } from './AdminTestimonialManagement';
 import { AdminGAPPointTracker } from './AdminGAPPointTracker';
 import { AdminMentorVerification } from './AdminMentorVerification';
+import { AdminRepeaterVerification } from './AdminRepeaterVerification';
 import { AdminAttendanceRecords } from './AdminAttendanceRecords';
 import { AdminSettings } from './AdminSettings';
 import { AdminAnalyticReport } from './AdminAnalyticReport';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface Analytics {
   mentors: { total: number; active: number; pending: number };
@@ -18,12 +20,14 @@ interface Analytics {
 export function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'verifications' | 'attendance' | 'feedback' | 'testimonials' | 'gap' | 'settings'>('verifications');
+  const [activeTab, setActiveTab] = useState<'verifications' | 'repeater-verifications' | 'attendance' | 'feedback' | 'testimonials' | 'gap' | 'settings'>('verifications');
   const [showReportPreview, setShowReportPreview] = useState(false);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch('/api/buddy/admin/analytics', {
+      const semParam = selectedSemesterId ? `?semester_id=${selectedSemesterId}` : '';
+      const response = await fetch(`/api/buddy/admin/analytics${semParam}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -42,7 +46,7 @@ export function AdminDashboard() {
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [selectedSemesterId]);
 
   const handleDownloadReport = () => {
     setShowReportPreview(true);
@@ -69,13 +73,16 @@ export function AdminDashboard() {
               <p className="text-gray-600">Complete programme statistics and insights</p>
             </div>
           </div>
-          <button
-            onClick={handleDownloadReport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF Report
-          </button>
+          <div className="flex items-center gap-3">
+            <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+            <button
+              onClick={handleDownloadReport}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              Download PDF Report
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-4 gap-4">
@@ -130,6 +137,16 @@ export function AdminDashboard() {
               }`}
             >
               Mentor Verifications
+            </button>
+            <button
+              onClick={() => setActiveTab('repeater-verifications')}
+              className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors flex-1 min-w-25 cursor-pointer ${
+                activeTab === 'repeater-verifications'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Repeater Verifications
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
@@ -187,6 +204,8 @@ export function AdminDashboard() {
         <div className="p-6">
           {activeTab === 'verifications' ? (
             <AdminMentorVerification onAnalyticsRefresh={fetchAnalytics} />
+          ) : activeTab === 'repeater-verifications' ? (
+            <AdminRepeaterVerification onAnalyticsRefresh={fetchAnalytics} />
           ) : activeTab === 'attendance' ? (
             <AdminAttendanceRecords />
           ) : activeTab === 'feedback' ? (
@@ -203,7 +222,8 @@ export function AdminDashboard() {
 
       <AdminAnalyticReport 
         isOpen={showReportPreview} 
-        onClose={() => setShowReportPreview(false)} 
+        onClose={() => setShowReportPreview(false)}
+        semesterId={selectedSemesterId}
       />
     </div>
   );

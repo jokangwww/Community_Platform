@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BuddyMatch;
 use App\Models\BuddyParticipant;
 use App\Models\BuddySetting;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -75,8 +76,11 @@ class BuddyMatchingService
      */
     protected function getAvailableMentors(): Collection
     {
+        $activeSemester = BuddySemesterSetting::getActiveSemester();
+
         return BuddyParticipant::mentors()
             ->where('status', 'active')
+            ->when($activeSemester, fn($q) => $q->where('semester_id', $activeSemester->id))
             ->whereNotNull('subject_id')
             ->withCount(['mentorMatches' => function ($query) {
                 $query->where('status', 'active');
@@ -95,9 +99,11 @@ class BuddyMatchingService
     protected function getUnmatchedMentees(): Collection
     {
         $priorityEnabled = BuddySetting::isPriorityAllocationEnabled();
+        $activeSemester = BuddySemesterSetting::getActiveSemester();
 
         $query = BuddyParticipant::mentees()
             ->where('status', 'active')
+            ->when($activeSemester, fn($q) => $q->where('semester_id', $activeSemester->id))
             ->whereNotNull('subject_id')
             ->whereDoesntHave('menteeMatches', function ($query) {
                 $query->where('status', 'active');
@@ -153,6 +159,7 @@ class BuddyMatchingService
                     'subject_id' => $menteeSubjectId,
                     'matched_date' => now(),
                     'status' => 'active',
+                    'semester_id' => $mentee->semester_id,
                     'total_sessions' => 0,
                     'completed_sessions' => 0,
                 ]);
@@ -234,6 +241,7 @@ class BuddyMatchingService
             'subject_id' => $finalSubjectId,
             'matched_date' => now(),
             'status' => 'active',
+            'semester_id' => $mentee->semester_id,
             'total_sessions' => 0,
             'completed_sessions' => 0,
         ]);
@@ -252,13 +260,23 @@ class BuddyMatchingService
      * 
      * @return array
      */
-    public function getMatchingStats(): array
+    public function getMatchingStats(?int $semesterId = null): array
     {
-        $totalMentors = BuddyParticipant::mentors()->where('status', 'active')->count();
-        $totalMentees = BuddyParticipant::mentees()->where('status', 'active')->count();
+        if ($semesterId) {
+            $targetSemesterId = $semesterId;
+        } else {
+            $activeSemester = BuddySemesterSetting::getActiveSemester();
+            $targetSemesterId = $activeSemester?->id;
+        }
+
+        $totalMentors = BuddyParticipant::mentors()->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))->count();
+        $totalMentees = BuddyParticipant::mentees()->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))->count();
         
         $matchedMentees = BuddyParticipant::mentees()
             ->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))
             ->whereHas('menteeMatches', function ($query) {
                 $query->where('status', 'active');
             })
@@ -268,6 +286,7 @@ class BuddyMatchingService
 
         $availableMentorSlots = BuddyParticipant::mentors()
             ->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))
             ->withCount(['mentorMatches' => function ($query) {
                 $query->where('status', 'active');
             }])
@@ -282,7 +301,9 @@ class BuddyMatchingService
             'matched_mentees' => $matchedMentees,
             'unmatched_mentees' => $unmatchedMentees,
             'available_mentor_slots' => $availableMentorSlots,
-            'active_matches' => BuddyMatch::where('status', 'active')->count(),
+            'active_matches' => BuddyMatch::where('status', 'active')
+                ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))
+                ->count(),
         ];
     }
 

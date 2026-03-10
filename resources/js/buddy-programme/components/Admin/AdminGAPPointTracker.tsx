@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Award, Download, CheckCircle, XCircle, TrendingUp, FileText, Users, Loader2, AlertCircle } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface StudentAttendance {
   id: string;
@@ -34,16 +35,18 @@ export function AdminGAPPointTracker() {
   const [selectedRole, setSelectedRole] = useState<'all' | 'mentor' | 'mentee'>('all');
   const [exporting, setExporting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAttendanceData();
-  }, []);
+  }, [selectedSemesterId]);
 
   const fetchAttendanceData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/buddy/gap-points');
+      const semParam = selectedSemesterId ? `?semester_id=${selectedSemesterId}` : '';
+      const response = await fetch(`/api/buddy/gap-points${semParam}`);
       const result = await response.json();
 
       if (result.success) {
@@ -118,6 +121,15 @@ export function AdminGAPPointTracker() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-gray-900">GAP Point Tracker</h2>
+          <p className="text-gray-600">Track attendance eligibility for GAP points</p>
+        </div>
+        <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+      </div>
+
       {/* Statistics */}
       <div className="grid md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-6">

@@ -7,9 +7,10 @@ interface FeedbackRatingProps {
   pairId: string;
   studentId: string;
   hasSubmitted?: boolean;
+  isReadonly?: boolean;
 }
 
-export function FeedbackRating({ userRole, pairName, pairId, studentId, hasSubmitted: initialHasSubmitted = false }: FeedbackRatingProps) {
+export function FeedbackRating({ userRole, pairName, pairId, studentId, hasSubmitted: initialHasSubmitted = false, isReadonly }: FeedbackRatingProps) {
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [feedback, setFeedback] = useState('');
@@ -139,6 +140,22 @@ export function FeedbackRating({ userRole, pairName, pairId, studentId, hasSubmi
           <h3 className="text-gray-900 mb-2">Feedback Submitted Successfully</h3>
           <p className="text-gray-600 mb-4">
             Thank you for providing your feedback on {pairName}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isReadonly) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="text-center py-8">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-gray-900 mb-2">Evaluation (Read-only)</h3>
+          <p className="text-gray-600">
+            This is a past semester. Evaluation submissions are disabled.
           </p>
         </div>
       </div>

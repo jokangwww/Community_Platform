@@ -147,6 +147,8 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
   // Poll & Petition data from API
   const [pollParticipation, setPollParticipation] = useState<PollParticipation[]>([]);
   const [petitionParticipation, setPetitionParticipation] = useState<PetitionParticipation[]>([]);
+  const [bookmarkedPolls, setBookmarkedPolls] = useState<PollParticipation[]>([]);
+  const [bookmarkedPetitions, setBookmarkedPetitions] = useState<PetitionParticipation[]>([]);
   const [topCampusVoices, setTopCampusVoices] = useState<CampusVoice[]>([]);
   const [topCampusConcerns, setTopCampusConcerns] = useState<CampusConcern[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -229,6 +231,62 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
     };
     fetchDashboard();
   }, [getCsrfToken]);
+
+  // Fetch bookmarks
+  const fetchBookmarks = useCallback(async () => {
+    try {
+      const res = await fetch('/api/poll-petition/bookmarks', {
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBookmarkedPolls(data.polls || []);
+        setBookmarkedPetitions(data.petitions || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bookmarks:', err);
+    }
+  }, [getCsrfToken]);
+
+  useEffect(() => {
+    fetchBookmarks();
+  }, [fetchBookmarks]);
+
+  // Toggle bookmark for a poll or petition
+  const handleToggleBookmark = async (type: 'poll' | 'petition', id: string) => {
+    try {
+      const res = await fetch('/api/poll-petition/bookmarks/toggle', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        body: JSON.stringify({ type, id: parseInt(id) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const isNowBookmarked = data.isBookmarked;
+
+        // Update poll participation list
+        if (type === 'poll') {
+          setPollParticipation(prev =>
+            prev.map(p => p.id === id ? { ...p, isBookmarked: isNowBookmarked } : p)
+          );
+        }
+        // Update petition participation list
+        if (type === 'petition') {
+          setPetitionParticipation(prev =>
+            prev.map(p => p.id === id ? { ...p, isBookmarked: isNowBookmarked } : p)
+          );
+        }
+        // Refresh bookmarks list
+        fetchBookmarks();
+      }
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
+  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -501,9 +559,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
                           {poll.createdByMe && (
                             <Badge className="bg-blue-500 text-white text-xs">Created by me</Badge>
                           )}
-                          {poll.isBookmarked && (
-                            <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                           <Badge variant="outline">{poll.category}</Badge>
@@ -570,6 +625,63 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
                 ))}
               </div>
             </Card>
+
+            {/* Bookmarked Polls */}
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Bookmark className="h-5 w-5 text-yellow-500" />
+                Bookmarked Polls ({bookmarkedPolls.length})
+              </h2>
+              {bookmarkedPolls.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Bookmark className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No bookmarked polls yet</p>
+                  <p className="text-sm">Bookmark polls to easily find them later</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bookmarkedPolls.map((poll) => (
+                    <div key={poll.id} className="p-4 border-2 rounded-lg hover:border-[#ff6934] transition-colors cursor-pointer" onClick={() => onPollClick?.(poll.id)}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold">{poll.title}</h3>
+                            {poll.status === 'archived' && (
+                              <Badge className="bg-gray-200 text-gray-600 text-xs">Archived</Badge>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleBookmark('poll', poll.id); }}
+                              className="cursor-pointer hover:scale-110 transition-transform"
+                              title="Remove bookmark"
+                            >
+                              <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Badge variant="outline">{poll.category}</Badge>
+                            <span>•</span>
+                            <Users className="h-3 w-3" />
+                            <span>{poll.totalVotes} votes</span>
+                            <span>•</span>
+                            <Badge className={
+                              poll.status === 'active' ? 'bg-green-100 text-green-700' :
+                              poll.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                              'bg-gray-100 text-gray-700'
+                            }>
+                              {poll.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onPollClick?.(poll.id); }}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </TabsContent>
 
           {/* PETITION TAB */}
@@ -627,9 +739,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
                             <h3 className="font-semibold">{petition.title}</h3>
                             {petition.createdByMe && (
                               <Badge className="bg-blue-500 text-white text-xs">Created by me</Badge>
-                            )}
-                            {petition.isBookmarked && (
-                              <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                             )}
                           </div>
                           <p className="text-sm text-gray-600 mb-3">{petition.description}</p>
@@ -696,6 +805,70 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
                   );
                 })}
               </div>
+            </Card>
+
+            {/* Bookmarked Petitions */}
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Bookmark className="h-5 w-5 text-yellow-500" />
+                Bookmarked Petitions ({bookmarkedPetitions.length})
+              </h2>
+              {bookmarkedPetitions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Bookmark className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No bookmarked petitions yet</p>
+                  <p className="text-sm">Bookmark petitions to easily find them later</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bookmarkedPetitions.map((petition) => {
+                    const progress = (petition.supporters / petition.goal) * 100;
+                    return (
+                      <div key={petition.id} className="p-4 border-2 rounded-lg hover:border-[#ff6934] transition-colors cursor-pointer" onClick={() => onPetitionClick?.(petition.id)}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold">{petition.title}</h3>
+                              {petition.status === 'archived' && (
+                                <Badge className="bg-gray-200 text-gray-600 text-xs">Archived</Badge>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleBookmark('petition', petition.id); }}
+                                className="cursor-pointer hover:scale-110 transition-transform"
+                                title="Remove bookmark"
+                              >
+                                <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                              </button>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{petition.description}</p>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Badge variant="outline">{petition.category}</Badge>
+                              <span>•</span>
+                              <Users className="h-3 w-3" />
+                              <span>{petition.supporters} supporters</span>
+                              <span>•</span>
+                              <span>{progress.toFixed(0)}% of goal</span>
+                              <span>•</span>
+                              <Badge className={
+                                petition.status === 'active' ? 'bg-blue-100 text-blue-700' :
+                                petition.status === 'successful' ? 'bg-green-100 text-green-700' :
+                                petition.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                                'bg-gray-100 text-gray-700'
+                              }>
+                                {petition.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline" className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onPetitionClick?.(petition.id); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </TabsContent>
 

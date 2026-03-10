@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\BuddyParticipant;
 use App\Models\BuddySubject;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
@@ -190,6 +191,7 @@ class BuddyBasicSeeder extends Seeder
 
         $participant = BuddyParticipant::create([
             'user_id'          => $user->id,
+            'semester_id'      => BuddySemesterSetting::getActiveSemester()?->id,
             'full_name'        => $data['name'],
             'student_id'       => $data['student_id'],
             'course'           => $data['course'],

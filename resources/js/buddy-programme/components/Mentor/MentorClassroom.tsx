@@ -72,9 +72,10 @@ interface QuizResultWithStudent extends QuizAttempt {
 interface MentorClassroomProps {
   mentorName: string;
   matchId?: string;
+  isReadonly?: boolean;
 }
 
-export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorClassroomProps) {
+export function MentorClassroom({ mentorName, matchId: initialMatchId, isReadonly }: MentorClassroomProps) {
   const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(initialMatchId);
   const matchId = selectedMatchId || initialMatchId;
   const [activeTab, setActiveTab] = useState<'materials' | 'quizzes' | 'assignments'>('materials');
@@ -198,13 +199,17 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         ? `/api/buddy/classroom/${matchId}/materials/${editingMaterial.id}`
         : `/api/buddy/classroom/${matchId}/materials`;
       
-      const method = editingMaterial ? 'PUT' : 'POST';
+      // Use POST with _method=PUT for edits (PHP can't parse multipart form data on PUT requests)
+      if (editingMaterial) {
+        formData.append('_method', 'PUT');
+      }
 
       const response = await fetch(url, {
-        method: method,
+        method: 'POST',
         body: formData,
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
         },
       });
 
@@ -251,50 +256,23 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
     }
   };
 
-  const handlePreviewMaterial = async (materialId: string, fileName: string) => {
+  const handleDownloadMaterial = async (materialId: string, fileName: string) => {
     try {
       const response = await fetch(`/api/buddy/classroom/${matchId}/materials/${materialId}/download`);
       if (!response.ok) {
-        throw new Error('Failed to fetch material');
+        throw new Error('Failed to download material');
       }
-
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-
-      // Open preview window (no print button)
-      const previewWindow = window.open('', '_blank');
-      if (previewWindow) {
-        previewWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>${fileName}</title>
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-              .preview-container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .preview-header { display: flex; align-items: center; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-              .preview-title { font-size: 20px; font-weight: 600; color: #1f2937; }
-              iframe { width: 100%; height: 800px; border: 1px solid #e5e7eb; border-radius: 4px; }
-              @media print { body { background: white; padding: 0; } .preview-container { box-shadow: none; padding: 0; } .preview-header { display: none; } iframe { height: auto; border: none; } }
-            </style>
-          </head>
-          <body>
-            <div class="preview-container">
-              <div class="preview-header">
-                <div class="preview-title">${fileName}</div>
-              </div>
-              <iframe src="${blobUrl}" type="${blob.type}"></iframe>
-            </div>
-          </body>
-          </html>
-        `);
-        previewWindow.document.close();
-      } else {
-        alert('Please allow pop-ups to preview the file');
-      }
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to preview material');
+      alert(err instanceof Error ? err.message : 'Failed to download material');
     }
   };
 
@@ -476,13 +454,17 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         ? `/api/buddy/classroom/${matchId}/assignments/${editingAssignment.id}`
         : `/api/buddy/classroom/${matchId}/assignments`;
       
-      const method = editingAssignment ? 'PUT' : 'POST';
+      // Use POST with _method=PUT for edits (PHP can't parse multipart form data on PUT requests)
+      if (editingAssignment) {
+        formData.append('_method', 'PUT');
+      }
 
       const response = await fetch(url, {
-        method: method,
+        method: 'POST',
         body: formData,
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
         },
       });
 
@@ -656,13 +638,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-gray-900">Study Materials</h3>
-            <button
-              onClick={() => setShowMaterialModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Upload Material
-            </button>
+            {!isReadonly && (
+              <button
+                onClick={() => { setEditingMaterial(null); setNewMaterial({ name: '', description: '', file: null }); setShowMaterialModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Upload Material
+              </button>
+            )}
           </div>
 
           {materials.length === 0 ? (
@@ -682,7 +666,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                       )}
                       <div className="flex items-center gap-4 text-gray-500">
                         <button
-                          onClick={() => handlePreviewMaterial(material.id, material.fileName)}
+                          onClick={() => handleDownloadMaterial(material.id, material.fileName)}
                           className="flex items-center gap-1 text-blue-600 hover:underline cursor-pointer"
                         >
                           <FileText className="w-4 h-4" />
@@ -692,11 +676,12 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                         <span>Uploaded: {material.uploadedDate}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenEditMaterial(material)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                        title="Edit"
+                    {!isReadonly && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenEditMaterial(material)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="Edit"
                       >
                         <Edit className="w-5 h-5" />
                       </button>
@@ -707,7 +692,8 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -721,13 +707,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-gray-900">Skill Assessment Quizzes</h3>
-            <button
-              onClick={() => setShowQuizModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Create Quiz
-            </button>
+            {!isReadonly && (
+              <button
+                onClick={() => { setEditingQuiz(null); setNewQuiz({ title: '', totalMarks: 10, dueDate: '', questions: [] }); setShowQuizModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Create Quiz
+              </button>
+            )}
           </div>
 
           {quizzes.length === 0 ? (
@@ -763,13 +751,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenEditQuiz(quiz)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                      >
-                        <Edit className="w-4 h-4 inline mr-1" />
-                        Edit
-                      </button>
+                      {!isReadonly && (
+                        <button
+                          onClick={() => handleOpenEditQuiz(quiz)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <Edit className="w-4 h-4 inline mr-1" />
+                          Edit
+                        </button>
+                      )}
                       <button
                         onClick={() => handleViewQuizResults(quiz)}
                         className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
@@ -790,13 +780,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-gray-900">Assignments</h3>
-            <button
-              onClick={() => setShowAssignmentModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Create Assignment
-            </button>
+            {!isReadonly && (
+              <button
+                onClick={() => { setEditingAssignment(null); setNewAssignment({ title: '', description: '', dueDate: '', attachments: [] }); setShowAssignmentModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Create Assignment
+              </button>
+            )}
           </div>
 
           {assignments.length === 0 ? (
@@ -845,13 +837,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenEditAssignment(assignment)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                        >
-                          <Edit className="w-4 h-4 inline mr-1" />
-                          Edit
-                        </button>
+                        {!isReadonly && (
+                          <button
+                            onClick={() => handleOpenEditAssignment(assignment)}
+                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-4 h-4 inline mr-1" />
+                            Edit
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewSubmissions(assignment)}
                           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
@@ -875,6 +869,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           onClick={() => {
             setShowMaterialModal(false);
             setNewMaterial({ name: '', description: '', file: null });
+            setEditingMaterial(null);
           }}
         >
           <div
@@ -966,6 +961,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           onClick={() => {
             setShowQuizModal(false);
             setEditingQuiz(null);
+            setNewQuiz({ title: '', totalMarks: 10, dueDate: '', questions: [] });
           }}
         >
           <div
@@ -974,7 +970,15 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           >
             <h3 className="text-gray-900 mb-4">{editingQuiz ? 'Edit Quiz' : 'Create Quiz'}</h3>
 
+            {(() => {
+              const hasAttempts = editingQuiz && (editingQuiz as any).attemptsCount > 0;
+              return (
             <div className="space-y-4 mb-6">
+              {hasAttempts && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+                  Mentees have already attempted this quiz. You can only edit the Quiz Title and Due Date.
+                </div>
+              )}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 mb-2">Quiz Title *</label>
@@ -992,7 +996,8 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                     type="number"
                     value={newQuiz.totalMarks}
                     onChange={(e) => setNewQuiz({ ...newQuiz, totalMarks: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={!!hasAttempts}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasAttempts ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
               </div>
@@ -1008,16 +1013,16 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                 />
               </div>
 
-              {/* Questions List - Only show edit/delete during creation, read-only when editing existing quiz */}
+              {/* Questions List */}
               {newQuiz.questions.length > 0 && (
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-gray-900 mb-3">Questions {editingQuiz ? '(Read-only)' : `Added (${newQuiz.questions.length})`}</h4>
+                  <h4 className="text-gray-900 mb-3">Questions {hasAttempts ? '(Locked - mentees have attempted)' : `(${newQuiz.questions.length})`}</h4>
                   <div className="space-y-2">
                     {newQuiz.questions.map((q, index) => (
                       <div key={q.id} className="p-3 bg-gray-50 rounded">
                         <div className="flex items-start justify-between mb-2">
                           <span className="text-gray-900 font-medium">{index + 1}. {q.question}</span>
-                          {!editingQuiz && (
+                          {!hasAttempts && (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => {
@@ -1069,8 +1074,8 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                 </div>
               )}
 
-              {/* Add Question Form - Only show when creating new quiz */}
-              {!editingQuiz && (
+              {/* Add Question Form - Only show when no attempts exist */}
+              {!hasAttempts && (
                 <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
                   <h4 className="text-gray-900 mb-3">Add Question</h4>
                 <div className="space-y-3">
@@ -1114,6 +1119,8 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
               </div>
               )}
             </div>
+              );
+            })()}
 
             <div className="flex gap-3">
               <button
@@ -1151,6 +1158,7 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
           onClick={() => {
             setShowAssignmentModal(false);
             setEditingAssignment(null);
+            setNewAssignment({ title: '', description: '', dueDate: '', attachments: [] });
           }}
         >
           <div
@@ -1365,18 +1373,20 @@ export function MentorClassroom({ mentorName, matchId: initialMatchId }: MentorC
                           )}
                         </div>
                         <div className="flex-shrink-0">
-                          <button
-                            onClick={() => {
-                              setGradingSubmission(submission);
-                              setGradeMarks(submission.marks ?? 0);
-                              setGradeFeedback(submission.feedback ?? '');
-                              setShowSubmissionsViewer(false);
-                            }}
-                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-sm"
-                          >
-                            <Star className="w-4 h-4" />
-                            {submission.marks !== null && submission.marks !== undefined ? 'Edit Grade' : 'Grade'}
-                          </button>
+                          {!isReadonly && (
+                            <button
+                              onClick={() => {
+                                setGradingSubmission(submission);
+                                setGradeMarks(submission.marks ?? 0);
+                                setGradeFeedback(submission.feedback ?? '');
+                                setShowSubmissionsViewer(false);
+                              }}
+                              className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-sm"
+                            >
+                              <Star className="w-4 h-4" />
+                              {submission.marks !== null && submission.marks !== undefined ? 'Edit Grade' : 'Grade'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

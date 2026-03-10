@@ -32,6 +32,8 @@ export function AdminSettings() {
   const [semStartDate, setSemStartDate] = useState('');
   const [semEndDate, setSemEndDate] = useState('');
   const [semesterSaving, setSemesterSaving] = useState(false);
+  const [semesterUpdating, setSemesterUpdating] = useState(false);
+  const [showNewSemesterConfirm, setShowNewSemesterConfirm] = useState(false);
   const [semesterMessage, setSemesterMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const getCsrfToken = () => {
@@ -197,13 +199,52 @@ export function AdminSettings() {
     setConfirmAction(null);
   };
 
-  const saveSemesterSetting = async () => {
+  const updateCurrentSemester = async () => {
+    if (!semAcademicYear || !semStartDate || !semEndDate) {
+      setSemesterMessage({ type: 'error', text: 'Please fill in all required fields.' });
+      return;
+    }
+    setSemesterUpdating(true);
+    setSemesterMessage(null);
+    try {
+      const response = await fetch('/api/buddy/admin/semester-setting', {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          academic_year: semAcademicYear,
+          semester: semSemester,
+          duration_type: semDurationType,
+          start_date: semStartDate,
+          end_date: semEndDate,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSemesterSetting(result.data);
+        setSemesterMessage({ type: 'success', text: 'Semester updated successfully.' });
+      } else {
+        setSemesterMessage({ type: 'error', text: result.message || 'Failed to update semester.' });
+      }
+    } catch (error) {
+      console.error('Failed to update semester:', error);
+      setSemesterMessage({ type: 'error', text: 'Failed to update semester.' });
+    } finally {
+      setSemesterUpdating(false);
+    }
+  };
+
+  const startNewSemester = async () => {
     if (!semAcademicYear || !semStartDate || !semEndDate) {
       setSemesterMessage({ type: 'error', text: 'Please fill in all required fields.' });
       return;
     }
     setSemesterSaving(true);
     setSemesterMessage(null);
+    setShowNewSemesterConfirm(false);
     try {
       const response = await fetch('/api/buddy/admin/semester-setting', {
         method: 'POST',
@@ -223,13 +264,13 @@ export function AdminSettings() {
       const result = await response.json();
       if (result.success) {
         setSemesterSetting(result.data);
-        setSemesterMessage({ type: 'success', text: 'Semester setting saved successfully.' });
+        setSemesterMessage({ type: 'success', text: 'New semester started successfully.' });
       } else {
-        setSemesterMessage({ type: 'error', text: result.message || 'Failed to save semester setting.' });
+        setSemesterMessage({ type: 'error', text: result.message || 'Failed to start new semester.' });
       }
     } catch (error) {
-      console.error('Failed to save semester setting:', error);
-      setSemesterMessage({ type: 'error', text: 'Failed to save semester setting.' });
+      console.error('Failed to start new semester:', error);
+      setSemesterMessage({ type: 'error', text: 'Failed to start new semester.' });
     } finally {
       setSemesterSaving(false);
     }
@@ -273,8 +314,8 @@ export function AdminSettings() {
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-2">
               <label className="block text-gray-700 mb-1">Academic Year</label>
               <select
                 value={semAcademicYear}
@@ -288,7 +329,7 @@ export function AdminSettings() {
               </select>
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="block text-gray-700 mb-1">Semester</label>
               <select
                 value={semSemester}
@@ -301,7 +342,7 @@ export function AdminSettings() {
               </select>
             </div>
 
-            <div>
+            <div className="col-span-4">
               <label className="block text-gray-700 mb-1">Duration</label>
               <select
                 value={semDurationType}
@@ -313,27 +354,24 @@ export function AdminSettings() {
               </select>
             </div>
 
-            <div className="md:col-span-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={semStartDate}
-                    onChange={(e) => setSemStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={semEndDate}
-                    onChange={(e) => setSemEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+            <div className="col-span-2">
+              <label className="block text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={semStartDate}
+                onChange={(e) => setSemStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                value={semEndDate}
+                onChange={(e) => setSemEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
 
@@ -345,13 +383,22 @@ export function AdminSettings() {
             </div>
           )}
 
-          <button
-            onClick={saveSemesterSetting}
-            disabled={semesterSaving}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-          >
-            {semesterSaving ? 'Saving...' : 'Save Semester Setting'}
-          </button>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={updateCurrentSemester}
+              disabled={semesterUpdating || semesterSaving}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              {semesterUpdating ? 'Updating...' : 'Update Current Semester'}
+            </button>
+            <button
+              onClick={() => setShowNewSemesterConfirm(true)}
+              disabled={semesterSaving || semesterUpdating}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              {semesterSaving ? 'Starting...' : '+ Start New Semester'}
+            </button>
+          </div>
         </div>
 
         {/* Priority Allocation System */}
@@ -509,6 +556,40 @@ export function AdminSettings() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal for Start New Semester */}
+      {showNewSemesterConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', backgroundColor: 'rgba(255, 255, 255, 0.3)' }}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center" style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ border: '4px solid #dc2626' }}>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3 text-red-600">Start New Semester?</h3>
+            <p className="text-gray-500 mb-4">
+              This will archive the current semester and create a new active semester with the details you entered.
+            </p>
+            <p className="text-gray-700 font-medium mb-8">
+              {semAcademicYear} — Semester {semSemester} ({semDurationType === 'long' ? 'Long' : 'Short'} Sem)<br />
+              <span className="text-gray-500 text-sm">{semStartDate} to {semEndDate}</span>
+            </p>
+            <p className="text-red-600 text-sm mb-8">This action cannot be undone.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowNewSemesterConfirm(false)}
+                style={{ padding: '10px 24px', border: '1px solid #d1d5db', borderRadius: '9999px', color: '#374151', backgroundColor: 'white', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={startNewSemester}
+                style={{ padding: '10px 24px', borderRadius: '9999px', color: 'white', backgroundColor: '#dc2626', fontWeight: 500, cursor: 'pointer', border: 'none' }}
+              >
+                Yes, Start New Semester
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal for Settings Toggle */}
       {confirmAction && (

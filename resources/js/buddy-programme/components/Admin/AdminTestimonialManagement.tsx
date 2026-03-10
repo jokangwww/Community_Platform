@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Award, CheckCircle, XCircle, Clock, Eye, Download, Loader2, AlertCircle } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface PendingTestimonial {
   id: string;
@@ -30,16 +31,18 @@ export function AdminTestimonialManagement() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTestimonial, setSelectedTestimonial] = useState<PendingTestimonial | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTestimonials();
-  }, []);
+  }, [selectedSemesterId]);
 
   const fetchTestimonials = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/buddy/testimonials');
+      const semParam = selectedSemesterId ? `?semester_id=${selectedSemesterId}` : '';
+      const response = await fetch(`/api/buddy/testimonials${semParam}`);
       const result = await response.json();
 
       if (result.success) {
@@ -155,6 +158,15 @@ export function AdminTestimonialManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-gray-900">Testimonial Management</h2>
+          <p className="text-gray-600">Review and approve mentor testimonial requests</p>
+        </div>
+        <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+      </div>
+
       {/* Statistics */}
       <div className="grid md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-6">

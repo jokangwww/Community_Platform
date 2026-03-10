@@ -37,6 +37,7 @@ interface MentorMenteesProps {
   studentId: string;
   sessions: SessionOption[];
   onAttendanceSubmitted: () => void;
+  isReadonly?: boolean;
 }
 
 export function MentorMentees({
@@ -45,6 +46,7 @@ export function MentorMentees({
   studentId,
   sessions,
   onAttendanceSubmitted,
+  isReadonly,
 }: MentorMenteesProps) {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showMenteeDetailsModal, setShowMenteeDetailsModal] = useState(false);
@@ -140,13 +142,15 @@ export function MentorMentees({
           <h3 className="text-gray-900 mb-2">My Mentees</h3>
           <p className="text-gray-600">View your mentees and their attendance records</p>
         </div>
-        <button
-          onClick={openAttendanceModal}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 cursor-pointer"
-        >
-          <CheckCircle className="w-4 h-4" />
-          Check In
-        </button>
+        {!isReadonly && (
+          <button
+            onClick={openAttendanceModal}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 cursor-pointer"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Check In
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">

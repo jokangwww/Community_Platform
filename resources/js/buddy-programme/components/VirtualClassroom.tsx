@@ -52,9 +52,10 @@ interface VirtualClassroomProps {
   studentId?: string;
   onLoad?: () => void;
   onActivityChange?: () => void;
+  isReadonly?: boolean;
 }
 
-export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActivityChange }: VirtualClassroomProps) {
+export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActivityChange, isReadonly }: VirtualClassroomProps) {
   const [activeTab, setActiveTab] = useState<'materials' | 'quizzes' | 'assignments'>('materials');
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -107,47 +108,23 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
   }, [fetchClassroomData]);
 
   // Material handlers
-  const handlePreviewMaterial = async (materialId: string, fileName: string) => {
+  const handleDownloadMaterial = async (materialId: string, fileName: string) => {
     try {
       const response = await fetch(`/api/buddy/classroom/${matchId}/materials/${materialId}/download`);
       if (!response.ok) {
-        throw new Error('Failed to fetch material');
+        throw new Error('Failed to download material');
       }
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-      const previewWindow = window.open('', '_blank');
-      if (previewWindow) {
-        previewWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>${fileName}</title>
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-              .preview-container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .preview-header { display: flex; align-items: center; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-              .preview-title { font-size: 20px; font-weight: 600; color: #1f2937; }
-              iframe { width: 100%; height: 800px; border: 1px solid #e5e7eb; border-radius: 4px; }
-              @media print { body { background: white; padding: 0; } .preview-container { box-shadow: none; padding: 0; } .preview-header { display: none; } iframe { height: auto; border: none; } }
-            </style>
-          </head>
-          <body>
-            <div class="preview-container">
-              <div class="preview-header">
-                <div class="preview-title">${fileName}</div>
-              </div>
-              <iframe src="${blobUrl}" type="${blob.type}"></iframe>
-            </div>
-          </body>
-          </html>
-        `);
-        previewWindow.document.close();
-      } else {
-        alert('Please allow pop-ups to preview the file');
-      }
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to preview material');
+      alert(err instanceof Error ? err.message : 'Failed to download material');
     }
   };
 
@@ -188,9 +165,9 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
         });
       }
       
-      // Update quizzes to mark as attempted
+      // Update quizzes to mark as attempted and store the attempt result
       setQuizzes(quizzes.map(q => 
-        q.id === takingQuiz.id ? { ...q, hasAttempted: true } as any : q
+        q.id === takingQuiz.id ? { ...q, hasAttempted: true, attempt: data.result } as any : q
       ));
       
       // Notify parent component to refresh
@@ -347,7 +324,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                       )}
                       <div className="flex items-center gap-4 text-gray-500">
                         <button
-                          onClick={() => handlePreviewMaterial(material.id, material.fileName)}
+                          onClick={() => handleDownloadMaterial(material.id, material.fileName)}
                           className="flex items-center gap-1 text-blue-600 hover:underline cursor-pointer"
                         >
                           <FileText className="w-4 h-4" />
@@ -408,7 +385,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {quiz.status === 'open' && !((quiz as any).hasAttempted) ? (
+                        {!isReadonly && quiz.status === 'open' && !((quiz as any).hasAttempted) ? (
                           <button
                             onClick={() => handleStartQuiz(quiz)}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
@@ -557,9 +534,9 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                 </button>
                 <button
                   onClick={handleSubmitQuiz}
-                  disabled={quizAnswers.some(a => a === -1) || submittingQuiz}
+                  disabled={quizAnswers.some(a => a === -1) || submittingQuiz || isReadonly}
                   className={`flex-1 px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer ${
-                    quizAnswers.some(a => a === -1) || submittingQuiz
+                    quizAnswers.some(a => a === -1) || submittingQuiz || isReadonly
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
@@ -628,7 +605,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                         )}
                       </div>
                       <div>
-                        {!(assignment as any).hasSubmitted ? (
+                        {!isReadonly && !(assignment as any).hasSubmitted ? (
                           <button
                             onClick={() => {
                               setSelectedAssignment(assignment);
@@ -638,7 +615,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                           >
                             Submit Assignment
                           </button>
-                        ) : (
+                        ) : (assignment as any).hasSubmitted ? (
                           <button
                             onClick={() => {
                               setViewingAssignment(assignment);
@@ -649,7 +626,7 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                             <CheckCircle className="w-4 h-4" />
                             View Details
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -745,54 +722,14 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                 Submitted: {(viewingAssignment as any).submission?.submittedDate || 'Recently'}
               </p>
               {(viewingAssignment as any).submission?.fileName && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch(`/api/buddy/classroom/${matchId}/assignments/${viewingAssignment.id}/submission/download`);
-                      if (!response.ok) throw new Error('Failed to fetch submission');
-                      const blob = await response.blob();
-                      const blobUrl = URL.createObjectURL(blob);
-                      const fileName = (viewingAssignment as any).submission.fileName;
-                      const previewWindow = window.open('', '_blank');
-                      if (previewWindow) {
-                        previewWindow.document.write(`
-                          <!DOCTYPE html>
-                          <html>
-                          <head>
-                            <title>${fileName}</title>
-                            <style>
-                              * { margin: 0; padding: 0; box-sizing: border-box; }
-                              body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-                              .preview-container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                              .preview-header { display: flex; align-items: center; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-                              .preview-title { font-size: 20px; font-weight: 600; color: #1f2937; }
-                              iframe { width: 100%; height: 800px; border: 1px solid #e5e7eb; border-radius: 4px; }
-                              @media print { body { background: white; padding: 0; } .preview-container { box-shadow: none; padding: 0; } .preview-header { display: none; } iframe { height: auto; border: none; } }
-                            </style>
-                          </head>
-                          <body>
-                            <div class="preview-container">
-                              <div class="preview-header">
-                                <div class="preview-title">${fileName}</div>
-                              </div>
-                              <iframe src="${blobUrl}" type="${blob.type}"></iframe>
-                            </div>
-                          </body>
-                          </html>
-                        `);
-                        previewWindow.document.close();
-                      } else {
-                        alert('Please allow pop-ups to preview the file');
-                      }
-                    } catch (err) {
-                      alert('Failed to preview file');
-                    }
-                  }}
+                <a
+                  href={`/api/buddy/classroom/${matchId}/assignments/${viewingAssignment.id}/submission/download`}
+                  download
                   className="text-blue-600 hover:underline text-sm mt-1 flex items-center gap-1 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   {(viewingAssignment as any).submission.fileName}
-                </button>
+                </a>
               )}
             </div>
 
@@ -840,53 +777,57 @@ export function VirtualClassroom({ userName, matchId, studentId, onLoad, onActiv
                 Download Submission
               </button> */}
 
-              <button
-                onClick={() => {
-                  setShowAssignmentDetailsModal(false);
-                  setSelectedAssignment(viewingAssignment);
-                  setShowSubmissionModal(true);
-                }}
-                className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Upload className="w-4 h-4" />
-                Reupload Submission
-              </button>
-
-              <button
-                onClick={async () => {
-                  if (!confirm('Are you sure you want to remove your submission? This action cannot be undone.')) {
-                    return;
-                  }
-                  
-                  try {
-                    const response = await fetch(`/api/buddy/classroom/${matchId}/assignments/${viewingAssignment.id}/submission`, {
-                      method: 'DELETE',
-                      headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                        ...(studentId ? { 'X-Student-ID': studentId } : {}),
-                      },
-                    });
-
-                    if (!response.ok) {
-                      throw new Error('Failed to remove submission');
-                    }
-
-                    // Update assignments to mark as not submitted
-                    setAssignments(assignments.map(a => 
-                      a.id === viewingAssignment.id ? { ...a, hasSubmitted: false, submission: null } as any : a
-                    ));
-                    
+              {!isReadonly && (
+                <button
+                  onClick={() => {
                     setShowAssignmentDetailsModal(false);
-                    alert('Submission removed successfully');
-                  } catch (err) {
-                    alert(err instanceof Error ? err.message : 'Failed to remove submission');
-                  }
-                }}
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-                Remove Submission
-              </button>
+                    setSelectedAssignment(viewingAssignment);
+                    setShowSubmissionModal(true);
+                  }}
+                  className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  Reupload Submission
+                </button>
+              )}
+
+              {!isReadonly && (
+                <button
+                  onClick={async () => {
+                    if (!confirm('Are you sure you want to remove your submission? This action cannot be undone.')) {
+                      return;
+                    }
+                    
+                    try {
+                      const response = await fetch(`/api/buddy/classroom/${matchId}/assignments/${viewingAssignment.id}/submission`, {
+                        method: 'DELETE',
+                        headers: {
+                          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                          ...(studentId ? { 'X-Student-ID': studentId } : {}),
+                        },
+                      });
+
+                      if (!response.ok) {
+                        throw new Error('Failed to remove submission');
+                      }
+
+                      // Update assignments to mark as not submitted
+                      setAssignments(assignments.map(a => 
+                        a.id === viewingAssignment.id ? { ...a, hasSubmitted: false, submission: null } as any : a
+                      ));
+                      
+                      setShowAssignmentDetailsModal(false);
+                      alert('Submission removed successfully');
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : 'Failed to remove submission');
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  Remove Submission
+                </button>
+              )}
             </div>
             ) : null}
 

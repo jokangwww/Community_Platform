@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, BookOpen, Star, Play, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface Match {
   id: string;
@@ -71,14 +72,19 @@ export function MatchingDashboard() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
+
+  const isViewingArchived = selectedSemesterId !== null;
 
   const getCsrfToken = () => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   };
 
+  const semParam = (prefix: '?' | '&' = '?') => selectedSemesterId ? `${prefix}semester_id=${selectedSemesterId}` : '';
+
   const fetchMatches = async () => {
     try {
-      const response = await fetch('/api/buddy/matching', {
+      const response = await fetch(`/api/buddy/matching${semParam('?')}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -92,7 +98,7 @@ export function MatchingDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/buddy/matching/stats', {
+      const response = await fetch(`/api/buddy/matching/stats${semParam('?')}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -107,7 +113,7 @@ export function MatchingDashboard() {
   const fetchPreview = async () => {
     setPreviewLoading(true);
     try {
-      const response = await fetch('/api/buddy/matching/preview', {
+      const response = await fetch(`/api/buddy/matching/preview${semParam('?')}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -159,11 +165,15 @@ export function MatchingDashboard() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      setShowPreview(false);
+      setPreviewData(null);
+      setError(null);
+      setSuccessMessage(null);
       await Promise.all([fetchMatches(), fetchStats()]);
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [selectedSemesterId]);
 
   const activeMatches = matches.filter(m => m.status === 'active');
   const repeaterMatches = activeMatches.filter(m => m.mentee.isRepeater);
@@ -179,6 +189,23 @@ export function MatchingDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Semester Filter */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-gray-900">Mentor-Mentee Matching</h2>
+          <p className="text-gray-600 text-sm">Manage and review mentor-mentee pairings</p>
+        </div>
+        <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+      </div>
+
+      {/* Archived notice */}
+      {isViewingArchived && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-amber-600" />
+          <span className="text-amber-800 text-sm">You are viewing an archived semester. Auto-match and preview actions are disabled.</span>
+        </div>
+      )}
+
       {/* Messages */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
@@ -228,6 +255,7 @@ export function MatchingDashboard() {
       </div>
 
       {/* Auto-Match Controls */}
+      {!isViewingArchived && (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -311,6 +339,7 @@ export function MatchingDashboard() {
           </div>
         )}
       </div>
+      )}
 
       {/* Matches List */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">

@@ -10,6 +10,7 @@ class BuddyMatch extends Model
     use HasFactory;
 
     protected $fillable = [
+        'semester_id',
         'mentor_id',
         'mentee_id',
         'subject_id',
@@ -22,6 +23,14 @@ class BuddyMatch extends Model
     protected $casts = [
         'matched_date' => 'date',
     ];
+
+    /**
+     * Get the semester this match belongs to
+     */
+    public function semester()
+    {
+        return $this->belongsTo(BuddySemesterSetting::class, 'semester_id');
+    }
 
     /**
      * Get all participants in this match (many-to-many)

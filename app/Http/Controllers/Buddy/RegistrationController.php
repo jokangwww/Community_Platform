@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buddy;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Buddy\RegistrationRequest;
 use App\Models\BuddyParticipant;
+use App\Models\BuddySemesterSetting;
 use App\Models\BuddySubject;
 use App\Models\BuddyMatch;
 use Illuminate\Http\JsonResponse;
@@ -79,7 +80,13 @@ class RegistrationController extends Controller
             }
 
             // Determine initial status based on role
-            $status = $request->role === 'mentor' ? 'pending' : 'active';
+            // Mentors require verification; repeater mentees also require document verification
+            $status = 'active';
+            if ($request->role === 'mentor') {
+                $status = 'pending';
+            } elseif ($request->role === 'mentee' && $request->is_repeater) {
+                $status = 'pending';
+            }
 
             // Determine priority tier (for mentees only)
             $priorityTier = null;
@@ -95,9 +102,11 @@ class RegistrationController extends Controller
             $subjectId = $this->resolveSubjectId($request);
 
             // Create participant
+            $activeSemester = BuddySemesterSetting::getActiveSemester();
             $participant = BuddyParticipant::create([
-                'user_id' => Auth::check() ? Auth::id() : null,
-                'full_name' => $request->full_name,
+                'user_id'     => Auth::check() ? Auth::id() : null,
+                'semester_id' => $activeSemester?->id,
+                'full_name'   => $request->full_name,
                 'student_id' => $request->student_id,
                 'course' => $request->course,
                 'faculty' => $request->faculty,
@@ -119,17 +128,22 @@ class RegistrationController extends Controller
             }
 
             // If mentee and active, calculate waitlist position
-            if ($request->role === 'mentee') {
+            if ($request->role === 'mentee' && $status === 'active') {
                 $this->updateWaitlistPositions();
             }
 
             DB::commit();
 
+            $message = 'Registration successful';
+            if ($request->role === 'mentor') {
+                $message = 'Registration submitted for verification';
+            } elseif ($request->role === 'mentee' && $request->is_repeater) {
+                $message = 'Registration submitted for document verification';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => $request->role === 'mentor'
-                    ? 'Registration submitted for verification'
-                    : 'Registration successful',
+                'message' => $message,
                 'data' => [
                     'id' => $participant->id,
                     'status' => $participant->status,

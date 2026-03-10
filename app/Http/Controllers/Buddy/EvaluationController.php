@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BuddyEvaluation;
 use App\Models\BuddyMatch;
 use App\Models\BuddyParticipant;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
@@ -16,12 +17,26 @@ class EvaluationController extends Controller
     public function index(Request $request)
     {
         try {
-            $evaluations = BuddyEvaluation::with([
+            // Resolve target semester
+            $semesterId = $request->query('semester_id');
+            $targetSemester = $semesterId
+                ? BuddySemesterSetting::find($semesterId)
+                : BuddySemesterSetting::getActiveSemester();
+
+            $query = BuddyEvaluation::with([
                 'fromParticipant.user',
                 'toParticipant.user',
                 'match.subject'
-            ])
-            ->orderBy('created_at', 'desc')
+            ]);
+
+            // Scope to semester via the match relationship
+            if ($targetSemester) {
+                $query->whereHas('match', function ($q) use ($targetSemester) {
+                    $q->where('semester_id', $targetSemester->id);
+                });
+            }
+
+            $evaluations = $query->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($evaluation) {
                 return [

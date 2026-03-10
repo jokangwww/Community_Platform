@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BuddyParticipant;
 use App\Models\BuddyMatch;
 use App\Models\BuddySession;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Http\Request;
 
 class GAPPointController extends Controller
@@ -16,9 +17,20 @@ class GAPPointController extends Controller
     public function index(Request $request)
     {
         try {
-            $participants = BuddyParticipant::with(['user', 'subject'])
-                ->where('status', 'active')
-                ->get();
+            // Resolve target semester
+            $semesterId = $request->query('semester_id');
+            $targetSemester = $semesterId
+                ? BuddySemesterSetting::find($semesterId)
+                : BuddySemesterSetting::getActiveSemester();
+
+            $query = BuddyParticipant::with(['user', 'subject'])
+                ->where('status', 'active');
+
+            if ($targetSemester) {
+                $query->where('semester_id', $targetSemester->id);
+            }
+
+            $participants = $query->get();
 
             $students = [];
             $totalAttendance = 0;
@@ -106,9 +118,20 @@ class GAPPointController extends Controller
     public function export()
     {
         try {
-            $participants = BuddyParticipant::with(['user', 'subject'])
-                ->where('status', 'active')
-                ->get();
+            // Resolve target semester from query
+            $semesterId = request()->query('semester_id');
+            $targetSemester = $semesterId
+                ? BuddySemesterSetting::find($semesterId)
+                : BuddySemesterSetting::getActiveSemester();
+
+            $query = BuddyParticipant::with(['user', 'subject'])
+                ->where('status', 'active');
+
+            if ($targetSemester) {
+                $query->where('semester_id', $targetSemester->id);
+            }
+
+            $participants = $query->get();
 
             $csv = "Name,Student ID,Role,Faculty,Programme,Total Sessions,Attended Sessions,Attendance Rate,GAP Eligible\n";
 

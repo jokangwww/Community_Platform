@@ -118,6 +118,104 @@
             transform: translateX(2px);
             border-color: #aac8ea;
         }
+
+        .buddy-promo {
+            margin-top: 14px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #dbe4f0;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e8f4f8 50%, #f5f0ff 100%);
+            box-shadow: 0 16px 32px -28px rgba(15, 23, 42, 0.85);
+        }
+
+        .buddy-promo-inner {
+            padding: 20px;
+        }
+
+        .buddy-promo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #0e5ec6, #6366f1);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .buddy-promo h2 {
+            margin: 12px 0 6px;
+            font-size: 20px;
+            color: #0f172a;
+        }
+
+        .buddy-promo p {
+            margin: 0 0 16px;
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .buddy-promo-roles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .buddy-role-card {
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+
+        .buddy-role-card.mentor {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        }
+
+        .buddy-role-card.mentee {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        }
+
+        .buddy-role-card strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .buddy-role-card.mentor strong { color: #065f46; }
+        .buddy-role-card.mentee strong { color: #1e40af; }
+
+        .buddy-role-card span {
+            font-size: 12px;
+            color: #4a5568;
+            line-height: 1.4;
+        }
+
+        .buddy-promo-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #0e5ec6, #4f46e5);
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            border: none;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 4px 12px rgba(14, 94, 198, 0.3);
+        }
+
+        .buddy-promo-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(14, 94, 198, 0.4);
+            color: #fff;
+        }
     </style>
 
     <div class="tabs">
@@ -167,4 +265,15 @@
             <p>Use Calendar to plan upcoming events, check Attendance History to track participation, and submit Feedback after events to build a stronger student community.</p>
         </article>
     </div>
+
+    {{-- Buddy Programme Promotion --}}
+    <section class="buddy-promo">
+        <div class="buddy-promo-inner">
+            <h2>Join the Buddy Programme</h2>
+            <p>Connect with peers, grow your skills, and earn GAP points. Whether you want to guide others as a <strong>Mentor</strong> or level up as a <strong>Mentee</strong>, there's a place for you.</p>
+            <a href="{{ route('buddy-programme-info') }}" class="buddy-promo-btn">
+                <span style="color: #fff;">View More &rarr;</span>
+            </a>
+        </div>
+    </section>
 @endsection

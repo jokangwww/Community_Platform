@@ -21,9 +21,12 @@ interface ScheduleData {
 interface MentorScheduleProps {
   studentId: string;
   scheduleData: ScheduleData | null;
+  onScheduleUpdated?: () => void;
+  isReadonly?: boolean;
+  semesterId?: number | null;
 }
 
-export function MentorSchedule({ studentId, scheduleData }: MentorScheduleProps) {
+export function MentorSchedule({ studentId, scheduleData, onScheduleUpdated, isReadonly, semesterId }: MentorScheduleProps) {
   if (!scheduleData?.hasMatch) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
@@ -37,7 +40,10 @@ export function MentorSchedule({ studentId, scheduleData }: MentorScheduleProps)
     <SchedulingPanel 
       userRole="mentor" 
       studentId={studentId} 
-      initialData={scheduleData} 
+      initialData={scheduleData}
+      onScheduleUpdated={onScheduleUpdated}
+      isReadonly={isReadonly}
+      semesterId={semesterId}
     />
   );
 }

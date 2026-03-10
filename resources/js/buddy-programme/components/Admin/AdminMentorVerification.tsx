@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Check, X, FileText, Download, Eye, Loader2 } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface PendingMentor {
   id: string;
@@ -24,14 +25,16 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMentor, setSelectedMentor] = useState<PendingMentor | null>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
   const getCsrfToken = () => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   };
 
-  const fetchPendingMentors = async () => {
+  const fetchPendingMentors = async (semId: number | null = null) => {
     try {
-      const response = await fetch('/api/buddy/admin/pending-mentors', {
+      const semParam = semId ? `?semester_id=${semId}` : '';
+      const response = await fetch(`/api/buddy/admin/pending-mentors${semParam}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -46,11 +49,11 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await fetchPendingMentors();
+      await fetchPendingMentors(selectedSemesterId);
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [selectedSemesterId]);
 
   const handleApprove = async (mentorId: string) => {
     setActionLoading(mentorId);
@@ -120,8 +123,11 @@ export function AdminMentorVerification({ onAnalyticsRefresh }: AdminMentorVerif
           <h2 className="text-gray-900">Pending Mentor Verifications</h2>
           <p className="text-gray-600">Review and approve mentor registrations</p>
         </div>
-        <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg">
-          {pendingMentors.length} Pending
+        <div className="flex items-center gap-3">
+          <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+          <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg">
+            {pendingMentors.length} Pending
+          </div>
         </div>
       </div>
 

@@ -63,6 +63,10 @@ Route::middleware(['auth', 'role:student,staff'])->group(function () {
     Route::get('/home', function () {
         return view('user.home');
     })->name('home');
+
+    Route::get('/buddy-programme-info', function () {
+        return view('user.buddy-programme-info');
+    })->name('buddy-programme-info');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -91,6 +95,26 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
     Route::middleware(['auth'])->group(function () {
         Route::get('/status', [\App\Http\Controllers\Buddy\RegistrationController::class, 'getStatus'])
             ->name('status');
+
+        // Entry state — determines which screen to show the user on load
+        Route::get('/entry-state', [\App\Http\Controllers\Buddy\EntryStateController::class, 'getEntryState'])
+            ->name('entry-state');
+
+        // Semesters the user has participated in (for dropdown)
+        Route::get('/semesters', [\App\Http\Controllers\Buddy\EntryStateController::class, 'getSemesters'])
+            ->name('semesters');
+
+        // Continuation flow routes
+        Route::prefix('continuation')->name('continuation.')->group(function () {
+            Route::post('/mentee-choice', [\App\Http\Controllers\Buddy\ContinuationController::class, 'menteeChoice'])
+                ->name('mentee-choice');
+            Route::get('/mentor-requests', [\App\Http\Controllers\Buddy\ContinuationController::class, 'getMentorRequests'])
+                ->name('mentor-requests');
+            Route::post('/mentor-response', [\App\Http\Controllers\Buddy\ContinuationController::class, 'mentorResponse'])
+                ->name('mentor-response');
+            Route::post('/mentor-self-choice', [\App\Http\Controllers\Buddy\ContinuationController::class, 'mentorSelfChoice'])
+                ->name('mentor-self-choice');
+        });
     });
     
     // Admin Settings GET - accessible to all authenticated users (mentees need to read settings)
@@ -99,6 +123,8 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('admin.settings');
         Route::get('/admin/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'getSemesterSetting'])
             ->name('admin.semester-setting.read');
+        Route::get('/admin/all-semesters', [\App\Http\Controllers\Buddy\AdminController::class, 'getAllSemesters'])
+            ->name('admin.all-semesters');
         // Unambiguous, non-admin alias used by mentor/mentee header
         Route::get('/semester-info', [\App\Http\Controllers\Buddy\AdminController::class, 'getSemesterSetting'])
             ->name('semester-info');
@@ -114,6 +140,12 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('approve-mentor');
         Route::post('/mentors/{id}/reject', [\App\Http\Controllers\Buddy\AdminController::class, 'rejectMentor'])
             ->name('reject-mentor');
+        Route::get('/pending-repeaters', [\App\Http\Controllers\Buddy\AdminController::class, 'getPendingRepeaters'])
+            ->name('pending-repeaters');
+        Route::post('/repeaters/{id}/approve', [\App\Http\Controllers\Buddy\AdminController::class, 'approveRepeater'])
+            ->name('approve-repeater');
+        Route::post('/repeaters/{id}/reject', [\App\Http\Controllers\Buddy\AdminController::class, 'rejectRepeater'])
+            ->name('reject-repeater');
         Route::get('/check-in-records', [\App\Http\Controllers\Buddy\AdminController::class, 'getCheckInRecords'])
             ->name('check-in-records');
         Route::get('/documents/{id}', [\App\Http\Controllers\Buddy\AdminController::class, 'downloadDocument'])
@@ -126,6 +158,9 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('semester-setting');
         Route::post('/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'saveSemesterSetting'])
             ->name('save-semester-setting');
+        // Update current active semester in-place (no archiving)
+        Route::put('/semester-setting', [\App\Http\Controllers\Buddy\AdminController::class, 'updateSemesterSetting'])
+            ->name('update-semester-setting');
         Route::get('/report-data', [\App\Http\Controllers\Buddy\AdminController::class, 'getReportData'])
             ->name('report-data');
     });
@@ -848,6 +883,12 @@ Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')
     // Dashboard (combined polls + petitions for user dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\PollPetition\PollPetitionDashboardController::class, 'index'])
         ->name('dashboard');
+
+    // Bookmarks
+    Route::post('/bookmarks/toggle', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'toggle'])
+        ->name('bookmarks.toggle');
+    Route::get('/bookmarks', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'index'])
+        ->name('bookmarks.index');
 
     // Admin
     Route::get('/admin/polls', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'polls'])

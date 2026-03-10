@@ -16,6 +16,15 @@ use Illuminate\Support\Facades\Storage;
 class ClassroomController extends Controller
 {
     /**
+     * Extend execution time for classroom operations.
+     * The PHP dev server on Windows can be slow due to antivirus scanning during autoloading.
+     */
+    public function __construct()
+    {
+        set_time_limit(120);
+    }
+
+    /**
      * Get the current user's participant record from request (set by middleware)
      */
     private function getParticipant(Request $request)
@@ -32,6 +41,145 @@ class ClassroomController extends Controller
     }
 
     /**
+     * Get all active match IDs for the mentor who owns the given match.
+     * Used to replicate/aggregate classroom content across all mentor's mentee matches.
+     */
+    private function getMentorMatchIds(int $matchId): array
+    {
+        $mentorPivot = \DB::table('buddy_match_participants')
+            ->where('match_id', $matchId)
+            ->where('role', 'mentor')
+            ->first();
+
+        if (!$mentorPivot) return [$matchId];
+
+        $match = \App\Models\BuddyMatch::find($matchId);
+        if (!$match) return [$matchId];
+
+        return \App\Models\BuddyMatch::whereHas('participants', function ($q) use ($mentorPivot) {
+            $q->where('buddy_match_participants.participant_id', $mentorPivot->participant_id)
+              ->where('buddy_match_participants.role', 'mentor');
+        })
+        ->where('status', 'active')
+        ->where('semester_id', $match->semester_id)
+        ->pluck('id')
+        ->toArray();
+    }
+
+    /**
+     * Auto-sync classroom content to a mentee's match from sibling matches (same mentor).
+     * This ensures all mentees see the same materials/quizzes/assignments regardless of
+     * which match the mentor used when creating content.
+     */
+    private function syncClassroomContent(int $matchId): void
+    {
+        $allMatchIds = $this->getMentorMatchIds($matchId);
+        $siblingMatchIds = array_diff($allMatchIds, [$matchId]);
+
+        if (empty($siblingMatchIds)) return;
+
+        // Sync study materials (match by name to avoid duplicates)
+        $existingMaterials = BuddyStudyMaterial::where('match_id', $matchId)->get()->keyBy('name');
+        $siblingMaterials = BuddyStudyMaterial::whereIn('match_id', $siblingMatchIds)
+            ->get()
+            ->unique('name');
+
+        foreach ($siblingMaterials as $mat) {
+            if ($existingMaterials->has($mat->name)) {
+                // Update existing record if content changed
+                $existing = $existingMaterials->get($mat->name);
+                if ($existing->description !== $mat->description || $existing->file_path !== $mat->file_path) {
+                    $existing->update([
+                        'description' => $mat->description,
+                        'file_name' => $mat->file_name,
+                        'file_path' => $mat->file_path,
+                        'file_size' => $mat->file_size,
+                        'mime_type' => $mat->mime_type,
+                    ]);
+                }
+            } else {
+                BuddyStudyMaterial::create([
+                    'match_id' => $matchId,
+                    'uploaded_by' => $mat->uploaded_by,
+                    'name' => $mat->name,
+                    'description' => $mat->description,
+                    'file_name' => $mat->file_name,
+                    'file_path' => $mat->file_path,
+                    'file_size' => $mat->file_size,
+                    'mime_type' => $mat->mime_type,
+                ]);
+            }
+        }
+
+        // Sync quizzes (match by title)
+        $existingQuizzes = BuddyQuiz::where('match_id', $matchId)->get()->keyBy('title');
+        $siblingQuizzes = BuddyQuiz::whereIn('match_id', $siblingMatchIds)
+            ->with('questions')
+            ->get()
+            ->unique('title');
+
+        foreach ($siblingQuizzes as $quiz) {
+            if ($existingQuizzes->has($quiz->title)) {
+                // Update existing quiz if content changed
+                $existing = $existingQuizzes->get($quiz->title);
+                $existing->update([
+                    'total_marks' => $quiz->total_marks,
+                    'due_date' => $quiz->due_date,
+                    'status' => $quiz->status,
+                ]);
+            } else {
+                $newQuiz = BuddyQuiz::create([
+                    'match_id' => $matchId,
+                    'created_by' => $quiz->created_by,
+                    'title' => $quiz->title,
+                    'total_marks' => $quiz->total_marks,
+                    'due_date' => $quiz->due_date,
+                    'status' => $quiz->status,
+                ]);
+
+                foreach ($quiz->questions as $q) {
+                    BuddyQuizQuestion::create([
+                        'quiz_id' => $newQuiz->id,
+                        'question' => $q->question,
+                        'options' => $q->options,
+                        'correct_answer' => $q->correct_answer,
+                        'order' => $q->order,
+                    ]);
+                }
+            }
+        }
+
+        // Sync assignments (match by title)
+        $existingAssignments = BuddyAssignment::where('match_id', $matchId)->get()->keyBy('title');
+        $siblingAssignments = BuddyAssignment::whereIn('match_id', $siblingMatchIds)
+            ->get()
+            ->unique('title');
+
+        foreach ($siblingAssignments as $assignment) {
+            if ($existingAssignments->has($assignment->title)) {
+                // Update existing assignment if content changed
+                $existing = $existingAssignments->get($assignment->title);
+                $existing->update([
+                    'description' => $assignment->description,
+                    'due_date' => $assignment->due_date,
+                    'total_marks' => $assignment->total_marks,
+                    'attachments' => $assignment->attachments,
+                ]);
+            } else {
+                BuddyAssignment::create([
+                    'match_id' => $matchId,
+                    'created_by' => $assignment->created_by,
+                    'title' => $assignment->title,
+                    'description' => $assignment->description,
+                    'due_date' => $assignment->due_date,
+                    'total_marks' => $assignment->total_marks,
+                    'attachments' => $assignment->attachments,
+                ]);
+            }
+        }
+    }
+
+    /**
      * Get classroom data for a match (materials, quizzes, assignments)
      */
     public function getClassroomData(Request $request, int $matchId): JsonResponse
@@ -40,6 +188,11 @@ class ClassroomController extends Controller
         $participant = $this->getParticipant($request);
         $match = $this->getMatch($request);
         $isMentor = $request->attributes->get('isMentor');
+
+        // For mentees: auto-sync content from mentor's other matches
+        if (!$isMentor) {
+            $this->syncClassroomContent($matchId);
+        }
 
         // Get materials
         $materials = BuddyStudyMaterial::where('match_id', $matchId)
@@ -162,18 +315,70 @@ class ClassroomController extends Controller
                 return $data;
             });
 
-        // Get mentees for this match (for mentor view)
+        // Get mentees for this mentor (across ALL matches for complete view)
         $mentees = [];
         if ($isMentor) {
-            // Get all mentees in this specific match via pivot table
-            $menteeParticipants = $match->mentees()->get();
-            
+            $allMatchIds = $this->getMentorMatchIds($matchId);
+            $allMenteeParticipantIds = \DB::table('buddy_match_participants')
+                ->whereIn('match_id', $allMatchIds)
+                ->where('role', 'mentee')
+                ->pluck('participant_id')
+                ->unique();
+
+            $menteeParticipants = \App\Models\BuddyParticipant::whereIn('id', $allMenteeParticipantIds)->get();
+
             foreach ($menteeParticipants as $menteeParticipant) {
                 $mentees[] = [
                     'id' => (string) $menteeParticipant->id,
                     'name' => $menteeParticipant->full_name,
                     'studentId' => $menteeParticipant->student_id,
                 ];
+            }
+
+            // Aggregate quiz attempts & assignment submissions from sibling matches
+            $siblingMatchIds = array_diff($allMatchIds, [$matchId]);
+            if (!empty($siblingMatchIds)) {
+                $quizzes = $quizzes->map(function ($quizData) use ($siblingMatchIds) {
+                    $siblingQuizIds = BuddyQuiz::whereIn('match_id', $siblingMatchIds)
+                        ->where('title', $quizData['title'])
+                        ->pluck('id');
+
+                    if ($siblingQuizIds->isNotEmpty()) {
+                        $siblingAttempts = BuddyQuizAttempt::whereIn('quiz_id', $siblingQuizIds)->count();
+                        $quizData['attemptsCount'] = ($quizData['attemptsCount'] ?? 0) + $siblingAttempts;
+
+                        if (empty($quizData['latestAttemptAt'])) {
+                            $latest = BuddyQuizAttempt::whereIn('quiz_id', $siblingQuizIds)
+                                ->latest('completed_at')
+                                ->first();
+                            if ($latest) {
+                                $quizData['latestAttemptAt'] = $latest->completed_at->format('Y-m-d');
+                            }
+                        }
+                    }
+                    return $quizData;
+                });
+
+                $assignments = $assignments->map(function ($assignmentData) use ($siblingMatchIds) {
+                    $siblingAssignmentIds = BuddyAssignment::whereIn('match_id', $siblingMatchIds)
+                        ->where('title', $assignmentData['title'])
+                        ->pluck('id');
+
+                    if ($siblingAssignmentIds->isNotEmpty()) {
+                        $siblingSubmissions = BuddyAssignmentSubmission::whereIn('assignment_id', $siblingAssignmentIds)->count();
+                        $assignmentData['submissionsCount'] = ($assignmentData['submissionsCount'] ?? 0) + $siblingSubmissions;
+
+                        if (empty($assignmentData['latestSubmissionAt'])) {
+                            $latest = BuddyAssignmentSubmission::whereIn('assignment_id', $siblingAssignmentIds)
+                                ->latest('submitted_at')
+                                ->first();
+                            if ($latest) {
+                                $assignmentData['latestSubmissionAt'] = $latest->submitted_at->format('Y-m-d');
+                            }
+                        }
+                    }
+                    return $assignmentData;
+                });
             }
         }
 
@@ -183,6 +388,7 @@ class ClassroomController extends Controller
             'assignments' => $assignments,
             'mentees' => $mentees,
             'userRole' => $isMentor ? 'mentor' : 'mentee',
+            'is_readonly' => (bool) $request->attributes->get('readonly'),
         ]);
     }
 
@@ -221,6 +427,21 @@ class ClassroomController extends Controller
             'file_size' => $this->formatFileSize($file->getSize()),
             'mime_type' => $file->getMimeType(),
         ]);
+
+        // Replicate material to all mentor's other matches
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        foreach ($siblingMatchIds as $siblingId) {
+            BuddyStudyMaterial::create([
+                'match_id' => $siblingId,
+                'uploaded_by' => $participant->id,
+                'name' => $request->name,
+                'description' => $request->description,
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $path, // share the same file
+                'file_size' => $this->formatFileSize($file->getSize()),
+                'mime_type' => $file->getMimeType(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Material uploaded successfully',
@@ -265,6 +486,8 @@ class ClassroomController extends Controller
         ]);
 
         // Update basic fields
+        $originalName = $material->name;
+
         $material->name = $request->name;
         $material->description = $request->description;
 
@@ -284,6 +507,25 @@ class ClassroomController extends Controller
         }
 
         $material->save();
+
+        // Propagate changes to sibling matches
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        if (!empty($siblingMatchIds)) {
+            $siblingMaterials = BuddyStudyMaterial::whereIn('match_id', $siblingMatchIds)
+                ->where('name', $originalName)
+                ->get();
+            foreach ($siblingMaterials as $siblingMat) {
+                $siblingMat->name = $material->name;
+                $siblingMat->description = $material->description;
+                if ($request->hasFile('file')) {
+                    $siblingMat->file_name = $material->file_name;
+                    $siblingMat->file_path = $material->file_path;
+                    $siblingMat->file_size = $material->file_size;
+                    $siblingMat->mime_type = $material->mime_type;
+                }
+                $siblingMat->save();
+            }
+        }
 
         return response()->json([
             'message' => 'Material updated successfully',
@@ -323,6 +565,14 @@ class ClassroomController extends Controller
         // Delete file from storage
         Storage::disk('public')->delete($material->file_path);
         
+        // Also delete copies from sibling matches (same file_path)
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        if (!empty($siblingMatchIds)) {
+            BuddyStudyMaterial::whereIn('match_id', $siblingMatchIds)
+                ->where('file_path', $material->file_path)
+                ->delete();
+        }
+
         $material->delete();
 
         return response()->json(['message' => 'Material deleted successfully']);
@@ -392,6 +642,29 @@ class ClassroomController extends Controller
             ]);
         }
 
+        // Replicate quiz to all mentor's other matches
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        foreach ($siblingMatchIds as $siblingId) {
+            $siblingQuiz = BuddyQuiz::create([
+                'match_id' => $siblingId,
+                'created_by' => $participant->id,
+                'title' => $request->title,
+                'total_marks' => $request->totalMarks,
+                'due_date' => $request->dueDate,
+                'status' => 'open',
+            ]);
+
+            foreach ($request->questions as $index => $questionData) {
+                BuddyQuizQuestion::create([
+                    'quiz_id' => $siblingQuiz->id,
+                    'question' => $questionData['question'],
+                    'options' => $questionData['options'],
+                    'correct_answer' => $questionData['correctAnswer'],
+                    'order' => $index,
+                ]);
+            }
+        }
+
         $quiz->load('questions');
 
         return response()->json([
@@ -437,35 +710,106 @@ class ClassroomController extends Controller
             return response()->json(['error' => 'Quiz not found'], 404);
         }
 
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'totalMarks' => 'required|integer|min:1',
-            'dueDate' => 'nullable|date',
-            'status' => 'nullable|in:open,closed',
-            'questions' => 'required|array|min:1',
-            'questions.*.question' => 'required|string',
-            'questions.*.options' => 'required|array|min:2',
-            'questions.*.correctAnswer' => 'required|integer|min:0',
-        ]);
+        // Check if any mentee has attempted this quiz (including sibling quizzes)
+        $hasAttempts = BuddyQuizAttempt::where('quiz_id', $quizId)->exists();
+        if (!$hasAttempts) {
+            $siblingQuizIds = BuddyQuiz::whereIn('match_id', $this->getMentorMatchIds($matchId))
+                ->where('title', $quiz->title)
+                ->where('id', '!=', $quizId)
+                ->pluck('id');
+            if ($siblingQuizIds->isNotEmpty()) {
+                $hasAttempts = BuddyQuizAttempt::whereIn('quiz_id', $siblingQuizIds)->exists();
+            }
+        }
 
-        $quiz->update([
-            'title' => $request->title,
-            'total_marks' => $request->totalMarks,
-            'due_date' => $request->dueDate,
-            'status' => $request->status ?? $quiz->status,
-        ]);
-
-        // Delete existing questions and create new ones
-        BuddyQuizQuestion::where('quiz_id', $quizId)->delete();
-        
-        foreach ($request->questions as $index => $questionData) {
-            BuddyQuizQuestion::create([
-                'quiz_id' => $quiz->id,
-                'question' => $questionData['question'],
-                'options' => $questionData['options'],
-                'correct_answer' => $questionData['correctAnswer'],
-                'order' => $index,
+        if ($hasAttempts) {
+            // Only allow updating title and due date when mentees have attempted
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'dueDate' => 'nullable|date',
             ]);
+
+            // Capture original title BEFORE update (Laravel syncs originals after save)
+            $originalTitle = $quiz->title;
+
+            $quiz->update([
+                'title' => $request->title,
+                'due_date' => $request->dueDate,
+                'status' => $request->status ?? $quiz->status,
+            ]);
+
+            // Also update sibling quizzes title and due date
+            $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+            if (!empty($siblingMatchIds)) {
+                BuddyQuiz::whereIn('match_id', $siblingMatchIds)
+                    ->where('title', $originalTitle)
+                    ->update([
+                        'title' => $request->title,
+                        'due_date' => $request->dueDate,
+                    ]);
+            }
+        } else {
+            // Full update allowed when no attempts exist
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'totalMarks' => 'required|integer|min:1',
+                'dueDate' => 'nullable|date',
+                'status' => 'nullable|in:open,closed',
+                'questions' => 'required|array|min:1',
+                'questions.*.question' => 'required|string',
+                'questions.*.options' => 'required|array|min:2',
+                'questions.*.correctAnswer' => 'required|integer|min:0',
+            ]);
+
+            $originalTitle = $quiz->title;
+
+            $quiz->update([
+                'title' => $request->title,
+                'total_marks' => $request->totalMarks,
+                'due_date' => $request->dueDate,
+                'status' => $request->status ?? $quiz->status,
+            ]);
+
+            // Delete existing questions and create new ones
+            BuddyQuizQuestion::where('quiz_id', $quizId)->delete();
+            
+            foreach ($request->questions as $index => $questionData) {
+                BuddyQuizQuestion::create([
+                    'quiz_id' => $quiz->id,
+                    'question' => $questionData['question'],
+                    'options' => $questionData['options'],
+                    'correct_answer' => $questionData['correctAnswer'],
+                    'order' => $index,
+                ]);
+            }
+
+            // Propagate full update to sibling quizzes
+            $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+            if (!empty($siblingMatchIds)) {
+                $siblingQuizzes = BuddyQuiz::whereIn('match_id', $siblingMatchIds)
+                    ->where('title', $originalTitle)
+                    ->get();
+                foreach ($siblingQuizzes as $siblingQuiz) {
+                    $siblingQuiz->update([
+                        'title' => $request->title,
+                        'total_marks' => $request->totalMarks,
+                        'due_date' => $request->dueDate,
+                        'status' => $request->status ?? $siblingQuiz->status,
+                    ]);
+
+                    // Replace sibling questions with the same updated questions
+                    BuddyQuizQuestion::where('quiz_id', $siblingQuiz->id)->delete();
+                    foreach ($request->questions as $index => $questionData) {
+                        BuddyQuizQuestion::create([
+                            'quiz_id' => $siblingQuiz->id,
+                            'question' => $questionData['question'],
+                            'options' => $questionData['options'],
+                            'correct_answer' => $questionData['correctAnswer'],
+                            'order' => $index,
+                        ]);
+                    }
+                }
+            }
         }
 
         $quiz->load('questions');
@@ -587,24 +931,32 @@ class ClassroomController extends Controller
 
         $quiz = BuddyQuiz::where('match_id', $matchId)
             ->where('id', $quizId)
-            ->with(['attempts.participant'])
             ->first();
 
         if (!$quiz) {
             return response()->json(['error' => 'Quiz not found'], 404);
         }
 
-        $attempts = $quiz->attempts->map(function ($attempt) {
-            return [
-                'quizId' => (string) $attempt->quiz_id,
-                'studentName' => $attempt->participant->full_name,
-                'studentId' => $attempt->participant->student_id,
-                'score' => $attempt->score,
-                'totalMarks' => $attempt->total_marks,
-                'completedDate' => $attempt->completed_at->format('Y-m-d'),
-                'answers' => $attempt->answers,
-            ];
-        });
+        // Aggregate attempts across all mentor's matches (sibling quizzes with same title)
+        $allMatchIds = $this->getMentorMatchIds($matchId);
+        $siblingQuizIds = BuddyQuiz::whereIn('match_id', $allMatchIds)
+            ->where('title', $quiz->title)
+            ->pluck('id');
+
+        $attempts = BuddyQuizAttempt::whereIn('quiz_id', $siblingQuizIds)
+            ->with('participant')
+            ->get()
+            ->map(function ($attempt) {
+                return [
+                    'quizId' => (string) $attempt->quiz_id,
+                    'studentName' => $attempt->participant->full_name,
+                    'studentId' => $attempt->participant->student_id,
+                    'score' => $attempt->score,
+                    'totalMarks' => $attempt->total_marks,
+                    'completedDate' => $attempt->completed_at->format('Y-m-d'),
+                    'answers' => $attempt->answers,
+                ];
+            });
 
         return response()->json([
             'quiz' => [
@@ -661,6 +1013,20 @@ class ClassroomController extends Controller
             'attachments' => $attachmentPaths,
         ]);
 
+        // Replicate assignment to all mentor's other matches
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        foreach ($siblingMatchIds as $siblingId) {
+            BuddyAssignment::create([
+                'match_id' => $siblingId,
+                'created_by' => $participant->id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'due_date' => $request->dueDate,
+                'total_marks' => 100,
+                'attachments' => $attachmentPaths, // share same file paths
+            ]);
+        }
+
         return response()->json([
             'message' => 'Assignment created successfully',
             'assignment' => [
@@ -702,15 +1068,19 @@ class ClassroomController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'dueDate' => 'required|date',
-            'totalMarks' => 'required|integer|min:1',
+            'totalMarks' => 'nullable|integer|min:1',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip|max:10240',
         ]);
 
+        $originalTitle = $assignment->title;
+
         $assignment->title = $request->title;
         $assignment->description = $request->description;
         $assignment->due_date = $request->dueDate;
-        $assignment->total_marks = $request->totalMarks;
+        if ($request->has('totalMarks') && $request->totalMarks) {
+            $assignment->total_marks = $request->totalMarks;
+        }
 
         // Handle new attachments
         if ($request->hasFile('attachments')) {
@@ -736,6 +1106,44 @@ class ClassroomController extends Controller
         }
 
         $assignment->save();
+
+        // Re-evaluate submission statuses based on new due date
+        $newDueDate = $assignment->due_date;
+        $submissions = BuddyAssignmentSubmission::where('assignment_id', $assignment->id)->get();
+        foreach ($submissions as $submission) {
+            $newStatus = $submission->submitted_at->gt($newDueDate) ? 'late' : 'on-time';
+            if ($submission->status !== $newStatus) {
+                $submission->status = $newStatus;
+                $submission->save();
+            }
+        }
+
+        // Also update sibling assignments and their submissions
+        $siblingMatchIds = array_diff($this->getMentorMatchIds($matchId), [$matchId]);
+        if (!empty($siblingMatchIds)) {
+            $siblingAssignments = BuddyAssignment::whereIn('match_id', $siblingMatchIds)
+                ->where('title', $originalTitle)
+                ->get();
+            foreach ($siblingAssignments as $siblingAssignment) {
+                $siblingAssignment->title = $assignment->title;
+                $siblingAssignment->description = $assignment->description;
+                $siblingAssignment->due_date = $assignment->due_date;
+                if ($request->has('totalMarks') && $request->totalMarks) {
+                    $siblingAssignment->total_marks = $assignment->total_marks;
+                }
+                $siblingAssignment->save();
+
+                // Re-evaluate sibling submissions too
+                $siblingSubmissions = BuddyAssignmentSubmission::where('assignment_id', $siblingAssignment->id)->get();
+                foreach ($siblingSubmissions as $sub) {
+                    $newStatus = $sub->submitted_at->gt($siblingAssignment->due_date) ? 'late' : 'on-time';
+                    if ($sub->status !== $newStatus) {
+                        $sub->status = $newStatus;
+                        $sub->save();
+                    }
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Assignment updated successfully',
@@ -879,26 +1287,34 @@ class ClassroomController extends Controller
 
         $assignment = BuddyAssignment::where('match_id', $matchId)
             ->where('id', $assignmentId)
-            ->with(['submissions.participant'])
             ->first();
 
         if (!$assignment) {
             return response()->json(['error' => 'Assignment not found'], 404);
         }
 
-        $submissions = $assignment->submissions->map(function ($submission) {
-            return [
-                'id' => (string) $submission->id,
-                'assignmentId' => (string) $submission->assignment_id,
-                'studentName' => $submission->participant->full_name,
-                'studentId' => $submission->participant->student_id,
-                'fileName' => $submission->file_name,
-                'submittedDate' => $submission->submitted_at->format('Y-m-d'),
-                'status' => $submission->status,
-                'marks' => $submission->marks,
-                'feedback' => $submission->feedback,
-            ];
-        });
+        // Aggregate submissions across all mentor's matches (sibling assignments with same title)
+        $allMatchIds = $this->getMentorMatchIds($matchId);
+        $siblingAssignmentIds = BuddyAssignment::whereIn('match_id', $allMatchIds)
+            ->where('title', $assignment->title)
+            ->pluck('id');
+
+        $submissions = BuddyAssignmentSubmission::whereIn('assignment_id', $siblingAssignmentIds)
+            ->with('participant')
+            ->get()
+            ->map(function ($submission) {
+                return [
+                    'id' => (string) $submission->id,
+                    'assignmentId' => (string) $submission->assignment_id,
+                    'studentName' => $submission->participant->full_name,
+                    'studentId' => $submission->participant->student_id,
+                    'fileName' => $submission->file_name,
+                    'submittedDate' => $submission->submitted_at->format('Y-m-d'),
+                    'status' => $submission->status,
+                    'marks' => $submission->marks,
+                    'feedback' => $submission->feedback,
+                ];
+            });
 
         return response()->json([
             'assignment' => [
@@ -931,7 +1347,13 @@ class ClassroomController extends Controller
             return response()->json(['error' => 'Assignment not found'], 404);
         }
 
-        $submission = BuddyAssignmentSubmission::where('assignment_id', $assignmentId)
+        // Look across all sibling assignments (same title, same mentor) for this submission
+        $allMatchIds = $this->getMentorMatchIds($matchId);
+        $siblingAssignmentIds = BuddyAssignment::whereIn('match_id', $allMatchIds)
+            ->where('title', $assignment->title)
+            ->pluck('id');
+
+        $submission = BuddyAssignmentSubmission::whereIn('assignment_id', $siblingAssignmentIds)
             ->where('id', $submissionId)
             ->first();
 
@@ -966,7 +1388,21 @@ class ClassroomController extends Controller
     {
         // Match access already validated by middleware
 
-        $submission = BuddyAssignmentSubmission::where('assignment_id', $assignmentId)
+        $assignment = BuddyAssignment::where('match_id', $matchId)
+            ->where('id', $assignmentId)
+            ->first();
+
+        if (!$assignment) {
+            return response()->json(['error' => 'Assignment not found'], 404);
+        }
+
+        // Look across all sibling assignments (same title, same mentor) for this submission
+        $allMatchIds = $this->getMentorMatchIds($matchId);
+        $siblingAssignmentIds = BuddyAssignment::whereIn('match_id', $allMatchIds)
+            ->where('title', $assignment->title)
+            ->pluck('id');
+
+        $submission = BuddyAssignmentSubmission::whereIn('assignment_id', $siblingAssignmentIds)
             ->where('id', $submissionId)
             ->first();
 

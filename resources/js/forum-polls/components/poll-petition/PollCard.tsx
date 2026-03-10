@@ -1,7 +1,7 @@
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
-import { Clock, Users, BarChart3, Calendar } from "lucide-react";
+import { Clock, Users, BarChart3, Calendar, Bookmark } from "lucide-react";
 
 interface Poll {
   id: string;
@@ -31,9 +31,11 @@ interface PollOption {
 interface PollCardProps {
   poll: Poll;
   onViewPoll: (pollId: string) => void;
+  isBookmarked?: boolean;
+  onToggleBookmark?: (pollId: string) => void;
 }
 
-export function PollCard({ poll, onViewPoll }: PollCardProps) {
+export function PollCard({ poll, onViewPoll, isBookmarked = false, onToggleBookmark }: PollCardProps) {
   const getCategoryColor = (category: string) => {
     const colors: { [key: string]: string } = {
       "campus-life": "bg-blue-100 text-blue-800",
@@ -69,8 +71,19 @@ export function PollCard({ poll, onViewPoll }: PollCardProps) {
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <h3 className="mb-2">{poll.title}</h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h3 className="leading-snug">{poll.title}</h3>
+              {onToggleBookmark && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleBookmark(poll.id); }}
+                  className="cursor-pointer hover:scale-110 transition-transform flex-shrink-0 mt-0.5"
+                  title={isBookmarked ? 'Remove bookmark' : 'Bookmark this poll'}
+                >
+                  <Bookmark className={`h-5 w-5 ${isBookmarked ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400 hover:text-yellow-500'}`} />
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-2">
               <Badge className={getCategoryColor(poll.category)}>
                 {formatCategoryName(poll.category)}
               </Badge>

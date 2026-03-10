@@ -17,9 +17,11 @@ interface AttendancePanelProps {
   userRole: 'mentor' | 'mentee';
   userName: string;
   studentId: string;
+  isReadonly?: boolean;
+  semesterId?: number | null;
 }
 
-export function AttendancePanel({ userRole, userName, studentId }: AttendancePanelProps) {
+export function AttendancePanel({ userRole, userName, studentId, isReadonly, semesterId }: AttendancePanelProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,8 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/buddy/user/sessions?student_id=${encodeURIComponent(studentId)}`);
+      const semParam = semesterId ? `&semester_id=${semesterId}` : '';
+      const response = await fetch(`/api/buddy/user/sessions?student_id=${encodeURIComponent(studentId)}${semParam}`);
       const result = await response.json();
 
       if (result.success) {
@@ -292,7 +295,7 @@ export function AttendancePanel({ userRole, userName, studentId }: AttendancePan
                   </div>
                 </div>
                 {/* Check-in button for mentees - show only for latest pending session and within session time */}
-                {userRole === 'mentee' && 
+                {!isReadonly && userRole === 'mentee' && 
                  latestPendingSession?.id === session.id && 
                  !session.menteeCheckIn && 
                  getDisplayStatus(session) === 'pending' && (

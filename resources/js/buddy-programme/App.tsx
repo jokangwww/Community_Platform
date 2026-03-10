@@ -9,6 +9,11 @@ const MatchingDashboard = lazy(() => import('./components/Admin/MatchingDashboar
 const WaitingList = lazy(() => import('./components/Admin/WaitingList').then(m => ({ default: m.WaitingList })));
 const MenteeDashboard = lazy(() => import('./components/MenteeDashboard').then(m => ({ default: m.MenteeDashboard })));
 const MentorDashboard = lazy(() => import('./components/Mentor/MentorDashboard').then(m => ({ default: m.MentorDashboard })));
+const ContinuePromptDialog = lazy(() => import('./components/ContinuePromptDialog').then(m => ({ default: m.ContinuePromptDialog })));
+const MentorContinuationChoices = lazy(() => import('./components/MentorContinuationChoices').then(m => ({ default: m.MentorContinuationChoices })));
+const WaitingForMentorScreen = lazy(() => import('./components/WaitingForMentorScreen').then(m => ({ default: m.WaitingForMentorScreen })));
+const MentorDeclinedNotice = lazy(() => import('./components/MentorDeclinedNotice').then(m => ({ default: m.MentorDeclinedNotice })));
+const RoleSelectionForView = lazy(() => import('./components/RoleSelectionForView').then(m => ({ default: m.RoleSelectionForView })));
 
 // Loading fallback component
 const LoadingSpinner = () => (
@@ -22,6 +27,17 @@ const LoadingSpinner = () => (
 
 type View = 'register' | 'admin' | 'matching' | 'waitlist';
 type Role = 'mentor' | 'mentee' | null;
+type EntryState =
+  | 'new_user'
+  | 'pending_review'
+  | 'pending_match'
+  | 'dashboard'
+  | 'continue_prompt'
+  | 'waiting_for_mentor'
+  | 'mentor_declined'
+  | 'mentor_continuation_choices'
+  | 'dashboard_readonly'
+  | null;
 
 // Auth user from Laravel
 interface SemesterSetting {
@@ -80,6 +96,13 @@ export default function App() {
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus | null>(null);
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
 
+  // Entry state (multi-semester routing)
+  const [entryState, setEntryState] = useState<EntryState>(null);
+  const [entryStateData, setEntryStateData] = useState<any>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
+  const [selectedSemesterRole, setSelectedSemesterRole] = useState<'mentor' | 'mentee' | null>(null);
+  const [archiveViewRole, setArchiveViewRole] = useState<'mentor' | 'mentee' | null>(null);
+
   // Registration settings
   const [isRegistrationEnabled, setIsRegistrationEnabled] = useState<boolean | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -132,16 +155,34 @@ export default function App() {
   const checkRegistrationStatus = async () => {
     try {
       setIsCheckingStatus(true);
-      const response = await fetch('/api/buddy/status');
+      // Use entry-state endpoint for multi-semester routing
+      const response = await fetch('/api/buddy/entry-state');
       const result = await response.json();
       
       if (result.success) {
-        setRegistrationStatus(result.data);
+        const state: EntryState = result.data.state;
+        setEntryState(state);
+        setEntryStateData(result.data);
+
+        // Back-compat: also populate registrationStatus for existing status-based logic
+        if (result.data.participant) {
+          const p = result.data.participant;
+          setRegistrationStatus({
+            registered: true,
+            id: p.id,
+            full_name: p.full_name,
+            student_id: p.student_id,
+            role: p.role,
+            status: p.status,
+            has_active_match: state === 'dashboard',
+          });
+        } else {
+          setRegistrationStatus({ registered: false });
+        }
       }
-      // Always mark checked regardless of outcome so user isn't stuck on loading
       setHasCheckedStatus(true);
     } catch (err) {
-      console.error('Failed to check registration status:', err);
+      console.error('Failed to check entry state:', err);
       setHasCheckedStatus(true);
     } finally {
       setIsCheckingStatus(false);
@@ -157,6 +198,11 @@ export default function App() {
     setShowRegistration(false);
     setSelectedRole(null);
     setCurrentView('register');
+    // Force a fresh status check so post-registration state is reflected correctly
+    setHasCheckedStatus(false);
+    setRegistrationStatus(null);
+    setEntryState(null);
+    setEntryStateData(null);
   };
 
   // Render the registration section based on status
@@ -185,24 +231,245 @@ export default function App() {
       );
     }
 
-    // Step 2: If registered and approved with active match, go to dashboard
-    if (registrationStatus?.registered && registrationStatus.status === 'active' && registrationStatus.has_active_match) {
-      // Mentors go to MentorDashboard, mentees go to MenteeDashboard
-      if (registrationStatus.role === 'mentor') {
+    // Step 2: Route based on entry state
+    if (hasCheckedStatus && entryState) {
+      const studentId = entryStateData?.participant?.student_id || authUser?.student_id || '';
+      const participantRole: 'mentor' | 'mentee' = entryStateData?.participant?.role ?? 'mentee';
+
+      // Active dashboard — full semester selector
+      if (entryState === 'dashboard') {
+        const hasMultipleRoles = entryStateData?.has_multiple_roles ?? false;
+        // When viewing a past semester with a different role, swap the dashboard
+        const effectiveRole = (selectedSemesterId && selectedSemesterRole) ? selectedSemesterRole : participantRole;
+
+        const handleSemesterChange = (id: number | null, role?: string) => {
+          setSelectedSemesterId(id);
+          setSelectedSemesterRole(id === null ? null : (role as 'mentor' | 'mentee' | null) ?? null);
+        };
+
+        if (effectiveRole === 'mentor') {
+          return (
+            <Suspense fallback={<LoadingSpinner />}>
+              <MentorDashboard
+                studentId={studentId}
+                selectedSemesterId={selectedSemesterId}
+                onSemesterChange={hasMultipleRoles ? handleSemesterChange : handleSemesterChange}
+              />
+            </Suspense>
+          );
+        }
         return (
           <Suspense fallback={<LoadingSpinner />}>
-            <MentorDashboard 
-              studentId={registrationStatus.student_id || authUser?.student_id || ''} 
+            <MenteeDashboard
+              studentId={studentId}
+              selectedSemesterId={selectedSemesterId}
+              onSemesterChange={hasMultipleRoles ? handleSemesterChange : handleSemesterChange}
             />
           </Suspense>
         );
-      } else if (registrationStatus.role === 'mentee') {
+      }
+
+      // Mentee must choose continue/decline for the new semester
+      if (entryState === 'continue_prompt') {
         return (
           <Suspense fallback={<LoadingSpinner />}>
-            <MenteeDashboard 
-              studentId={registrationStatus.student_id || authUser?.student_id || ''}
+            <ContinuePromptDialog
+              lastSemesterLabel={entryStateData?.semester?.label ?? ''}
+              nextSemesterLabel={entryStateData?.next_semester?.label}
+              onContinue={async () => {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                await fetch('/api/buddy/continuation/mentee-choice', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                  body: JSON.stringify({ choice: 'continue' }),
+                });
+                setHasCheckedStatus(false);
+                setEntryState(null);
+                checkRegistrationStatus();
+              }}
+              onDecline={async () => {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                await fetch('/api/buddy/continuation/mentee-choice', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                  body: JSON.stringify({ choice: 'decline' }),
+                });
+                setHasCheckedStatus(false);
+                setEntryState(null);
+                checkRegistrationStatus();
+              }}
             />
           </Suspense>
+        );
+      }
+
+      // Mentee chose "continue", waiting for mentor's response
+      if (entryState === 'waiting_for_mentor') {
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <WaitingForMentorScreen
+              renderReadOnlyDashboard={() => (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MenteeDashboard
+                    studentId={studentId}
+                    selectedSemesterId={entryStateData?.semester?.id ?? null}
+                    onSemesterChange={undefined}
+                  />
+                </Suspense>
+              )}
+            />
+          </Suspense>
+        );
+      }
+
+      // Mentor declined the mentee's continuation
+      if (entryState === 'mentor_declined') {
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <MentorDeclinedNotice
+              continuations={entryStateData?.continuations ?? []}
+              nextSemesterLabel={entryStateData?.semester?.label}
+              onRegisterFresh={() => {
+                setEntryState('new_user');
+                setHasCheckedStatus(true);
+                setRegistrationStatus(null);
+              }}
+            />
+          </Suspense>
+        );
+      }
+
+      // Mentor must respond to pending continuation requests
+      if (entryState === 'mentor_continuation_choices') {
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <MentorContinuationChoices
+              nextSemesterLabel={entryStateData?.next_semester?.label}
+              onAllResolved={() => {
+                setHasCheckedStatus(false);
+                setEntryState(null);
+                checkRegistrationStatus();
+              }}
+            />
+          </Suspense>
+        );
+      }
+
+      // Read-only view of an archived semester
+      if (entryState === 'dashboard_readonly') {
+        // If user has both roles across semesters, let them pick which to view
+        const hasMultipleRoles = entryStateData?.has_multiple_roles ?? false;
+        const effectiveRole = archiveViewRole ?? participantRole;
+
+        const handleSemesterChangeRO = (id: number | null, role?: string) => {
+          setSelectedSemesterId(id);
+          if (role) setArchiveViewRole(role as 'mentor' | 'mentee');
+        };
+
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            {hasMultipleRoles && !archiveViewRole ? (
+              <RoleSelectionForView onRoleSelect={setArchiveViewRole} />
+            ) : effectiveRole === 'mentor' ? (
+              <MentorDashboard
+                studentId={studentId}
+                selectedSemesterId={selectedSemesterId}
+                onSemesterChange={handleSemesterChangeRO}
+              />
+            ) : (
+              <MenteeDashboard
+                studentId={studentId}
+                selectedSemesterId={selectedSemesterId}
+                onSemesterChange={handleSemesterChangeRO}
+              />
+            )}
+          </Suspense>
+        );
+      }
+
+      // new_user → fall through to registration flow below
+      // pending_review / pending_match → handled explicitly below
+
+      // Registered but awaiting admin approval
+      if (entryState === 'pending_review') {
+        const p = entryStateData?.participant;
+        return (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-3">Registration Submitted!</h2>
+              {p?.role === 'mentor' ? (
+                <div className="space-y-3">
+                  <p className="text-gray-600">Your mentor registration has been submitted for verification.</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-amber-800">
+                      Your profile is currently <strong>Pending Verification</strong>.{' '}
+                      An admin will review your qualification documents and approve your registration.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-amber-800">Your registration is pending admin review.</p>
+                </div>
+              )}
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-left">
+                <p className="text-gray-700 font-medium mb-2">Registration Summary:</p>
+                <ul className="space-y-1 text-gray-600">
+                  <li>Name: <span className="font-medium">{p?.full_name}</span></li>
+                  <li>Student ID: <span className="font-medium">{p?.student_id}</span></li>
+                  <li>Role: <span className="capitalize font-medium">{p?.role}</span></li>
+                  <li>Status: <span className="font-medium text-amber-600">Pending Review</span></li>
+                </ul>
+              </div>
+              <div className="mt-6">
+                <button onClick={() => window.location.href = '/home'} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                  Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Approved and active, but no match assigned yet
+      if (entryState === 'pending_match') {
+        const p = entryStateData?.participant;
+        return (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-3">Waiting for Match</h2>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-blue-800">
+                  Your registration has been approved, and you are currently in the waiting list for matching.
+                </p>
+              </div>
+              <p className="text-gray-600">
+                {p?.role === 'mentor'
+                  ? 'We are working on finding suitable mentees based on your expertise and availability.'
+                  : 'We are working on finding a suitable mentor based on your needs and subject.'}
+              </p>
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-left">
+                <p className="text-gray-700 font-medium mb-2">Your Profile:</p>
+                <ul className="space-y-1 text-gray-600">
+                  <li>Name: <span className="font-medium">{p?.full_name}</span></li>
+                  <li>Student ID: <span className="font-medium">{p?.student_id}</span></li>
+                  <li>Role: <span className="capitalize font-medium">{p?.role}</span></li>
+                  <li>Status: <span className="font-medium text-green-600">Active</span></li>
+                </ul>
+              </div>
+              <div className="mt-6">
+                <button onClick={() => window.location.href = '/home'} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                  Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
         );
       }
     }
@@ -419,8 +686,8 @@ export default function App() {
             <div className="flex items-center gap-4">
               {/* View Switcher */}
               <div className="flex gap-2">
-                {/* Show Register button only for non-admin users not yet on the dashboard */}
-                {!isAdmin && !(registrationStatus?.status === 'active' && registrationStatus?.has_active_match) && (
+                {/* Show Register button for non-admin users not yet on the dashboard */}
+                {!isAdmin && entryState !== 'dashboard' && entryState !== 'dashboard_readonly' && entryState !== 'continue_prompt' && entryState !== 'waiting_for_mentor' && entryState !== 'mentor_declined' && entryState !== 'mentor_continuation_choices' && (
                   <button
                     onClick={() => {
                       setCurrentView('register');
@@ -429,6 +696,9 @@ export default function App() {
                       // Reset status check when navigating to register
                       setRegistrationStatus(null);
                       setHasCheckedStatus(false);
+                      setEntryState(null);
+                      setEntryStateData(null);
+                      setArchiveViewRole(null);
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentView === 'register'
@@ -441,8 +711,28 @@ export default function App() {
                   </button>
                 )}
 
+                {/* Register button for declined / readonly users — lets them re-register for the new semester */}
+                {!isAdmin && entryState === 'dashboard_readonly' && (
+                  <button
+                    onClick={() => {
+                      setCurrentView('register');
+                      setShowRegistration(false);
+                      setSelectedRole(null);
+                      setRegistrationStatus(null);
+                      setHasCheckedStatus(true);
+                      setEntryState('new_user');
+                      setEntryStateData(null);
+                      setArchiveViewRole(null);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Users className="w-4 h-4" />
+                    Register for New Semester
+                  </button>
+                )}
+
                 {/* Semester info */}
-                {!isAdmin && registrationStatus?.status === 'active' && registrationStatus?.has_active_match && semesterInfo && (
+                {!isAdmin && (entryState === 'dashboard' || entryState === 'dashboard_readonly') && semesterInfo && (
                   <div className="flex flex-col px-4 py-2">
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 500, lineHeight: '1.2', color: '#111827' }}>{semesterInfo.academic_year} &nbsp; Semester {semesterInfo.semester}</h1>
                     <p className="text-sm text-gray-600">{semesterInfo.start_date} &mdash; {semesterInfo.end_date}</p>

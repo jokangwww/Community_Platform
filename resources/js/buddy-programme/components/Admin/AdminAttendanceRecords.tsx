@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Loader2 } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface CheckInRecord {
   id: string;
@@ -16,10 +17,12 @@ interface CheckInRecord {
 export function AdminAttendanceRecords() {
   const [checkInRecords, setCheckInRecords] = useState<CheckInRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
-  const fetchCheckInRecords = async () => {
+  const fetchCheckInRecords = async (semId: number | null = null) => {
     try {
-      const response = await fetch('/api/buddy/admin/check-in-records', {
+      const semParam = semId ? `?semester_id=${semId}` : '';
+      const response = await fetch(`/api/buddy/admin/check-in-records${semParam}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -34,11 +37,11 @@ export function AdminAttendanceRecords() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await fetchCheckInRecords();
+      await fetchCheckInRecords(selectedSemesterId);
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [selectedSemesterId]);
 
   if (isLoading) {
     return (
@@ -51,9 +54,12 @@ export function AdminAttendanceRecords() {
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-gray-900">Session Check-In Records</h2>
-        <p className="text-gray-600">View all mentor and mentee check-ins with timestamps</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-gray-900">Session Check-In Records</h2>
+          <p className="text-gray-600">View all mentor and mentee check-ins with timestamps</p>
+        </div>
+        <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
       </div>
 
       <div className="space-y-3">

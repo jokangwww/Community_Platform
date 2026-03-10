@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buddy;
 use App\Http\Controllers\Controller;
 use App\Models\BuddyTestimonial;
 use App\Models\BuddyParticipant;
+use App\Models\BuddySemesterSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -16,8 +17,22 @@ class TestimonialController extends Controller
     public function index(Request $request)
     {
         try {
-            $testimonials = BuddyTestimonial::with(['participant.user', 'participant.subject'])
-                ->orderBy('created_at', 'desc')
+            // Resolve target semester
+            $semesterId = $request->query('semester_id');
+            $targetSemester = $semesterId
+                ? BuddySemesterSetting::find($semesterId)
+                : BuddySemesterSetting::getActiveSemester();
+
+            $query = BuddyTestimonial::with(['participant.user', 'participant.subject']);
+
+            // Scope to semester via participant relationship
+            if ($targetSemester) {
+                $query->whereHas('participant', function ($q) use ($targetSemester) {
+                    $q->where('semester_id', $targetSemester->id);
+                });
+            }
+
+            $testimonials = $query->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($testimonial) {
                     return [
@@ -89,8 +104,9 @@ class TestimonialController extends Controller
                 ]);
             }
 
+            // Use the participant's semester to find testimonials dynamically
             $testimonial = BuddyTestimonial::where('participant_id', $participant->id)
-                ->where('semester_year', 'Semester 2, 2024/2025')
+                ->latest()
                 ->first();
 
             return response()->json([

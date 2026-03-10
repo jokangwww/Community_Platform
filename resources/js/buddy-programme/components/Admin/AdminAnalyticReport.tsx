@@ -40,6 +40,7 @@ interface ReportData {
 interface AdminAnalyticReportProps {
   isOpen: boolean;
   onClose: () => void;
+  semesterId?: number | null;
 }
 
 // Reusable styles for PDF compatibility (html2canvas doesn't support oklch colors)
@@ -90,7 +91,7 @@ const styles = {
   }
 };
 
-export function AdminAnalyticReport({ isOpen, onClose }: AdminAnalyticReportProps) {
+export function AdminAnalyticReport({ isOpen, onClose, semesterId }: AdminAnalyticReportProps) {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -99,7 +100,8 @@ export function AdminAnalyticReport({ isOpen, onClose }: AdminAnalyticReportProp
   const fetchReportData = async () => {
     setReportLoading(true);
     try {
-      const response = await fetch('/api/buddy/admin/report-data', {
+      const semParam = semesterId ? `?semester_id=${semesterId}` : '';
+      const response = await fetch(`/api/buddy/admin/report-data${semParam}`, {
         headers: { 'Accept': 'application/json' }
       });
       const result = await response.json();
@@ -117,7 +119,7 @@ export function AdminAnalyticReport({ isOpen, onClose }: AdminAnalyticReportProp
     if (isOpen) {
       fetchReportData();
     }
-  }, [isOpen]);
+  }, [isOpen, semesterId]);
 
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return;

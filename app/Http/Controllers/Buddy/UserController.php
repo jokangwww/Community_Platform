@@ -15,12 +15,18 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        set_time_limit(120);
+    }
+
     /**
      * Get user dashboard data
      */
     public function getDashboard(Request $request): JsonResponse
     {
-        $studentId = $request->query('student_id');
+        $studentId  = $request->query('student_id');
+        $semesterId = $request->query('semester_id');
 
         if (!$studentId) {
             return response()->json([
@@ -29,10 +35,30 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Get participant info
-        $participant = BuddyParticipant::with('subject')
-            ->where('student_id', $studentId)
-            ->first();
+        // Resolve the target semester (provided or active)
+        $targetSemester = $semesterId
+            ? BuddySemesterSetting::find($semesterId)
+            : BuddySemesterSetting::getActiveSemester();
+
+        // Get participant info — scoped to semester when available
+        $participantQuery = BuddyParticipant::with('subject')
+            ->where('student_id', $studentId);
+
+        if ($targetSemester) {
+            $participantQuery->where('semester_id', $targetSemester->id);
+        }
+
+        $participant = $participantQuery->first();
+
+        // Fallback: if no record exists for the active/requested semester (e.g. new semester
+        // just activated but this student registered in a previous semester), load their most
+        // recent participant record so the dashboard still works (will be shown read-only).
+        if (!$participant && !$semesterId) {
+            $participant = BuddyParticipant::with('subject')
+                ->where('student_id', $studentId)
+                ->orderByDesc('created_at')
+                ->first();
+        }
 
         if (!$participant) {
             return response()->json([
@@ -41,7 +67,12 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Get active match with partner info
+        // Determine read-only mode (viewing a non-active past semester)
+        $activeSemester = BuddySemesterSetting::getActiveSemester();
+        $isReadonly = $activeSemester && $participant->semester_id !== null
+            && $participant->semester_id !== $activeSemester->id;
+
+        // Get active match with partner info (scoped to participant's semester)
         $match = null;
         $partner = null;
 
@@ -51,6 +82,7 @@ class UserController extends Controller
                     $query->where('buddy_match_participants.participant_id', $participant->id)
                           ->where('buddy_match_participants.role', 'mentor');
                 })
+                ->when($participant->semester_id, fn($q) => $q->where('semester_id', $participant->semester_id))
                 ->with(['participants', 'subject'])
                 ->where('status', 'active')
                 ->first();
@@ -68,6 +100,7 @@ class UserController extends Controller
                     $query->where('buddy_match_participants.participant_id', $participant->id)
                           ->where('buddy_match_participants.role', 'mentee');
                 })
+                ->when($participant->semester_id, fn($q) => $q->where('semester_id', $participant->semester_id))
                 ->with(['participants', 'subject'])
                 ->where('status', 'active')
                 ->first();
@@ -86,6 +119,8 @@ class UserController extends Controller
         $upcomingMeetings = [];
         $completedSessions = 0;
         $totalSessions = 0;
+        $totalSessionsUpToToday = 0;
+        $completedSessionsUpToToday = 0;
 
         if ($match) {
             $sessionRecords = BuddySession::where('match_id', $match->id)
@@ -118,11 +153,17 @@ class UserController extends Controller
             // Use actual session count when stored total_sessions is 0 or null
             $totalSessions = ($match->total_sessions > 0) ? $match->total_sessions : count($sessionRecords);
             $completedSessions = ($match->completed_sessions > 0) ? $match->completed_sessions : $completedSessions;
+
+            // For attendance rate: only count sessions that have occurred (up to today)
+            $today = now()->toDateString();
+            $sessionsUpToToday = $sessionRecords->filter(fn($s) => $s->session_date->format('Y-m-d') <= $today);
+            $totalSessionsUpToToday = $sessionsUpToToday->count();
+            $completedSessionsUpToToday = $sessionsUpToToday->where('status', 'completed')->count();
         }
 
-        // Calculate attendance rate
-        $attendanceRate = $totalSessions > 0 
-            ? round(($completedSessions / $totalSessions) * 100) 
+        // Attendance rate: based only on sessions that have occurred up to today
+        $attendanceRate = $totalSessionsUpToToday > 0 
+            ? round(($completedSessionsUpToToday / $totalSessionsUpToToday) * 100) 
             : 0;
 
         // Get confirmed weekly schedule if exists
@@ -178,6 +219,8 @@ class UserController extends Controller
                 'pendingTasks' => 0, // Can be calculated based on pending meetings
                 'unreadNotifications' => 0, // Placeholder for future notifications system
             ],
+            'is_readonly'  => $isReadonly,
+            'semester_id'  => $participant->semester_id,
         ];
 
         return response()->json([
@@ -200,7 +243,16 @@ class UserController extends Controller
             ], 400);
         }
 
-        $participant = BuddyParticipant::where('student_id', $studentId)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant');
+        if (!$participant) {
+            $semId = $request->attributes->get('semester_id');
+            $query = BuddyParticipant::where('student_id', $studentId);
+            if ($semId) {
+                $query->where('semester_id', $semId);
+            }
+            $participant = $query->orderByDesc('created_at')->first();
+        }
 
         if (!$participant) {
             return response()->json([
@@ -209,7 +261,7 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Get active match
+        // Get match (scoped to participant's semester)
         $matchQuery = $participant->role === 'mentor' 
             ? BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
@@ -220,6 +272,11 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentee');
               });
 
+        // Scope to participant's semester
+        if ($participant->semester_id) {
+            $matchQuery->where('semester_id', $participant->semester_id);
+        }
+
         $match = $matchQuery->where('status', 'active')->first();
 
         if (!$match) {
@@ -229,10 +286,26 @@ class UserController extends Controller
             ]);
         }
 
+        // Get the mentor's participant ID for this match to find sibling sessions
+        $mentorPivot = \DB::table('buddy_match_participants')
+            ->where('match_id', $match->id)
+            ->where('role', 'mentor')
+            ->first();
+        $mentorMatchIds = collect([$match->id]);
+        if ($mentorPivot) {
+            $mentorMatchIds = BuddyMatch::whereHas('participants', function ($q) use ($mentorPivot) {
+                $q->where('buddy_match_participants.participant_id', $mentorPivot->participant_id)
+                  ->where('buddy_match_participants.role', 'mentor');
+            })->where('status', 'active')
+              ->where('semester_id', $match->semester_id)
+              ->pluck('id');
+        }
+
         $sessions = BuddySession::where('match_id', $match->id)
+            ->where('session_date', '<=', now()->toDateString())
             ->orderBy('session_date', 'desc')
             ->get()
-            ->map(function ($session) {
+            ->map(function ($session) use ($mentorMatchIds) {
                 // Auto-mark sessions as missed if session time has passed and mentee hasn't checked in
                 if ($session->status === 'pending' && !$session->mentee_check_in) {
                     $sessionDateStr = $session->session_date->format('Y-m-d');
@@ -244,6 +317,20 @@ class UserController extends Controller
                         $session->save();
                     }
                 }
+
+                // If mentor hasn't checked in on this session, check sibling sessions
+                $mentorCheckIn = $session->mentor_check_in;
+                if (!$mentorCheckIn) {
+                    $siblingSession = BuddySession::whereIn('match_id', $mentorMatchIds)
+                        ->where('id', '!=', $session->id)
+                        ->where('session_date', $session->session_date)
+                        ->where('session_time', $session->session_time)
+                        ->whereNotNull('mentor_check_in')
+                        ->first();
+                    if ($siblingSession) {
+                        $mentorCheckIn = $siblingSession->mentor_check_in;
+                    }
+                }
                 
                 return [
                     'id' => (string)$session->id,
@@ -253,7 +340,7 @@ class UserController extends Controller
                     'topic' => $session->topic ?? 'Session',
                     'description' => $session->description,
                     'status' => $session->status,
-                    'mentorCheckIn' => $session->mentor_check_in ? $session->mentor_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
+                    'mentorCheckIn' => $mentorCheckIn ? \Carbon\Carbon::parse($mentorCheckIn)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
                     'menteeCheckIn' => $session->mentee_check_in ? $session->mentee_check_in->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i:s') : null,
                     'notes' => $session->notes,
                 ];
@@ -270,11 +357,18 @@ class UserController extends Controller
      */
     public function submitCheckIn(Request $request, $sessionId): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant) {
             return response()->json([
@@ -352,6 +446,42 @@ class UserController extends Controller
 
         $session->save();
 
+        // Propagate mentor check-in to sibling sessions (same date/time across all mentor's matches)
+        if ($participant->role === 'mentor') {
+            $mentorMatchIds = BuddyMatch::whereHas('participants', function ($q) use ($participant) {
+                $q->where('buddy_match_participants.participant_id', $participant->id)
+                  ->where('buddy_match_participants.role', 'mentor');
+            })
+            ->where('status', 'active')
+            ->when($participant->semester_id, fn($q) => $q->where('semester_id', $participant->semester_id))
+            ->pluck('id');
+
+            $siblingSessions = BuddySession::whereIn('match_id', $mentorMatchIds)
+                ->where('id', '!=', $session->id)
+                ->where('session_date', $session->session_date)
+                ->where('session_time', $session->session_time)
+                ->get();
+
+            foreach ($siblingSessions as $siblingSession) {
+                $siblingSession->mentor_check_in = $session->mentor_check_in;
+
+                // If this sibling session's mentee also checked in, mark completed
+                if ($siblingSession->mentor_check_in && $siblingSession->mentee_check_in) {
+                    $siblingSession->status = 'completed';
+                }
+                $siblingSession->save();
+
+                // Update sibling match completed sessions count
+                $siblingMatch = $siblingSession->match;
+                if ($siblingMatch) {
+                    $siblingMatch->completed_sessions = BuddySession::where('match_id', $siblingMatch->id)
+                        ->where('status', 'completed')
+                        ->count();
+                    $siblingMatch->save();
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Check-in recorded successfully',
@@ -378,7 +508,16 @@ class UserController extends Controller
             ], 400);
         }
 
-        $participant = BuddyParticipant::where('student_id', $studentId)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant');
+        if (!$participant) {
+            $semId = $request->attributes->get('semester_id');
+            $query = BuddyParticipant::where('student_id', $studentId);
+            if ($semId) {
+                $query->where('semester_id', $semId);
+            }
+            $participant = $query->orderByDesc('created_at')->first();
+        }
 
         if (!$participant) {
             return response()->json([
@@ -387,7 +526,7 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Get active match(es): mentor may have multiple (one per mentee)
+        // Get match(es): scoped to participant's semester
         $matchQuery = $participant->role === 'mentor'
             ? BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
@@ -398,12 +537,25 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentee');
               });
 
+        // Scope to participant's semester for correct semester data
+        if ($participant->semester_id) {
+            $matchQuery->where('semester_id', $participant->semester_id);
+        }
+
         if ($participant->role === 'mentor') {
             $allMatches = $matchQuery->where('status', 'active')->get();
             $match = $allMatches->first();
         } else {
             $match = $matchQuery->where('status', 'active')->first();
-            $allMatches = $match ? collect([$match]) : collect();
+            // For mentees, include all sibling matches (same mentor) so vote aggregation works
+            if ($match) {
+                $allMatches = BuddyMatch::where('mentor_id', $match->mentor_id)
+                    ->where('status', 'active')
+                    ->where('semester_id', $match->semester_id)
+                    ->get();
+            } else {
+                $allMatches = collect();
+            }
         }
 
         if (!$match) {
@@ -496,6 +648,25 @@ class UserController extends Controller
                     'status' => $slot->is_published ? 'voting' : 'pending',
                 ];
             });
+        } else if ($allMatchIds->count() > 1) {
+            // Mentee: aggregate votes across all sibling matches so vote counts are consistent
+            $timeSlots = $templateSlots->map(function ($slot) use ($allMatchIds) {
+                $totalVotes = BuddyTimeSlot::whereIn('match_id', $allMatchIds)
+                    ->where('day', $slot->day)
+                    ->where('start_time', $slot->start_time)
+                    ->where('end_time', $slot->end_time)
+                    ->withCount('votes')
+                    ->get()
+                    ->sum('votes_count');
+                return [
+                    'id' => (string)$slot->id,
+                    'day' => $slot->day,
+                    'startTime' => $slot->formatted_start_time,
+                    'endTime' => $slot->formatted_end_time,
+                    'votes' => $totalVotes,
+                    'status' => $slot->is_published ? 'voting' : 'pending',
+                ];
+            });
         } else {
             $timeSlots = $templateSlots->map(function ($slot) {
                 return [
@@ -552,6 +723,11 @@ class UserController extends Controller
      */
     public function addTimeSlot(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
             'day' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
@@ -559,7 +735,9 @@ class UserController extends Controller
             'end_time' => 'required|date_format:H:i|after:start_time',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant) {
             return response()->json([
@@ -575,12 +753,13 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Get ALL active matches for this mentor
+        // Get ALL active matches for this mentor (scoped to semester)
         $matches = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->get();
 
         if ($matches->isEmpty()) {
@@ -653,6 +832,11 @@ class UserController extends Controller
      */
     public function removeTimeSlot(Request $request, $slotId): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $studentId = $request->query('student_id');
 
         if (!$studentId) {
@@ -662,7 +846,11 @@ class UserController extends Controller
             ], 400);
         }
 
-        $participant = BuddyParticipant::where('student_id', $studentId)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant');
+        if (!$participant) {
+            $participant = BuddyParticipant::where('student_id', $studentId)->first();
+        }
 
         if (!$participant || $participant->role !== 'mentor') {
             return response()->json([
@@ -680,12 +868,13 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Verify ownership through any active match
+        // Verify ownership through any active match (scoped to semester)
         $matchIds = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->pluck('id');
 
         if ($matchIds->isEmpty() || !$matchIds->contains($timeSlot->match_id)) {
@@ -720,11 +909,18 @@ class UserController extends Controller
      */
     public function publishTimeSlots(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant || $participant->role !== 'mentor') {
             return response()->json([
@@ -738,6 +934,7 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->get();
 
         if ($matches->isEmpty()) {
@@ -808,13 +1005,20 @@ class UserController extends Controller
      */
     public function voteTimeSlot(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
             'slot_ids'   => 'required|array|min:1',
             'slot_ids.*' => 'integer',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant) {
             return response()->json([
@@ -830,12 +1034,13 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Verify participant is matched
+        // Verify participant is matched (scoped to semester)
         $match = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                 $query->where('buddy_match_participants.participant_id', $participant->id)
                       ->where('buddy_match_participants.role', 'mentee');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->first();
 
         if (!$match) {
@@ -891,11 +1096,18 @@ class UserController extends Controller
      */
     public function confirmSchedule(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant || $participant->role !== 'mentor') {
             return response()->json([
@@ -909,6 +1121,7 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->get();
 
         if ($matches->isEmpty()) {
@@ -1049,11 +1262,18 @@ class UserController extends Controller
      */
     public function resetVotes(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         $request->validate([
             'student_id' => 'required|string',
         ]);
 
-        $participant = BuddyParticipant::where('student_id', $request->student_id)->first();
+        // Use semester-scoped participant from middleware
+        $participant = $request->attributes->get('participant')
+            ?? BuddyParticipant::where('student_id', $request->student_id)->first();
 
         if (!$participant || $participant->role !== 'mentor') {
             return response()->json([
@@ -1067,6 +1287,7 @@ class UserController extends Controller
                       ->where('buddy_match_participants.role', 'mentor');
             })
             ->where('status', 'active')
+            ->when($participant->semester_id, fn($q, $sid) => $q->where('semester_id', $sid))
             ->pluck('id');
 
         if ($allMatchIds->isEmpty()) {
@@ -1092,7 +1313,8 @@ class UserController extends Controller
      */
     public function getMentorDashboard(Request $request): JsonResponse
     {
-        $studentId = $request->query('student_id');
+        $studentId  = $request->query('student_id');
+        $semesterId = $request->query('semester_id');
 
         if (!$studentId) {
             return response()->json([
@@ -1101,11 +1323,32 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Get mentor participant info
-        $mentor = BuddyParticipant::with('subject')
+        // Resolve target semester
+        $targetSemester = $semesterId
+            ? BuddySemesterSetting::find($semesterId)
+            : BuddySemesterSetting::getActiveSemester();
+
+        // Get mentor participant info — scoped to semester when available
+        $mentorQuery = BuddyParticipant::with('subject')
             ->where('student_id', $studentId)
-            ->where('role', 'mentor')
-            ->first();
+            ->where('role', 'mentor');
+
+        if ($targetSemester) {
+            $mentorQuery->where('semester_id', $targetSemester->id);
+        }
+
+        $mentor = $mentorQuery->first();
+
+        // Fallback: if no record exists for the active/requested semester (e.g. new semester
+        // just activated but this mentor registered in a previous semester), load their most
+        // recent mentor record so the dashboard still works (will be shown read-only).
+        if (!$mentor && !$semesterId) {
+            $mentor = BuddyParticipant::with('subject')
+                ->where('student_id', $studentId)
+                ->where('role', 'mentor')
+                ->orderByDesc('created_at')
+                ->first();
+        }
 
         if (!$mentor) {
             return response()->json([
@@ -1114,11 +1357,17 @@ class UserController extends Controller
             ], 404);
         }
 
+        // Determine read-only mode
+        $activeSemester = BuddySemesterSetting::getActiveSemester();
+        $isReadonly = $activeSemester && $mentor->semester_id !== null
+            && $mentor->semester_id !== $activeSemester->id;
+
         // Get all active matches for this mentor via pivot table
         $matches = BuddyMatch::whereHas('participants', function ($query) use ($mentor) {
                 $query->where('buddy_match_participants.participant_id', $mentor->id)
                       ->where('buddy_match_participants.role', 'mentor');
             })
+            ->when($mentor->semester_id, fn($q) => $q->where('semester_id', $mentor->semester_id))
             ->with(['mentees', 'subject', 'sessions'])
             ->where('status', 'active')
             ->get();
@@ -1128,25 +1377,33 @@ class UserController extends Controller
         $allMeetings = [];
         $meetingsMap  = [];
         $allAttendanceRecords = [];
-        $uniqueSessionIds = []; // Track unique sessions to avoid double-counting
+        $uniqueSessionKeys = []; // Track unique sessions by date+time to avoid counting shared group sessions multiple times
         $totalCompletedSessions = 0;
         $totalSessions = 0;
+        $totalSessionsUpToToday = 0;
+        $today = now()->toDateString();
 
         foreach ($matches as $match) {
             // Get all mentees in this match
             $menteesInMatch = $match->mentees()->get();
             
-            // Get sessions for this match (count only once per match, not per mentee)
+            // Get sessions for this match — filter to sessions up to today for attendance
             $sessions = $match->sessions ?? collect();
-            $completedSessionsForMatch = $sessions->where('status', 'completed')->count();
-            $totalSessionsForMatch = $sessions->count();
+            $sessionsUpToTodayForMatch = $sessions->filter(fn($s) => $s->session_date->format('Y-m-d') <= $today);
+            $completedSessionsForMatch = $sessionsUpToTodayForMatch->where('status', 'completed')->count();
+            $totalSessionsForMatch = $sessionsUpToTodayForMatch->count();
             
-            // Add session IDs to track unique sessions across all matches
+            // Deduplicate sessions by date+time — a mentor with 3 mentees holds ONE shared
+            // session, but the DB has one session row per match. Count each unique
+            // date+time combination only once across all matches.
             foreach ($sessions as $session) {
-                if (!in_array($session->id, $uniqueSessionIds)) {
-                    $uniqueSessionIds[] = $session->id;
-                    // Count this session only once
+                $sessionKey = $session->session_date->format('Y-m-d') . '|' . ($session->session_time ?? '');
+                if (!isset($uniqueSessionKeys[$sessionKey])) {
+                    $uniqueSessionKeys[$sessionKey] = true;
                     $totalSessions++;
+                    if ($session->session_date->format('Y-m-d') <= $today) {
+                        $totalSessionsUpToToday++;
+                    }
                     if ($session->status === 'completed') {
                         $totalCompletedSessions++;
                     }
@@ -1170,8 +1427,26 @@ class UserController extends Controller
                     'totalSessions' => $totalSessionsForMatch,
                 ];
 
-                // Build attendance records for this mentee
+                // Build attendance records for this mentee (only sessions up to today)
                 foreach ($sessions as $session) {
+                    if ($session->session_date->format('Y-m-d') > $today) {
+                        continue; // skip future sessions
+                    }
+
+                    // Check mentor check-in: if not set on this session, look at sibling sessions
+                    $mentorCheckedIn = $session->mentor_check_in !== null;
+                    if (!$mentorCheckedIn) {
+                        $siblingMentorSession = BuddySession::whereIn('match_id', $matches->pluck('id'))
+                            ->where('id', '!=', $session->id)
+                            ->where('session_date', $session->session_date)
+                            ->where('session_time', $session->session_time)
+                            ->whereNotNull('mentor_check_in')
+                            ->first();
+                        if ($siblingMentorSession) {
+                            $mentorCheckedIn = true;
+                        }
+                    }
+
                     $allAttendanceRecords[] = [
                         'id' => (string)$session->id,
                         'menteeId' => (string)$mentee->id,
@@ -1179,7 +1454,7 @@ class UserController extends Controller
                         'date' => $session->session_date->format('Y-m-d'),
                         'topic' => $session->topic ?? 'Session',
                         'status' => $session->mentee_check_in ? 'present' : 'absent',
-                        'mentorCheckedIn' => $session->mentor_check_in !== null,
+                        'mentorCheckedIn' => $mentorCheckedIn,
                     ];
                 }
             }
@@ -1211,16 +1486,19 @@ class UserController extends Controller
             return strcmp($b['date'], $a['date']);
         });
 
-        // Get upcoming meetings (pending status, future or today's date)
-        $today = now()->format('Y-m-d');
+        // Get upcoming meetings (today and future dates, sorted nearest first)
         $upcomingMeetings = array_filter($allMeetings, function($meeting) use ($today) {
-            return $meeting['status'] === 'pending' && $meeting['date'] >= $today;
+            return $meeting['date'] >= $today;
         });
-        $upcomingMeetings = array_slice(array_values($upcomingMeetings), 0, 5);
+        // Sort ascending by date so the nearest session comes first
+        usort($upcomingMeetings, function($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+        $upcomingMeetings = array_slice($upcomingMeetings, 0, 5);
 
-        // Calculate overall stats
-        $overallAttendanceRate = $totalSessions > 0 
-            ? round(($totalCompletedSessions / $totalSessions) * 100) 
+        // Calculate overall stats — attendance based on sessions up to today only
+        $overallAttendanceRate = $totalSessionsUpToToday > 0 
+            ? round(($totalCompletedSessions / $totalSessionsUpToToday) * 100) 
             : 0;
 
         // Get mentor's subjects
@@ -1281,8 +1559,10 @@ class UserController extends Controller
                 'totalSessions' => $totalSessions,
                 'completedSessions' => $totalCompletedSessions,
                 'attendanceRate' => $overallAttendanceRate,
-                'upcomingMeetings' => count($upcomingMeetings),
+                'upcomingMeetings' => $totalSessions - $totalCompletedSessions,
             ],
+            'is_readonly' => $isReadonly,
+            'semester_id' => $mentor->semester_id,
         ];
 
         return response()->json([
@@ -1297,6 +1577,11 @@ class UserController extends Controller
      */
     public function submitMentorAttendance(Request $request): JsonResponse
     {
+        // Block writes on archived semesters
+        if ($request->attributes->get('readonly')) {
+            return response()->json(['success' => false, 'message' => 'This semester is archived and read-only'], 403);
+        }
+
         try {
             $request->validate([
                 'student_id' => 'required|string',
@@ -1306,9 +1591,13 @@ class UserController extends Controller
                 'attendance' => 'required|array',
             ]);
 
-            $mentor = BuddyParticipant::where('student_id', $request->student_id)
-                ->where('role', 'mentor')
-                ->first();
+            // Use semester-scoped participant from middleware
+            $mentor = $request->attributes->get('participant');
+            if (!$mentor || $mentor->role !== 'mentor') {
+                $mentor = BuddyParticipant::where('student_id', $request->student_id)
+                    ->where('role', 'mentor')
+                    ->first();
+            }
 
             if (!$mentor) {
                 return response()->json([
@@ -1337,18 +1626,20 @@ class UserController extends Controller
             // Record mentor check-in
             $session->mentor_check_in = now();
 
-            // Process attendance: check if any mentee is marked present
-            $anyPresent = false;
-            foreach ($request->attendance as $menteeId => $status) {
-                if ($status === 'present') {
-                    $anyPresent = true;
-                    break;
-                }
+            // Find the mentee for THIS session's match to determine attendance
+            $sessionMenteePivot = \DB::table('buddy_match_participants')
+                ->where('match_id', $session->match_id)
+                ->where('role', 'mentee')
+                ->first();
+
+            // Check if this session's mentee is marked present
+            $thisSessionMenteePresent = false;
+            if ($sessionMenteePivot) {
+                $menteeParticipantId = (string)$sessionMenteePivot->participant_id;
+                $thisSessionMenteePresent = ($request->attendance[$menteeParticipantId] ?? 'absent') === 'present';
             }
 
-            // If mentor marks mentee present, set mentee_check_in and status = completed
-            // If absent, leave mentee_check_in null and status = pending (mentee can still check in)
-            if ($anyPresent) {
+            if ($thisSessionMenteePresent) {
                 $session->mentee_check_in = now();
                 $session->status = 'completed';
             } else {
@@ -1365,6 +1656,57 @@ class UserController extends Controller
                     ->where('status', 'completed')
                     ->count();
                 $match->save();
+            }
+
+            // Propagate to sibling sessions (same date/time across all mentor's matches)
+            $mentorMatchIds = BuddyMatch::whereHas('participants', function ($q) use ($mentor) {
+                $q->where('buddy_match_participants.participant_id', $mentor->id)
+                  ->where('buddy_match_participants.role', 'mentor');
+            })
+            ->where('status', 'active')
+            ->when($mentor->semester_id, fn($q) => $q->where('semester_id', $mentor->semester_id))
+            ->pluck('id');
+
+            $siblingSessions = BuddySession::whereIn('match_id', $mentorMatchIds)
+                ->where('id', '!=', $session->id)
+                ->where('session_date', $session->session_date)
+                ->where('session_time', $session->session_time)
+                ->get();
+
+            foreach ($siblingSessions as $siblingSession) {
+                $siblingSession->mentor_check_in = $session->mentor_check_in;
+                $siblingSession->topic = $session->topic;
+                $siblingSession->description = $session->description;
+
+                // Find the mentee for this sibling session's match
+                $siblingMenteePivot = \DB::table('buddy_match_participants')
+                    ->where('match_id', $siblingSession->match_id)
+                    ->where('role', 'mentee')
+                    ->first();
+
+                if ($siblingMenteePivot) {
+                    $siblingMenteeId = (string)$siblingMenteePivot->participant_id;
+                    $siblingMenteeStatus = $request->attendance[$siblingMenteeId] ?? 'absent';
+
+                    if ($siblingMenteeStatus === 'present') {
+                        $siblingSession->mentee_check_in = now();
+                        $siblingSession->status = 'completed';
+                    } else {
+                        $siblingSession->mentee_check_in = null;
+                        $siblingSession->status = 'pending';
+                    }
+                }
+
+                $siblingSession->save();
+
+                // Update sibling match completed sessions count
+                $siblingMatch = $siblingSession->match;
+                if ($siblingMatch) {
+                    $siblingMatch->completed_sessions = BuddySession::where('match_id', $siblingMatch->id)
+                        ->where('status', 'completed')
+                        ->count();
+                    $siblingMatch->save();
+                }
             }
 
             return response()->json([

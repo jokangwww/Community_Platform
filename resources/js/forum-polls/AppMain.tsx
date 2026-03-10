@@ -164,12 +164,51 @@ export default function App() {
   const [singlePollDetail, setSinglePollDetail] = useState<any>(null);
   const [singlePollLoading, setSinglePollLoading] = useState(false);
 
+  // Bookmarks state (sets of string IDs)
+  const [bookmarkedPollIds, setBookmarkedPollIds] = useState<Set<string>>(new Set());
+  const [bookmarkedPetitionIds, setBookmarkedPetitionIds] = useState<Set<string>>(new Set());
+
   // Post to open when returning from user dashboard
   const [openPostId, setOpenPostId] = useState<string | null>(() => {
     return new URLSearchParams(window.location.search).get('viewPost');
   });
 
   /* -- Data fetchers -- */
+
+  const fetchBookmarks = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/poll-petition/bookmarks');
+      setBookmarkedPollIds(new Set((data.polls || []).map((p: any) => String(p.id))));
+      setBookmarkedPetitionIds(new Set((data.petitions || []).map((p: any) => String(p.id))));
+    } catch (e) {
+      console.error('Failed to fetch bookmarks', e);
+    }
+  }, []);
+
+  const handleToggleBookmark = useCallback(async (type: 'poll' | 'petition', id: string) => {
+    try {
+      const data = await apiFetch('/api/poll-petition/bookmarks/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ type, id: parseInt(id) }),
+      });
+      const isNowBookmarked: boolean = data.isBookmarked;
+      if (type === 'poll') {
+        setBookmarkedPollIds(prev => {
+          const next = new Set(prev);
+          isNowBookmarked ? next.add(id) : next.delete(id);
+          return next;
+        });
+      } else {
+        setBookmarkedPetitionIds(prev => {
+          const next = new Set(prev);
+          isNowBookmarked ? next.add(id) : next.delete(id);
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error('Failed to toggle bookmark', e);
+    }
+  }, []);
 
   const fetchPolls = useCallback(async () => {
     setPollsLoading(true);
@@ -252,6 +291,9 @@ export default function App() {
       setSinglePollLoading(false);
     }
   }, []);
+
+  // Fetch bookmarks on mount
+  useEffect(() => { fetchBookmarks(); }, [fetchBookmarks]);
 
   // Fetch active polls and petitions on mount & when tab changes
   useEffect(() => {
@@ -571,6 +613,8 @@ export default function App() {
                           <PollCard
                             key={poll.id}
                             poll={poll}
+                            isBookmarked={bookmarkedPollIds.has(String(poll.id))}
+                            onToggleBookmark={(id) => handleToggleBookmark('poll', id)}
                             onViewPoll={(id) => {
                               setSelectedPollId(id);
                               setPollView('vote');
@@ -678,6 +722,8 @@ export default function App() {
                           <PetitionCard
                             key={petition.id}
                             petition={petition}
+                            isBookmarked={bookmarkedPetitionIds.has(String(petition.id))}
+                            onToggleBookmark={(id) => handleToggleBookmark('petition', id)}
                             onViewPetition={(id) => {
                               setSelectedPetitionId(id);
                               setPetitionView('view');

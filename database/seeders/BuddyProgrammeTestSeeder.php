@@ -19,6 +19,7 @@ use App\Models\BuddyAssignment;
 use App\Models\BuddyAssignmentSubmission;
 use App\Models\BuddyEvaluation;
 use App\Models\BuddyTestimonial;
+use App\Models\BuddySemesterSetting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -157,6 +158,7 @@ class BuddyProgrammeTestSeeder extends Seeder
                     'priority_tier' => null,
                     'rating'        => $d['rating'],
                     'verified_at'   => now()->subDays(30),
+                    'semester_id'   => BuddySemesterSetting::getActiveSemester()?->id,
                 ]
             );
         }
@@ -208,6 +210,7 @@ class BuddyProgrammeTestSeeder extends Seeder
                     'priority_tier' => $d['tier'],
                     'rating'        => 0,
                     'verified_at'   => now()->subDays(28),
+                    'semester_id'   => BuddySemesterSetting::getActiveSemester()?->id,
                 ]
             );
         }
@@ -538,6 +541,7 @@ class BuddyProgrammeTestSeeder extends Seeder
                     'status'        => 'pending',
                     'rating'        => 0,
                     'verified_at'   => null,
+                    'semester_id'   => BuddySemesterSetting::getActiveSemester()?->id,
                 ]
             );
         }
@@ -579,6 +583,7 @@ class BuddyProgrammeTestSeeder extends Seeder
                 'waitlist_position' => 1,
                 'rating'            => 0,
                 'verified_at'       => null,
+                'semester_id'       => BuddySemesterSetting::getActiveSemester()?->id,
             ]
         );
         $this->command->info('✅ 1 waitlisted mentee seeded');

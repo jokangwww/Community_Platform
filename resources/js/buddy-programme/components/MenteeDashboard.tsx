@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, Clock, Calendar, Users, Bell, AlertCircle, FileText, Vote, BookOpen, Loader2, MessageSquare, Award } from 'lucide-react';
+import { CheckCircle, Clock, Calendar, Users, Bell, AlertCircle, FileText, Vote, BookOpen, Loader2, MessageSquare, Award, Archive } from 'lucide-react';
 import { SchedulingPanel } from './SchedulingPanel';
 import { AttendancePanel } from './AttendancePanel';
 import { VirtualClassroom } from './VirtualClassroom';
 import { FeedbackRating } from './FeedbackRating';
+import { SemesterSelector } from './SemesterSelector';
 
 interface User {
   id: number;
@@ -68,10 +69,13 @@ interface WeeklySchedule {
 
 interface MenteeDashboardProps {
   studentId?: string;
+  selectedSemesterId?: number | null;
+  onSemesterChange?: (id: number | null, role?: string) => void;
 }
 
-export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardProps) {
+export function MenteeDashboard({ studentId: propStudentId, selectedSemesterId = null, onSemesterChange }: MenteeDashboardProps) {
   const [studentId, setStudentId] = useState(propStudentId || '');
+  const [isReadonly, setIsReadonly] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
   // Format date to DD-MMM-YYYY
@@ -96,22 +100,24 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
   const [pendingAssignmentCount, setPendingAssignmentCount] = useState(0);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [attendanceRate, setAttendanceRate] = useState<number>(0);
 
   useEffect(() => {
     if (studentId) {
       fetchDashboardData();
     }
-  }, [studentId]);
+  }, [studentId, selectedSemesterId]);
 
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
+      const semParam = selectedSemesterId ? `&semester_id=${selectedSemesterId}` : '';
       const [response, settingsResponse, scheduleResponse] = await Promise.all([
-        fetch(`/api/buddy/user/dashboard?student_id=${encodeURIComponent(studentId)}`),
+        fetch(`/api/buddy/user/dashboard?student_id=${encodeURIComponent(studentId)}${semParam}`),
         fetch('/api/buddy/admin/settings'),
-        fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}`),
+        fetch(`/api/buddy/user/schedule?student_id=${encodeURIComponent(studentId)}${semParam}`),
       ]);
       const result = await response.json();
       const settingsResult = await settingsResponse.json();
@@ -119,11 +125,13 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
 
       if (result.success) {
         const data = result.data;
+        setIsReadonly(data.is_readonly ?? false);
         
         setUser(data.user);
         setPairing(data.pairing);
         setMeetings(data.meetings || []);
         setWeeklySchedule(data.weeklySchedule || null);
+        setAttendanceRate(data.stats?.attendanceRate ?? 0);
         
         // Store matchId if pairing exists
         if (data.pairing?.id) {
@@ -394,17 +402,33 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
               <p className="text-blue-100">
                 Student ID: {user.studentId} | Role: {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </p>
+              {isReadonly && (
+                <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 bg-white/20 text-white rounded text-xs">
+                  <Archive className="w-3 h-3" />
+                  Read-only — archived view
+                </span>
+              )}
             </div>
-            <div className="text-right">
-              <p className="text-blue-100">Your Rating</p>
-              <div className="flex items-center gap-2">
-                <span className="text-white">{user.rating.toFixed(1)}</span>
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <span key={star} className={star <= user.rating ? 'text-yellow-300' : 'text-blue-300'}>
-                      ★
-                    </span>
-                  ))}
+            <div className="text-right flex flex-col items-end gap-3">
+              {onSemesterChange && (
+                <div className="bg-white/10 rounded-lg p-1">
+                  <SemesterSelector
+                    selectedSemesterId={selectedSemesterId ?? null}
+                    onSelect={onSemesterChange}
+                  />
+                </div>
+              )}
+              <div>
+                <p className="text-blue-100">Your Rating</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-white">{user.rating.toFixed(1)}</span>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <span key={star} className={star <= user.rating ? 'text-yellow-300' : 'text-blue-300'}>
+                        ★
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -420,11 +444,11 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
               <p className="text-gray-600">Attendance Rate</p>
               <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
-            <p className="text-gray-900">{pairing?.progressPercentage ?? 0}%</p>
+            <p className="text-gray-900">{attendanceRate}%</p>
             <div className="mt-2 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-green-600 h-2 rounded-full" 
-                style={{ width: `${pairing?.progressPercentage ?? 0}%` }}
+                style={{ width: `${attendanceRate}%` }}
               />
             </div>
           </div>
@@ -656,6 +680,8 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
         <SchedulingPanel 
           userRole={user.role} 
           studentId={user.studentId}
+          isReadonly={isReadonly}
+          semesterId={selectedSemesterId}
         />
       )}
 
@@ -664,6 +690,8 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           userRole={user.role}
           userName={user.name}
           studentId={user.studentId}
+          isReadonly={isReadonly}
+          semesterId={selectedSemesterId}
         />
       )}
 
@@ -673,6 +701,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
           matchId={pairing.id}
           studentId={user.studentId}
           onActivityChange={() => fetchClassroomStats(pairing.id)}
+          isReadonly={isReadonly}
         />
       )}
 
@@ -696,6 +725,7 @@ export function MenteeDashboard({ studentId: propStudentId }: MenteeDashboardPro
             pairId={pairing.partnerStudentId}
             studentId={user.studentId}
             hasSubmitted={false}
+            isReadonly={isReadonly}
           />
         </div>
       )}

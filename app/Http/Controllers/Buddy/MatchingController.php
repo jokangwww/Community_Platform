@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BuddyMatch;
 use App\Models\BuddyParticipant;
 use App\Models\BuddySubject;
+use App\Models\BuddySemesterSetting;
 use App\Services\BuddyMatchingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,11 +23,25 @@ class MatchingController extends Controller
     /**
      * Get all active matches
      */
-    public function getMatches(): JsonResponse
+    public function getMatches(Request $request): JsonResponse
     {
-        $matches = BuddyMatch::with(['mentor', 'mentee', 'subject'])
-            ->orderBy('matched_date', 'desc')
-            ->get()
+        // Allow admin to filter by semester_id; default to active semester
+        $semesterId = $request->query('semester_id');
+        if ($semesterId) {
+            $targetSemesterId = (int) $semesterId;
+        } else {
+            $activeSemester = BuddySemesterSetting::getActiveSemester();
+            $targetSemesterId = $activeSemester?->id;
+        }
+
+        $query = BuddyMatch::with(['mentor', 'mentee', 'subject'])
+            ->orderBy('matched_date', 'desc');
+
+        if ($targetSemesterId) {
+            $query->where('semester_id', $targetSemesterId);
+        }
+
+        $matches = $query->get()
             ->map(function ($match) {
                 return [
                     'id' => (string) $match->id,
@@ -62,9 +77,10 @@ class MatchingController extends Controller
     /**
      * Get matching statistics
      */
-    public function getStats(): JsonResponse
+    public function getStats(Request $request): JsonResponse
     {
-        $stats = $this->matchingService->getMatchingStats();
+        $semesterId = $request->query('semester_id') ? (int) $request->query('semester_id') : null;
+        $stats = $this->matchingService->getMatchingStats($semesterId);
 
         return response()->json([
             'success' => true,
@@ -154,12 +170,20 @@ class MatchingController extends Controller
     /**
      * Get available mentors for manual matching
      */
-    public function getAvailableMentors(): JsonResponse
+    public function getAvailableMentors(Request $request): JsonResponse
     {
         $maxPerMentor = 3;
+        $semesterId = $request->query('semester_id');
+        if ($semesterId) {
+            $targetSemesterId = (int) $semesterId;
+        } else {
+            $activeSemester = BuddySemesterSetting::getActiveSemester();
+            $targetSemesterId = $activeSemester?->id;
+        }
 
         $mentors = BuddyParticipant::mentors()
             ->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))
             ->withCount(['mentorMatches' => function ($query) {
                 $query->where('status', 'active');
             }])
@@ -190,10 +214,19 @@ class MatchingController extends Controller
     /**
      * Get unmatched mentees for manual matching
      */
-    public function getUnmatchedMentees(): JsonResponse
+    public function getUnmatchedMentees(Request $request): JsonResponse
     {
+        $semesterId = $request->query('semester_id');
+        if ($semesterId) {
+            $targetSemesterId = (int) $semesterId;
+        } else {
+            $activeSemester = BuddySemesterSetting::getActiveSemester();
+            $targetSemesterId = $activeSemester?->id;
+        }
+
         $mentees = BuddyParticipant::mentees()
             ->where('status', 'active')
+            ->when($targetSemesterId, fn($q) => $q->where('semester_id', $targetSemesterId))
             ->whereDoesntHave('menteeMatches', function ($query) {
                 $query->where('status', 'active');
             })

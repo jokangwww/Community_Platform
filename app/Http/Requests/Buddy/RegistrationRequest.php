@@ -47,9 +47,17 @@ class RegistrationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $activeSemesterId = \App\Models\BuddySemesterSetting::getActiveSemester()?->id;
+
         $rules = [
             'full_name' => ['required', 'string', 'max:255'],
-            'student_id' => ['required', 'string', 'max:50', 'unique:buddy_participants,student_id'],
+            'student_id' => [
+                'required',
+                'string',
+                'max:50',
+                \Illuminate\Validation\Rule::unique('buddy_participants', 'student_id')
+                    ->where('semester_id', $activeSemesterId),
+            ],
             'course' => ['required', 'string', 'max:255'],
             'faculty' => ['required', 'string', Rule::in([
                 'Faculty of Accountancy, Finance and Business',

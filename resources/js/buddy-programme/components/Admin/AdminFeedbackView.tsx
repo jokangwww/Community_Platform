@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Star, MessageSquare, User, TrendingUp, Filter, Download, Loader2, AlertCircle } from 'lucide-react';
+import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface FeedbackRecord {
   id: string;
@@ -34,16 +35,18 @@ export function AdminFeedbackView() {
   const [filterRole, setFilterRole] = useState<'all' | 'mentor' | 'mentee'>('all');
   const [filterRating, setFilterRating] = useState<number>(0);
   const [exporting, setExporting] = useState(false);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchEvaluations();
-  }, []);
+  }, [selectedSemesterId]);
 
   const fetchEvaluations = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/buddy/evaluations');
+      const semParam = selectedSemesterId ? `?semester_id=${selectedSemesterId}` : '';
+      const response = await fetch(`/api/buddy/evaluations${semParam}`);
       const result = await response.json();
 
       if (result.success) {
@@ -118,6 +121,15 @@ export function AdminFeedbackView() {
 
   return (
     <div className="space-y-6">
+      {/* Header with semester filter */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-gray-900">Feedback &amp; Evaluations</h2>
+          <p className="text-gray-600">Review ratings and feedback submitted by participants</p>
+        </div>
+        <AdminSemesterFilter selectedSemesterId={selectedSemesterId} onSelect={setSelectedSemesterId} />
+      </div>
+
       {/* Statistics */}
       <div className="grid md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-6">

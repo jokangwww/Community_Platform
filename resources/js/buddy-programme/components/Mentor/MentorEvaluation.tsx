@@ -14,9 +14,10 @@ interface Mentee {
 interface MentorEvaluationProps {
   mentees: Mentee[];
   mentorStudentId: string;
+  isReadonly?: boolean;
 }
 
-export function MentorEvaluation({ mentees, mentorStudentId }: MentorEvaluationProps) {
+export function MentorEvaluation({ mentees, mentorStudentId, isReadonly }: MentorEvaluationProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -32,6 +33,7 @@ export function MentorEvaluation({ mentees, mentorStudentId }: MentorEvaluationP
           pairId={mentee.studentId}
           studentId={mentorStudentId}
           hasSubmitted={false}
+          isReadonly={isReadonly}
         />
       ))}
     </div>

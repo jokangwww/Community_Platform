@@ -11,6 +11,7 @@ class BuddyParticipant extends Model
 
     protected $fillable = [
         'user_id',
+        'semester_id',
         'full_name',
         'student_id',
         'course',
@@ -27,16 +28,25 @@ class BuddyParticipant extends Model
         'rating',
         'waitlist_position',
         'rejection_reason',
+        'continuation_choice',
         'verified_at',
         'verified_by',
     ];
 
     protected $casts = [
         'is_repeater' => 'boolean',
-        'cgpa' => 'decimal:2',
-        'rating' => 'decimal:1',
+        'cgpa'        => 'decimal:2',
+        'rating'      => 'decimal:1',
         'verified_at' => 'datetime',
     ];
+
+    /**
+     * Get the semester this participant registered in
+     */
+    public function semester()
+    {
+        return $this->belongsTo(BuddySemesterSetting::class, 'semester_id');
+    }
 
     /**
      * Get the user associated with this participant

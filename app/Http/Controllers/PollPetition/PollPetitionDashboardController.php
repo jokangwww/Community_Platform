@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\PollPetition;
 
 use App\Http\Controllers\Controller;
+use App\Models\Bookmark;
 use App\Models\Poll;
 use App\Models\PollVote;
 use App\Models\Petition;
@@ -198,7 +199,7 @@ class PollPetitionDashboardController extends Controller
                 ? 'Expired ' . $poll->expires_at->diffForHumans()
                 : $poll->expires_at->diffForHumans(),
             'status'      => $isExpired ? 'expired' : $poll->status,
-            'isBookmarked'=> false,
+            'isBookmarked'=> Bookmark::isBookmarked($userId, 'poll', $poll->id),
             'createdByMe' => $createdByMe,
             'results'     => $poll->options->map(fn($o) => [
                 'option'     => $o->text,
@@ -224,7 +225,7 @@ class PollPetitionDashboardController extends Controller
                 : ($petition->status === 'closed' ? 'Closed' : 'Active'),
             'status'      => $petition->status,
             'iSupported'  => $petition->hasUserSupported($userId),
-            'isBookmarked'=> false,
+            'isBookmarked'=> Bookmark::isBookmarked($userId, 'petition', $petition->id),
             'createdByMe' => $createdByMe,
         ];
     }

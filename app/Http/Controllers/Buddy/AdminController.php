@@ -21,24 +21,44 @@ class AdminController extends Controller
     /**
      * Get analytics overview data
      */
-    public function getAnalytics(): JsonResponse
+    public function getAnalytics(Request $request): JsonResponse
     {
-        $totalMentors = BuddyParticipant::mentors()->count();
-        $activeMentors = BuddyParticipant::mentors()->where('status', 'active')->count();
-        $pendingMentors = BuddyParticipant::mentors()->where('status', 'pending')->count();
+        $semesterId = $request->query('semester_id');
+        if (!$semesterId) {
+            $active = BuddySemesterSetting::getActiveSemester();
+            $semesterId = $active?->id;
+        }
 
-        $totalMentees = BuddyParticipant::mentees()->count();
+        $totalMentors = BuddyParticipant::mentors()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->count();
+        $activeMentors = BuddyParticipant::mentors()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->where('status', 'active')->count();
+        $pendingMentors = BuddyParticipant::mentors()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->where('status', 'pending')->count();
+
+        $totalMentees = BuddyParticipant::mentees()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->count();
         $matchedMentees = BuddyParticipant::mentees()
-            ->whereHas('menteeMatches', function ($query) {
-                $query->where('status', 'active');
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->whereHas('menteeMatches', function ($query) use ($semesterId) {
+                $query->where('status', 'active')
+                      ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId));
             })->count();
         $waitingMentees = $totalMentees - $matchedMentees;
 
-        $totalRepeaters = BuddyParticipant::mentees()->where('is_repeater', true)->count();
+        $totalRepeaters = BuddyParticipant::mentees()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->where('is_repeater', true)->count();
         $matchedRepeaters = BuddyParticipant::mentees()
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
             ->where('is_repeater', true)
-            ->whereHas('menteeMatches', function ($query) {
-                $query->where('status', 'active');
+            ->whereHas('menteeMatches', function ($query) use ($semesterId) {
+                $query->where('status', 'active')
+                      ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId));
             })->count();
         $waitingRepeaters = $totalRepeaters - $matchedRepeaters;
 
@@ -48,19 +68,24 @@ class AdminController extends Controller
             'success' => true,
             'data' => [
                 'mentors' => [
-                    'total' => $totalMentors,
-                    'active' => $activeMentors,
+                    'total'   => $totalMentors,
+                    'active'  => $activeMentors,
                     'pending' => $pendingMentors,
                 ],
                 'mentees' => [
-                    'total' => $totalMentees,
+                    'total'   => $totalMentees,
                     'matched' => $matchedMentees,
                     'waiting' => $waitingMentees,
                 ],
                 'repeaters' => [
-                    'total' => $totalRepeaters,
+                    'total'   => $totalRepeaters,
                     'matched' => $matchedRepeaters,
                     'waiting' => $waitingRepeaters,
+                    'pending' => BuddyParticipant::mentees()
+                        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+                        ->where('is_repeater', true)
+                        ->where('status', 'pending')
+                        ->count(),
                 ],
                 'match_rate' => $matchRate,
             ]
@@ -68,27 +93,34 @@ class AdminController extends Controller
     }
 
     /**
-     * Get pending mentor verifications
+     * Get pending mentor verifications (scoped by semester)
      */
-    public function getPendingMentors(): JsonResponse
+    public function getPendingMentors(Request $request): JsonResponse
     {
+        $semesterId = $request->query('semester_id');
+        if (!$semesterId) {
+            $active = BuddySemesterSetting::getActiveSemester();
+            $semesterId = $active?->id;
+        }
+
         $pendingMentors = BuddyParticipant::mentors()
             ->where('status', 'pending')
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
             ->with('subjects')
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($mentor) {
                 return [
-                    'id' => (string) $mentor->id,
-                    'fullName' => $mentor->full_name,
-                    'studentId' => $mentor->student_id,
-                    'faculty' => $mentor->faculty,
-                    'course' => $mentor->course,
-                    'yearOfStudy' => $mentor->year_of_study,
-                    'cgpa' => $mentor->cgpa,
-                    'subjects' => $mentor->subjects->pluck('name')->toArray(),
-                    'documentName' => $mentor->document_name,
-                    'documentPath' => $mentor->document_path,
+                    'id'             => (string) $mentor->id,
+                    'fullName'       => $mentor->full_name,
+                    'studentId'      => $mentor->student_id,
+                    'faculty'        => $mentor->faculty,
+                    'course'         => $mentor->course,
+                    'yearOfStudy'    => $mentor->year_of_study,
+                    'cgpa'           => $mentor->cgpa,
+                    'subjects'       => $mentor->subjects->pluck('name')->toArray(),
+                    'documentName'   => $mentor->document_name,
+                    'documentPath'   => $mentor->document_path,
                     'registeredDate' => $mentor->created_at->format('Y-m-d'),
                 ];
             });
@@ -148,17 +180,147 @@ class AdminController extends Controller
     }
 
     /**
-     * Get check-in records
+     * Get pending repeater verifications (scoped by semester)
      */
-    public function getCheckInRecords(): JsonResponse
+    public function getPendingRepeaters(Request $request): JsonResponse
     {
+        $semesterId = $request->query('semester_id');
+        if (!$semesterId) {
+            $active = BuddySemesterSetting::getActiveSemester();
+            $semesterId = $active?->id;
+        }
+
+        $pendingRepeaters = BuddyParticipant::mentees()
+            ->where('status', 'pending')
+            ->where('is_repeater', true)
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->with('subject')
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($repeater) {
+                return [
+                    'id'             => (string) $repeater->id,
+                    'fullName'       => $repeater->full_name,
+                    'studentId'      => $repeater->student_id,
+                    'faculty'        => $repeater->faculty,
+                    'course'         => $repeater->course,
+                    'yearOfStudy'    => $repeater->year_of_study,
+                    'cgpa'           => $repeater->cgpa,
+                    'subject'        => $repeater->subject?->name ?? 'N/A',
+                    'documentName'   => $repeater->document_name,
+                    'documentPath'   => $repeater->document_path,
+                    'registeredDate' => $repeater->created_at->format('Y-m-d'),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $pendingRepeaters
+        ]);
+    }
+
+    /**
+     * Approve a repeater
+     */
+    public function approveRepeater(Request $request, $id): JsonResponse
+    {
+        $repeater = BuddyParticipant::mentees()
+            ->where('is_repeater', true)
+            ->where('status', 'pending')
+            ->findOrFail($id);
+        
+        $repeater->update([
+            'status' => 'active',
+            'verified_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Repeater approved successfully',
+            'data' => [
+                'id' => $repeater->id,
+                'status' => $repeater->status,
+            ]
+        ]);
+    }
+
+    /**
+     * Reject a repeater
+     */
+    public function rejectRepeater(Request $request, $id): JsonResponse
+    {
+        $repeater = BuddyParticipant::mentees()
+            ->where('is_repeater', true)
+            ->where('status', 'pending')
+            ->findOrFail($id);
+        
+        // Delete the uploaded document
+        if ($repeater->document_path) {
+            Storage::disk('public')->delete($repeater->document_path);
+        }
+
+        $repeater->update([
+            'status' => 'rejected',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Repeater rejected',
+            'data' => [
+                'id' => $repeater->id,
+                'status' => $repeater->status,
+            ]
+        ]);
+    }
+
+    /**
+     * Get check-in records (scoped by semester)
+     */
+    public function getCheckInRecords(Request $request): JsonResponse
+    {
+        $semesterId = $request->query('semester_id');
+        if (!$semesterId) {
+            $active = BuddySemesterSetting::getActiveSemester();
+            $semesterId = $active?->id;
+        }
+
         $sessions = BuddySession::with(['match.mentor', 'match.mentee', 'match.subject'])
+            ->where('session_date', '<=', Carbon::today())
+            ->when($semesterId, function ($q) use ($semesterId) {
+                $q->whereHas('match', fn($m) => $m->where('semester_id', $semesterId));
+            })
             ->orderBy('session_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
             ->map(function ($session) {
                 $mentorCheckedIn = !is_null($session->mentor_check_in);
+
+                // If mentor hasn't checked in on this session, check sibling sessions
+                // (same date/time with same mentor across different matches)
+                $mentorCheckInTime = $session->mentor_check_in;
+                if (!$mentorCheckedIn && $session->match && $session->match->mentor) {
+                    $mentorId = $session->match->mentor->id;
+                    $siblingMentorMatchIds = \App\Models\BuddyMatch::whereHas('participants', function ($q) use ($mentorId) {
+                        $q->where('buddy_match_participants.participant_id', $mentorId)
+                          ->where('buddy_match_participants.role', 'mentor');
+                    })->where('status', 'active')
+                      ->where('semester_id', $session->match->semester_id)
+                      ->pluck('id');
+
+                    $siblingSession = BuddySession::whereIn('match_id', $siblingMentorMatchIds)
+                        ->where('id', '!=', $session->id)
+                        ->where('session_date', $session->session_date)
+                        ->where('session_time', $session->session_time)
+                        ->whereNotNull('mentor_check_in')
+                        ->first();
+
+                    if ($siblingSession) {
+                        $mentorCheckedIn = true;
+                        $mentorCheckInTime = $siblingSession->mentor_check_in;
+                    }
+                }
+
                 $menteeCheckedIn = !is_null($session->mentee_check_in);
                 
                 $status = 'absent';
@@ -174,8 +336,8 @@ class AdminController extends Controller
                     'sessionTopic' => $session->topic ?? 'No topic specified',
                     'mentorName' => $session->match->mentor->full_name ?? 'Unknown',
                     'menteeName' => $session->match->mentee->full_name ?? 'Unknown',
-                    'mentorCheckInTime' => $session->mentor_check_in 
-                        ? Carbon::parse($session->mentor_check_in)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i') 
+                    'mentorCheckInTime' => $mentorCheckInTime 
+                        ? Carbon::parse($mentorCheckInTime)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i') 
                         : null,
                     'menteeCheckInTime' => $session->mentee_check_in 
                         ? Carbon::parse($session->mentee_check_in)->setTimezone('Asia/Kuala_Lumpur')->format('Y-m-d H:i') 
@@ -247,14 +409,22 @@ class AdminController extends Controller
     }
 
     /**
-     * Get waiting list of unmatched mentees
+     * Get waiting list of unmatched mentees (scoped by semester)
      */
-    public function getWaitingList(): JsonResponse
+    public function getWaitingList(Request $request): JsonResponse
     {
+        $semesterId = $request->query('semester_id');
+        if (!$semesterId) {
+            $active = BuddySemesterSetting::getActiveSemester();
+            $semesterId = $active?->id;
+        }
+
         $waitingMentees = BuddyParticipant::mentees()
             ->where('status', 'active')
-            ->whereDoesntHave('menteeMatches', function ($query) {
-                $query->where('status', 'active');
+            ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+            ->whereDoesntHave('menteeMatches', function ($query) use ($semesterId) {
+                $query->where('status', 'active')
+                      ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId));
             })
             ->with('subject')
             ->orderByRaw("CASE 
@@ -343,6 +513,47 @@ class AdminController extends Controller
     }
 
     /**
+     * Update the current active semester in-place (does NOT archive/replace it)
+     */
+    public function updateSemesterSetting(Request $request): JsonResponse
+    {
+        $request->validate([
+            'academic_year' => 'required|string',
+            'semester'      => 'required|integer|in:1,2,3',
+            'duration_type' => 'required|string|in:long,short',
+            'start_date'    => 'required|date',
+            'end_date'      => 'required|date|after:start_date',
+        ]);
+
+        $semester = BuddySemesterSetting::getActiveSemester();
+
+        if (!$semester) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active semester found. Use Start New Semester instead.',
+            ], 404);
+        }
+
+        $totalWeeks = $request->duration_type === 'long' ? 14 : 7;
+
+        $semester->update([
+            'academic_year' => $request->academic_year,
+            'semester'      => $request->semester,
+            'duration_type' => $request->duration_type,
+            'total_weeks'   => $totalWeeks,
+            'start_date'    => $request->start_date,
+            'end_date'      => $request->end_date,
+            'updated_by'    => auth()->id(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Semester updated successfully',
+            'data'    => $semester->fresh()->toSettingsArray(),
+        ]);
+    }
+
+    /**
      * Get the active semester setting
      */
     public function getSemesterSetting(): JsonResponse
@@ -356,140 +567,152 @@ class AdminController extends Controller
     }
 
     /**
-     * Create or update the semester setting
+     * Get all semesters (active + archived) for filter dropdowns
+     */
+    public function getAllSemesters(): JsonResponse
+    {
+        $semesters = BuddySemesterSetting::getAllSemesters()
+            ->map(fn($s) => $s->toSettingsArray());
+
+        return response()->json(['success' => true, 'data' => $semesters]);
+    }
+
+    /**
+     * Start a new semester (archives the current one by deactivating it)
      */
     public function saveSemesterSetting(Request $request): JsonResponse
     {
         $request->validate([
             'academic_year' => 'required|string',
-            'semester' => 'required|integer|in:1,2,3',
+            'semester'      => 'required|integer|in:1,2,3',
             'duration_type' => 'required|string|in:long,short',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date',
+            'start_date'    => 'required|date',
+            'end_date'      => 'required|date|after:start_date',
         ]);
 
         $totalWeeks = $request->duration_type === 'long' ? 14 : 7;
 
-        // Deactivate all existing semester settings
+        // Deactivate the current active semester (archive it — data rows remain untouched)
         BuddySemesterSetting::where('is_active', true)->update(['is_active' => false]);
 
-        // Create new active semester setting
+        // Create the new active semester
         $semester = BuddySemesterSetting::create([
-            'academic_year' => $request->academic_year,
-            'semester' => $request->semester,
-            'duration_type' => $request->duration_type,
-            'total_weeks' => $totalWeeks,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'is_active' => true,
-            'updated_by' => auth()->id(),
+            'academic_year'       => $request->academic_year,
+            'semester'            => $request->semester,
+            'duration_type'       => $request->duration_type,
+            'total_weeks'         => $totalWeeks,
+            'start_date'          => $request->start_date,
+            'end_date'            => $request->end_date,
+            'is_active'           => true,
+            'registration_open'   => true,
+            'evaluation_enabled'  => false,
+            'testimonial_enabled' => false,
+            'priority_allocation' => true,
+            'updated_by'          => auth()->id(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Semester setting saved successfully',
-            'data' => $semester->toSettingsArray(),
+            'message' => 'New semester started successfully',
+            'data'    => $semester->toSettingsArray(),
         ]);
     }
 
     /**
-     * Get comprehensive report data for PDF generation
+     * Get comprehensive report data for PDF generation (scoped by semester)
      */
-    public function getReportData(): JsonResponse
+    public function getReportData(Request $request): JsonResponse
     {
-        $totalMentors = BuddyParticipant::mentors()->where('status', 'active')->count();
-        $totalMentees = BuddyParticipant::mentees()->where('status', 'active')->count();
-        $totalRepeaters = BuddyParticipant::mentees()->where('is_repeater', true)->count();
-        
-        $activeMatches = BuddyMatch::where('status', 'active')->count();
+        // Resolve semester — defaults to active; report can pull any past semester
+        $semesterId = $request->query('semester_id');
+        $semester = $semesterId
+            ? BuddySemesterSetting::find($semesterId)
+            : BuddySemesterSetting::getActiveSemester();
+
+        $semesterIdFilter = $semester?->id;
+
+        $totalMentors = BuddyParticipant::mentors()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->where('status', 'active')->count();
+        $totalMentees = BuddyParticipant::mentees()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->where('status', 'active')->count();
+        $totalRepeaters = BuddyParticipant::mentees()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->where('is_repeater', true)->count();
+
+        $activeMatches = BuddyMatch::where('status', 'active')
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->count();
         $matchedMentees = BuddyParticipant::mentees()
-            ->whereHas('menteeMatches', function ($query) {
-                $query->where('status', 'active');
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->whereHas('menteeMatches', function ($query) use ($semesterIdFilter) {
+                $query->where('status', 'active')
+                      ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter));
             })->count();
         $matchedRepeaters = BuddyParticipant::mentees()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
             ->where('is_repeater', true)
-            ->whereHas('menteeMatches', function ($query) {
-                $query->where('status', 'active');
+            ->whereHas('menteeMatches', function ($query) use ($semesterIdFilter) {
+                $query->where('status', 'active')
+                      ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter));
             })->count();
 
-        $totalMentorApplications = BuddyParticipant::mentors()->count();
-        $totalMenteeApplications = BuddyParticipant::mentees()->count();
-
-        $totalSessions = BuddySession::count();
-        $sessionsWithBothCheckedIn = BuddySession::whereNotNull('mentor_check_in')
-            ->whereNotNull('mentee_check_in')
+        $totalMentorApplications = BuddyParticipant::mentors()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
             ->count();
-        $averageAttendanceRate = $totalSessions > 0 
-            ? round(($sessionsWithBothCheckedIn / $totalSessions) * 100, 1) 
+        $totalMenteeApplications = BuddyParticipant::mentees()
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->count();
+
+        // Sessions scoped via match semester
+        $sessionQuery = BuddySession::when($semesterIdFilter, function ($q) use ($semesterIdFilter) {
+            $q->whereHas('match', fn($m) => $m->where('semester_id', $semesterIdFilter));
+        });
+        $totalSessions = $sessionQuery->count();
+        $sessionsWithBothCheckedIn = (clone $sessionQuery)
+            ->whereNotNull('mentor_check_in')->whereNotNull('mentee_check_in')->count();
+        $averageAttendanceRate = $totalSessions > 0
+            ? round(($sessionsWithBothCheckedIn / $totalSessions) * 100, 1)
             : 0;
 
-        $feedbackStats = BuddyEvaluation::selectRaw('AVG(rating) as avg_rating, COUNT(*) as total_responses')
-            ->first();
-        $averageFeedbackRating = $feedbackStats->avg_rating 
-            ? round($feedbackStats->avg_rating, 1) 
-            : 0;
-        $totalFeedbackResponses = $feedbackStats->total_responses ?? 0;
+        $feedbackStats = BuddyEvaluation::when($semesterIdFilter, function ($q) use ($semesterIdFilter) {
+            $q->whereHas('match', fn($m) => $m->where('semester_id', $semesterIdFilter));
+        })->selectRaw('AVG(rating) as avg_rating, COUNT(*) as total_responses')->first();
+        $averageFeedbackRating   = $feedbackStats->avg_rating ? round($feedbackStats->avg_rating, 1) : 0;
+        $totalFeedbackResponses  = $feedbackStats->total_responses ?? 0;
 
-        $totalTestimonialsAwarded = BuddyTestimonial::where('status', 'approved')->count();
-        $totalTestimonialsNotEligible = BuddyTestimonial::where('status', 'rejected')->count();
-        
-        // If no testimonials data exists yet, calculate from mentor performance
-        if ($totalTestimonialsAwarded == 0 && $totalTestimonialsNotEligible == 0) {
-            // Mentors with attendance >= 80% are eligible
-            $eligibleMentors = 0;
-            $notEligibleMentors = 0;
-            
-            $mentorsWithSessions = BuddyParticipant::mentors()
-                ->where('status', 'active')
-                ->withCount(['mentorMatches as total_sessions' => function ($query) {
-                    $query->join('buddy_sessions', 'buddy_matches.id', '=', 'buddy_sessions.match_id');
-                }])
-                ->withCount(['mentorMatches as attended_sessions' => function ($query) {
-                    $query->join('buddy_sessions', 'buddy_matches.id', '=', 'buddy_sessions.match_id')
-                        ->whereNotNull('buddy_sessions.mentor_check_in');
-                }])
-                ->get();
-            
-            foreach ($mentorsWithSessions as $mentor) {
-                if ($mentor->total_sessions > 0) {
-                    $attendanceRate = ($mentor->attended_sessions / $mentor->total_sessions) * 100;
-                    if ($attendanceRate >= 80) {
-                        $eligibleMentors++;
-                    } else {
-                        $notEligibleMentors++;
-                    }
-                }
-            }
-            
-            $totalTestimonialsAwarded = $eligibleMentors;
-            $totalTestimonialsNotEligible = $notEligibleMentors;
-        }
+        $totalTestimonialsAwarded    = BuddyTestimonial::where('status', 'approved')
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->count();
+        $totalTestimonialsNotEligible = BuddyTestimonial::where('status', 'rejected')
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
+            ->count();
 
-        $gapEligibleCount = 0;
+        $gapEligibleCount    = 0;
         $gapNotEligibleCount = 0;
-        
-        // Check all participants (both mentors and mentees)
+
         $allParticipants = BuddyParticipant::where('status', 'active')
+            ->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter))
             ->get();
-        
+
         foreach ($allParticipants as $participant) {
-            $participantSessions = BuddySession::whereHas('match', function ($query) use ($participant) {
-                $query->where('mentor_id', $participant->id)
-                    ->orWhere('mentee_id', $participant->id);
+            $participantSessions = BuddySession::whereHas('match', function ($query) use ($participant, $semesterIdFilter) {
+                $query->where(function ($q) use ($participant) {
+                    $q->where('mentor_id', $participant->id)->orWhere('mentee_id', $participant->id);
+                })->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter));
             })->count();
-            
+
             if ($participantSessions > 0) {
-                $attendedSessions = BuddySession::whereHas('match', function ($query) use ($participant) {
-                    $query->where('mentor_id', $participant->id)
-                        ->orWhere('mentee_id', $participant->id);
-                })->where(function ($query) use ($participant) {
-                    $query->whereNotNull('mentor_check_in')
-                        ->orWhereNotNull('mentee_check_in');
+                $attendedSessions = BuddySession::whereHas('match', function ($query) use ($participant, $semesterIdFilter) {
+                    $query->where(function ($q) use ($participant) {
+                        $q->where('mentor_id', $participant->id)->orWhere('mentee_id', $participant->id);
+                    })->when($semesterIdFilter, fn($q) => $q->where('semester_id', $semesterIdFilter));
+                })->where(function ($query) {
+                    $query->whereNotNull('mentor_check_in')->orWhereNotNull('mentee_check_in');
                 })->count();
-                
-                $attendanceRate = ($attendedSessions / $participantSessions) * 100;
-                
-                if ($attendanceRate >= 80) {
+
+                if (($attendedSessions / $participantSessions) * 100 >= 80) {
                     $gapEligibleCount++;
                 } else {
                     $gapNotEligibleCount++;
@@ -497,38 +720,27 @@ class AdminController extends Controller
             }
         }
 
-        // Calculate summary statistics
-        $matchSuccessRate = $totalMentees > 0 
-            ? round(($matchedMentees / $totalMentees) * 100, 1) 
-            : 0;
-        $repeaterMatchRate = $totalRepeaters > 0 
-            ? round(($matchedRepeaters / $totalRepeaters) * 100, 1) 
-            : 0;
-        $totalParticipants = $totalMentors + $totalMentees;
-        $gapEligibilityRate = $totalParticipants > 0 
-            ? round(($gapEligibleCount / $totalParticipants) * 100, 1) 
-            : 0;
+        $matchSuccessRate    = $totalMentees > 0 ? round(($matchedMentees / $totalMentees) * 100, 1) : 0;
+        $repeaterMatchRate   = $totalRepeaters > 0 ? round(($matchedRepeaters / $totalRepeaters) * 100, 1) : 0;
+        $totalParticipants   = $totalMentors + $totalMentees;
+        $gapEligibilityRate  = $totalParticipants > 0 ? round(($gapEligibleCount / $totalParticipants) * 100, 1) : 0;
 
-        // Get current semester/year
-        $currentYear = date('Y');
-        $currentMonth = date('n');
-        $semester = $currentMonth >= 1 && $currentMonth <= 6 ? 1 : 2;
-        $academicYear = $semester == 1 
-            ? ($currentYear - 1) . '/' . $currentYear 
-            : $currentYear . '/' . ($currentYear + 1);
+        // Use the resolved semester for label, not system clock
+        $semesterLabel  = $semester ? "Semester {$semester->semester}" : 'Unknown Semester';
+        $academicYearLabel = $semester?->academic_year ?? 'Unknown';
 
         return response()->json([
             'success' => true,
             'data' => [
-                'semester' => "Semester {$semester}",
-                'academic_year' => $academicYear,
-                'programme_overview' => [
-                    'total_mentors' => $totalMentors,
-                    'total_mentees' => $totalMentees,
-                    'total_repeaters' => $totalRepeaters,
-                    'total_matches' => $activeMatches,
-                    'total_mentor_applications' => $totalMentorApplications,
-                    'total_mentee_applications' => $totalMenteeApplications,
+                'semester'            => $semesterLabel,
+                'academic_year'       => $academicYearLabel,
+                'programme_overview'  => [
+                    'total_mentors'              => $totalMentors,
+                    'total_mentees'              => $totalMentees,
+                    'total_repeaters'            => $totalRepeaters,
+                    'total_matches'              => $activeMatches,
+                    'total_mentor_applications'  => $totalMentorApplications,
+                    'total_mentee_applications'  => $totalMenteeApplications,
                 ],
                 'performance_metrics' => [
                     'average_attendance_rate' => $averageAttendanceRate,
@@ -536,21 +748,21 @@ class AdminController extends Controller
                     'total_feedback_responses' => $totalFeedbackResponses,
                 ],
                 'programme_recognition' => [
-                    'total_testimonials_awarded' => $totalTestimonialsAwarded,
-                    'not_eligible_testimonials' => $totalTestimonialsNotEligible,
-                    'gap_eligible_count' => $gapEligibleCount,
-                    'gap_not_eligible_count' => $gapNotEligibleCount,
+                    'total_testimonials_awarded'  => $totalTestimonialsAwarded,
+                    'not_eligible_testimonials'   => $totalTestimonialsNotEligible,
+                    'gap_eligible_count'          => $gapEligibleCount,
+                    'gap_not_eligible_count'      => $gapNotEligibleCount,
                 ],
                 'report_summary' => [
-                    'match_success_rate' => $matchSuccessRate,
-                    'matched_mentees' => $matchedMentees,
-                    'total_mentees' => $totalMentees,
-                    'repeater_match_rate' => $repeaterMatchRate,
-                    'matched_repeaters' => $matchedRepeaters,
-                    'total_repeaters' => $totalRepeaters,
-                    'total_participants' => $totalParticipants,
+                    'match_success_rate'   => $matchSuccessRate,
+                    'matched_mentees'      => $matchedMentees,
+                    'total_mentees'        => $totalMentees,
+                    'repeater_match_rate'  => $repeaterMatchRate,
+                    'matched_repeaters'    => $matchedRepeaters,
+                    'total_repeaters'      => $totalRepeaters,
+                    'total_participants'   => $totalParticipants,
                     'gap_eligibility_rate' => $gapEligibilityRate,
-                    'gap_eligible_count' => $gapEligibleCount,
+                    'gap_eligible_count'   => $gapEligibleCount,
                 ],
             ]
         ]);
