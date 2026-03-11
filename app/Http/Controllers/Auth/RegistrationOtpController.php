@@ -46,6 +46,12 @@ class RegistrationOtpController extends Controller
                 'string',
                 'max:255',
             ],
+            'position' => [
+                Rule::requiredIf((string) $request->input('role') === 'admin'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => [
                 'required',
@@ -81,6 +87,7 @@ class RegistrationOtpController extends Controller
             'student_id' => (string) $validated['role'] === 'club' ? null : ($validated['student_id'] ?? null),
             'ic_number' => (string) $validated['role'] === 'student' ? ($validated['ic_number'] ?? null) : null,
             'programme' => (string) $validated['role'] === 'student' ? ($validated['programme'] ?? null) : null,
+            'position' => (string) $validated['role'] === 'admin' ? ($validated['position'] ?? null) : null,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
@@ -140,6 +147,7 @@ class RegistrationOtpController extends Controller
             'student_id' => $pending['student_id'] ?? null,
             'ic_number' => $pending['ic_number'] ?? null,
             'programme' => $pending['programme'] ?? null,
+            'position' => $pending['position'] ?? null,
             'email' => (string) $pending['email'],
             'password' => (string) $pending['password'],
             'role' => (string) $pending['role'],

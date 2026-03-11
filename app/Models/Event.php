@@ -30,6 +30,9 @@ class Event extends Model
         'attachment_path',
         'live_stream_url',
         'live_stream_started_at',
+        'live_stream_stop_reason',
+        'live_stream_stopped_at',
+        'live_stream_stopped_by_admin_id',
         'soft_skill_category_id',
     ];
 
@@ -37,6 +40,7 @@ class Event extends Model
     {
         return [
             'live_stream_started_at' => 'datetime',
+            'live_stream_stopped_at' => 'datetime',
         ];
     }
 

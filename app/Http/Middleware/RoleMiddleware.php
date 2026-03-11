@@ -28,7 +28,7 @@ class RoleMiddleware
             $request->session()->regenerateToken();
             $clubStatus = (string) ($user->club_approval_status ?? 'pending');
             $clubError = $clubStatus === 'rejected'
-                ? 'Your club account request was rejected by admin.'
+                ? 'Your club account request was rejected by admin. Check your email for the resubmission link.'
                 : 'Your club account is pending admin approval.';
 
             return redirect()->route('login')->withErrors([

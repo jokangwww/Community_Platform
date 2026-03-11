@@ -1001,6 +1001,9 @@ class EventController extends Controller
             $event->update([
                 'live_stream_url' => $validated['stream_url'],
                 'live_stream_started_at' => now(),
+                'live_stream_stop_reason' => null,
+                'live_stream_stopped_at' => null,
+                'live_stream_stopped_by_admin_id' => null,
             ]);
 
             return back()->with('status', 'Live stream started/updated.');
@@ -1009,6 +1012,9 @@ class EventController extends Controller
         $event->update([
             'live_stream_url' => null,
             'live_stream_started_at' => null,
+            'live_stream_stop_reason' => null,
+            'live_stream_stopped_at' => null,
+            'live_stream_stopped_by_admin_id' => null,
         ]);
         $event->streamViewers()->delete();
 

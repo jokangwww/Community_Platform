@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ClubAccountApprovalController extends Controller
 {
+    private const RESUBMISSION_LINK_EXPIRY_DAYS = 7;
+
     // Load club accounts for admin review with optional search + approval status filters.
     public function index(Request $request): View
     {
@@ -64,20 +69,58 @@ class ClubAccountApprovalController extends Controller
         $user->update([
             'club_approval_status' => 'approved',
             'club_approved_at' => now(),
+            'club_rejection_reason' => null,
+            'club_resubmission_remark' => null,
+            'club_resubmission_token_hash' => null,
+            'club_resubmission_token_expires_at' => null,
         ]);
+
+        Mail::raw(
+            'Your club account registration has been approved by admin. You can now sign in and access the club portal.',
+            static function ($message) use ($user): void {
+                $message
+                    ->to($user->email)
+                    ->subject('Club account registration approved');
+            }
+        );
 
         return back()->with('status', 'Club account approved.');
     }
 
     // Reject a club account and clear any previous approval timestamp.
-    public function reject(User $user): RedirectResponse
+    public function reject(Request $request, User $user): RedirectResponse
     {
         abort_unless($user->role === 'club', 404);
+
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $reason = trim((string) $validated['rejection_reason']);
+        $plainToken = Str::random(64);
+        $expiresAt = now()->addDays(self::RESUBMISSION_LINK_EXPIRY_DAYS);
+        $resubmitUrl = route('club.resubmission.form', [
+            'token' => $plainToken,
+            'email' => $user->email,
+        ]);
 
         $user->update([
             'club_approval_status' => 'rejected',
             'club_approved_at' => null,
+            'club_rejection_reason' => $reason,
+            'club_resubmission_remark' => null,
+            'club_resubmission_token_hash' => Hash::make($plainToken),
+            'club_resubmission_token_expires_at' => $expiresAt,
         ]);
+
+        Mail::raw(
+            "Your club account registration has been rejected by admin.\n\nReason: {$reason}\n\nResubmit your attachment and remark using this link: {$resubmitUrl}\n\nThis link expires on {$expiresAt->format('Y-m-d H:i')}.\n\nPlease contact support/admin if you need clarification.",
+            static function ($message) use ($user): void {
+                $message
+                    ->to($user->email)
+                    ->subject('Club account registration rejected');
+            }
+        );
 
         return back()->with('status', 'Club account rejected.');
     }

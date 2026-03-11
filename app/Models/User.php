@@ -49,6 +49,10 @@ class User extends Authenticatable
         'role',
         'club_attachment_path',
         'club_approval_status',
+        'club_rejection_reason',
+        'club_resubmission_remark',
+        'club_resubmission_token_hash',
+        'club_resubmission_token_expires_at',
         'club_approved_at',
         'account_status',
         'ban_reason',
@@ -82,6 +86,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'club_approved_at' => 'datetime',
+            'club_resubmission_token_expires_at' => 'datetime',
             'banned_at' => 'datetime',
             'appealed_at' => 'datetime',
             'appeal_reviewed_at' => 'datetime',

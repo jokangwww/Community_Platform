@@ -93,6 +93,16 @@
             <p>Monitor published event content and moderation logs.</p>
         </a>
 
+        <a href="{{ route('admin.feedback.index') }}" class="dash-link">
+            <h2>All Event Feedback</h2>
+            <p>Review every event feedback submission from students.</p>
+        </a>
+
+        <a href="{{ route('admin.live-stream.index') }}" class="dash-link">
+            <h2>Live Stream Control</h2>
+            <p>Watch active streams and stop them with mandatory reason tracking.</p>
+        </a>
+
         <a href="{{ route('admin.club-accounts.index') }}" class="dash-link">
             <h2>Club Account Approvals</h2>
             <p>Validate club account requests and registration status.</p>

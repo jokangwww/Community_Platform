@@ -72,6 +72,12 @@ class ProfileController extends Controller
             ]);
         }
 
+        if (Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'New password cannot be the same as old password.',
+            ]);
+        }
+
         $user->password = Hash::make($validated['password']);
         $user->save();
 

@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\EventProposalController as AdminEventProposalCont
 use App\Http\Controllers\Admin\ClubAccountApprovalController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\EventPostingModerationController;
+use App\Http\Controllers\Admin\EventFeedbackController as AdminEventFeedbackController;
+use App\Http\Controllers\Admin\LiveStreamController as AdminLiveStreamController;
 use App\Http\Controllers\Admin\LocationManagementController;
 use App\Http\Controllers\Admin\VendorBoothApplicationApprovalController;
 use App\Http\Controllers\Admin\VenueBookingApprovalController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\Admin\SoftSkillController as AdminSoftSkillController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\StudentAccountController;
 use App\Http\Controllers\Admin\UserProfileCorrectionController;
+use App\Http\Controllers\Auth\ClubResubmissionController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegistrationOtpController;
 use App\Http\Controllers\Auth\VendorRegistrationController;
@@ -39,7 +42,6 @@ use App\Http\Controllers\User\RecruitmentController as UserRecruitmentController
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TicketController as UserTicketController;
 use App\Http\Controllers\Vendor\VendorBoothController;
-use App\Http\Controllers\Buddy\AdminController;
 use App\Models\Posting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -86,13 +88,13 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
     // Public/Guest Routes - No authentication required
     Route::post('/register', [\App\Http\Controllers\Buddy\RegistrationController::class, 'register'])
         ->name('register');
-    
+
     // Authenticated User Routes - Require authentication only
     Route::middleware(['auth'])->group(function () {
         Route::get('/status', [\App\Http\Controllers\Buddy\RegistrationController::class, 'getStatus'])
             ->name('status');
     });
-    
+
     // Admin Settings GET - accessible to all authenticated users (mentees need to read settings)
     Route::middleware(['auth'])->group(function () {
         Route::get('/admin/settings', [\App\Http\Controllers\Buddy\AdminController::class, 'getSettings'])
@@ -177,8 +179,8 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         Route::get('/export', [\App\Http\Controllers\Buddy\GAPPointController::class, 'export'])
             ->name('gap-points.export');
     });
-    
-    
+
+
 
     // Subject/Skill Routes - Require authentication
     Route::middleware(['auth'])->group(function () {
@@ -203,7 +205,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         Route::post('/sessions/{sessionId}/check-in', [\App\Http\Controllers\Buddy\UserController::class, 'submitCheckIn'])
             ->name('check-in');
     });
-    
+
     // Mentor Dashboard Routes - Require authentication and buddy participant status
     Route::middleware(['auth', 'buddy.participant'])->prefix('mentor')->name('mentor.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Buddy\UserController::class, 'getMentorDashboard'])
@@ -211,7 +213,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
         Route::post('/attendance', [\App\Http\Controllers\Buddy\UserController::class, 'submitMentorAttendance'])
             ->name('attendance');
     });
-    
+
     // Scheduling Routes - Require authentication and buddy participant status
     Route::middleware(['auth', 'buddy.participant'])->prefix('user/schedule')->name('user.schedule.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Buddy\UserController::class, 'getSchedule'])
@@ -234,7 +236,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
     Route::middleware(['auth', 'buddy.participant', 'buddy.match'])->prefix('classroom/{matchId}')->name('classroom.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Buddy\ClassroomController::class, 'getClassroomData'])
             ->name('data');
-        
+
         // Study Materials Routes
         Route::post('/materials', [\App\Http\Controllers\Buddy\ClassroomController::class, 'uploadMaterial'])
             ->name('materials.upload');
@@ -244,7 +246,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('materials.delete');
         Route::get('/materials/{materialId}/download', [\App\Http\Controllers\Buddy\ClassroomController::class, 'downloadMaterial'])
             ->name('materials.download');
-        
+
         // Quiz Routes
         Route::post('/quizzes', [\App\Http\Controllers\Buddy\ClassroomController::class, 'createQuiz'])
             ->name('quizzes.create');
@@ -254,7 +256,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('quizzes.submit');
         Route::get('/quizzes/{quizId}/results', [\App\Http\Controllers\Buddy\ClassroomController::class, 'getQuizResults'])
             ->name('quizzes.results');
-        
+
         // Assignment Routes
         Route::post('/assignments', [\App\Http\Controllers\Buddy\ClassroomController::class, 'createAssignment'])
             ->name('assignments.create');
@@ -519,7 +521,7 @@ Route::post('/login', function (Request $request) {
             $request->session()->regenerateToken();
             $clubStatus = (string) ($user->club_approval_status ?? 'pending');
             $clubError = $clubStatus === 'rejected'
-                ? 'Your club account request was rejected by admin.'
+                ? 'Your club account request was rejected by admin. Check your email for the resubmission link.'
                 : 'Your club account is pending admin approval.';
 
             return back()->withErrors([
@@ -558,6 +560,10 @@ Route::get('/reset-password/{token}', [PasswordResetController::class, 'showRese
     ->name('password.reset.form');
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])
     ->name('password.update');
+Route::get('/club/resubmission/{token}', [ClubResubmissionController::class, 'show'])
+    ->name('club.resubmission.form');
+Route::post('/club/resubmission', [ClubResubmissionController::class, 'submit'])
+    ->name('club.resubmission.submit');
 
 Route::get('/club', function () {
     return view('club.home');
@@ -615,6 +621,15 @@ Route::get('/admin/event-postings', [EventPostingModerationController::class, 'i
 Route::delete('/admin/event-postings/{posting}', [EventPostingModerationController::class, 'destroy'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.event-postings.destroy');
+Route::get('/admin/feedback', [AdminEventFeedbackController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.feedback.index');
+Route::get('/admin/live-stream', [AdminLiveStreamController::class, 'index'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.live-stream.index');
+Route::post('/admin/live-stream/{event}/stop', [AdminLiveStreamController::class, 'stop'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.live-stream.stop');
 Route::get('/admin/club-accounts', [ClubAccountApprovalController::class, 'index'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.club-accounts.index');

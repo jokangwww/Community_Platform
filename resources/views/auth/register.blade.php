@@ -177,6 +177,16 @@
                 @csrf
                 {{-- Core identity fields shared by student/admin/club registration. --}}
                 <div class="field">
+                    <label for="role">Account type</label>
+                    <select id="role" name="role" required>
+                        <option value="" selected disabled>Select one</option>
+                        <option value="student" {{ old('role') === 'student' ? 'selected' : '' }}>Student</option>
+                        <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
+                        <option value="club" {{ old('role') === 'club' ? 'selected' : '' }}>Club</option>
+                    </select>
+                </div>
+
+                <div class="field">
                     <label for="name">Full name</label>
                     <input id="name" name="name" type="text" placeholder="e.g. Aisyah Lee" value="{{ old('name') }}" required>
                 </div>
@@ -194,6 +204,11 @@
                 <div class="field" id="programme-field" style="display:none;">
                     <label for="programme">Programme</label>
                     <input id="programme" name="programme" type="text" placeholder="e.g. Diploma in Business Information Systems" value="{{ old('programme') }}">
+                </div>
+
+                <div class="field" id="position-field" style="display:none;">
+                    <label for="position">Position</label>
+                    <input id="position" name="position" type="text" placeholder="e.g. Student Affairs Officer" value="{{ old('position') }}">
                 </div>
 
                 <div class="field">
@@ -221,16 +236,6 @@
                         <label for="password_confirmation">Confirm password</label>
                         <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your password" required>
                     </div>
-                </div>
-
-                <div class="field">
-                    <label for="role">Account type</label>
-                    <select id="role" name="role" required>
-                        <option value="" selected disabled>Select one</option>
-                        <option value="student" {{ old('role') === 'student' ? 'selected' : '' }}>Student</option>
-                        <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
-                        <option value="club" {{ old('role') === 'club' ? 'selected' : '' }}>Club</option>
-                    </select>
                 </div>
 
                 {{-- Club-only supporting document for admin account approval workflow. --}}
@@ -268,6 +273,8 @@
             var icNumberInput = document.getElementById('ic_number');
             var programmeField = document.getElementById('programme-field');
             var programmeInput = document.getElementById('programme');
+            var positionField = document.getElementById('position-field');
+            var positionInput = document.getElementById('position');
             var clubAttachmentField = document.getElementById('club-attachment-field');
             var clubAttachmentInput = document.getElementById('club_attachment');
             var form = document.querySelector('form[action="{{ route('register.submit') }}"]');
@@ -336,6 +343,7 @@
                 var role = roleSelect ? roleSelect.value : '';
                 var isClub = role === 'club';
                 var isStudent = role === 'student';
+                var isAdmin = role === 'admin';
 
                 if (studentIdField) {
                     studentIdField.style.display = isClub ? 'none' : 'block';
@@ -367,6 +375,17 @@
                     programmeInput.required = isStudent;
                     if (!isStudent) {
                         programmeInput.value = '';
+                    }
+                }
+
+                if (positionField) {
+                    positionField.style.display = isAdmin ? 'block' : 'none';
+                }
+
+                if (positionInput) {
+                    positionInput.required = isAdmin;
+                    if (!isAdmin) {
+                        positionInput.value = '';
                     }
                 }
 

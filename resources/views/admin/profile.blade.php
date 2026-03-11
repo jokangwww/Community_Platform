@@ -62,12 +62,12 @@
             font-size: 13px;
             color: #1f7a1f;
         }
-        .action-btn {
+        .profile-panel .action-btn {
             display: block;
             padding: 10px 16px;
             border: 1px solid var(--field-border);
-            background: #fff;
-            color: #333;
+            background: #fff !important;
+            color: #333 !important;
             cursor: pointer;
             text-decoration: none;
             width: 100%;
@@ -75,9 +75,15 @@
             text-align: center;
             border-radius: 6px;
             font: inherit;
+            box-shadow: none !important;
+            filter: none !important;
         }
-        .action-btn:hover {
-            background: #f6f6f6;
+        .profile-panel .action-btn:hover {
+            background: #f2f6ff !important;
+            color: #1f1f1f !important;
+            box-shadow: none !important;
+            filter: none !important;
+            transform: none !important;
         }
         .section-title {
             font-size: 15px;
@@ -107,10 +113,60 @@
             padding: 10px 12px;
             font-size: 14px;
             font: inherit;
+            width: 100%;
         }
         .form-row textarea {
             resize: vertical;
             min-height: 120px;
+        }
+        .password-wrap {
+            width: 100%;
+            position: relative;
+        }
+        .password-wrap input {
+            padding-right: 46px;
+        }
+        .profile-panel .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none !important;
+            background: transparent !important;
+            border-radius: 6px;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #555 !important;
+            cursor: pointer;
+            box-shadow: none !important;
+        }
+        .profile-panel .password-toggle svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+            pointer-events: none;
+        }
+        .profile-panel .password-toggle:hover {
+            background: #f2f2f2 !important;
+            color: #1f1f1f !important;
+            transform: translateY(-50%) !important;
+        }
+        .profile-panel .password-toggle:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(46, 99, 230, 0.15) !important;
+        }
+        .profile-panel .password-toggle .icon-eye-off {
+            display: none;
+        }
+        .password-wrap.is-visible .password-toggle .icon-eye {
+            display: none;
+        }
+        .password-wrap.is-visible .password-toggle .icon-eye-off {
+            display: inline;
         }
         .full {
             grid-column: 1 / -1;
@@ -162,21 +218,63 @@
                     @csrf
                     <div class="form-row">
                         <label for="current_password">Old Password</label>
-                        <input id="current_password" name="current_password" type="password" placeholder="Type your old password" required>
+                        <div class="password-wrap">
+                            <input id="current_password" name="current_password" type="password" placeholder="Type your old password" required>
+                            <button type="button" class="password-toggle" data-toggle-password aria-label="Show password" aria-pressed="false">
+                                <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M1 12C2.73 7.61 6.96 4.5 12 4.5C17.04 4.5 21.27 7.61 23 12C21.27 16.39 17.04 19.5 12 19.5C6.96 19.5 2.73 16.39 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M9.88 5.09C10.57 4.89 11.28 4.79 12 4.79C16.6 4.79 20.48 7.57 22 12C21.41 13.73 20.45 15.27 19.21 16.53" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M6.23 6.23C4.2 7.52 2.62 9.52 2 12C3.52 16.43 7.4 19.21 12 19.21C13.58 19.21 15.09 18.88 16.45 18.28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
                         @error('current_password')
                             <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-row" style="margin-top: 10px;">
                         <label for="password">New Password</label>
-                        <input id="password" name="password" type="password" placeholder="Type your new password" required>
+                        <div class="password-wrap">
+                            <input id="password" name="password" type="password" placeholder="Type your new password" required>
+                            <button type="button" class="password-toggle" data-toggle-password aria-label="Show password" aria-pressed="false">
+                                <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M1 12C2.73 7.61 6.96 4.5 12 4.5C17.04 4.5 21.27 7.61 23 12C21.27 16.39 17.04 19.5 12 19.5C6.96 19.5 2.73 16.39 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M9.88 5.09C10.57 4.89 11.28 4.79 12 4.79C16.6 4.79 20.48 7.57 22 12C21.41 13.73 20.45 15.27 19.21 16.53" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M6.23 6.23C4.2 7.52 2.62 9.52 2 12C3.52 16.43 7.4 19.21 12 19.21C13.58 19.21 15.09 18.88 16.45 18.28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
                         @error('password')
                             <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-row" style="margin-top: 10px;">
                         <label for="password_confirmation">Confirm New Password</label>
-                        <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your new password" required>
+                        <div class="password-wrap">
+                            <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your new password" required>
+                            <button type="button" class="password-toggle" data-toggle-password aria-label="Show password" aria-pressed="false">
+                                <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M1 12C2.73 7.61 6.96 4.5 12 4.5C17.04 4.5 21.27 7.61 23 12C21.27 16.39 17.04 19.5 12 19.5C6.96 19.5 2.73 16.39 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M9.88 5.09C10.57 4.89 11.28 4.79 12 4.79C16.6 4.79 20.48 7.57 22 12C21.41 13.73 20.45 15.27 19.21 16.53" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M6.23 6.23C4.2 7.52 2.62 9.52 2 12C3.52 16.43 7.4 19.21 12 19.21C13.58 19.21 15.09 18.88 16.45 18.28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="action-btn" style="margin-top: 12px;">Change Password</button>
                     @if (session('password_status'))
@@ -261,4 +359,21 @@
             @endif
         </form>
     </div>
+    <script>
+        (function () {
+            document.querySelectorAll('[data-toggle-password]').forEach((toggleButton) => {
+                toggleButton.addEventListener('click', () => {
+                    const wrap = toggleButton.closest('.password-wrap');
+                    const passwordInput = wrap ? wrap.querySelector('input[type="password"], input[type="text"]') : null;
+                    if (!wrap || !passwordInput) return;
+                    const isHidden = passwordInput.type === 'password';
+                    passwordInput.type = isHidden ? 'text' : 'password';
+                    wrap.classList.toggle('is-visible', isHidden);
+                    toggleButton.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+                    toggleButton.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                    passwordInput.focus();
+                });
+            });
+        })();
+    </script>
 @endsection
