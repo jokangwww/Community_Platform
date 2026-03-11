@@ -347,7 +347,6 @@
                 || $errors->has('role')
                 || $errors->has('ic_number')
                 || $errors->has('programme')
-                || $errors->has('email')
                 || $errors->has('bio');
         @endphp
         <form id="profile-form" class="profile-panel" method="POST" action="{{ route('profile.update') }}" data-start-edit="{{ $hasProfileErrors ? 'true' : 'false' }}">
@@ -392,7 +391,7 @@
             <div class="section-title" style="margin-top: 16px;">Contact Info</div>
             <div class="form-grid" style="margin-top: 10px;">
                 <div class="form-row">
-                    <label for="email">Email (required)</label>
+                    <label for="email">Email (locked)</label>
                     <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" readonly>
                     @error('email')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
@@ -535,6 +534,11 @@
 
             const setEditable = (isEditable) => {
                 fields.forEach((field) => {
+                    if (field.name === 'email') {
+                        field.setAttribute('readonly', 'readonly');
+                        return;
+                    }
+
                     if (field.dataset.originalValue === undefined) {
                         field.dataset.originalValue = field.value;
                         field.dataset.originalReadonly = field.hasAttribute('readonly') ? 'true' : 'false';

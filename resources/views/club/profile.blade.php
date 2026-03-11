@@ -178,6 +178,66 @@
         .profile-actions.is-visible {
             display: flex;
         }
+        .history-panel {
+            margin-top: 18px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .history-main-type {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid #d7e2f3;
+            border-radius: 8px;
+            background: #f5f9ff;
+            color: #23466f;
+            font-size: 14px;
+        }
+        .history-badges {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .history-badge {
+            border: 1px solid #c2d3eb;
+            border-radius: 999px;
+            padding: 4px 10px;
+            background: #fff;
+            color: #2f4f74;
+            font-size: 12px;
+        }
+        .history-list {
+            margin-top: 12px;
+            display: grid;
+            gap: 10px;
+        }
+        .history-card {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #fff;
+            padding: 12px;
+        }
+        .history-card h4 {
+            margin: 0 0 6px;
+            font-size: 16px;
+            color: #2f2f2f;
+        }
+        .history-meta {
+            display: grid;
+            gap: 3px;
+            color: #4a4a4a;
+            font-size: 13px;
+        }
+        .history-empty {
+            margin-top: 12px;
+            border: 1px dashed #c2c2c2;
+            border-radius: 8px;
+            padding: 12px;
+            background: #fafafa;
+            color: #4a4a4a;
+        }
         @media (max-width: 800px) {
             .profile-layout {
                 grid-template-columns: 1fr;
@@ -290,7 +350,6 @@
         @php
             $hasProfileErrors = $errors->has('name')
                 || $errors->has('display_name')
-                || $errors->has('email')
                 || $errors->has('bio');
         @endphp
         <form id="profile-form" class="profile-panel" method="POST" action="{{ route('club.profile.update') }}" data-start-edit="{{ $hasProfileErrors ? 'true' : 'false' }}">
@@ -324,7 +383,7 @@
             <div class="section-title" style="margin-top: 16px;">Contact Info</div>
             <div class="form-grid" style="margin-top: 10px;">
                 <div class="form-row">
-                    <label for="email">Email (required)</label>
+                    <label for="email">Email (locked)</label>
                     <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" readonly>
                     @error('email')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
@@ -348,6 +407,36 @@
             @endif
         </form>
     </div>
+    <div class="history-panel">
+        <div class="section-title" style="margin-top: 0;">Club Event History</div>
+        <div class="history-main-type">
+            <strong>Main Event Type:</strong> {{ $mainEventType ?? 'Not enough event history yet' }}
+            @if (($eventTypeBreakdown ?? collect())->isNotEmpty())
+                <div class="history-badges">
+                    @foreach ($eventTypeBreakdown as $type => $count)
+                        <span class="history-badge">{{ $type }} ({{ $count }})</span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        @if (($pastEvents ?? collect())->isEmpty())
+            <div class="history-empty">No past organized events found yet.</div>
+        @else
+            <div class="history-list">
+                @foreach ($pastEvents as $event)
+                    <div class="history-card">
+                        <h4>{{ $event->name }}</h4>
+                        <div class="history-meta">
+                            <div><strong>Date:</strong> {{ $event->start_date ?: 'TBA' }} - {{ $event->end_date ?: 'TBA' }}</div>
+                            <div><strong>Venue:</strong> {{ $event->venue ?: 'Not set' }}</div>
+                            <div><strong>Event Type:</strong> {{ optional($event->softSkillCategory)->name ?: 'Uncategorized' }}</div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </div>
     <script>
         (function () {
             const editButton = document.getElementById('edit-profile-btn');
@@ -360,6 +449,11 @@
 
             const setEditable = (isEditable) => {
                 fields.forEach((field) => {
+                    if (field.name === 'email') {
+                        field.setAttribute('readonly', 'readonly');
+                        return;
+                    }
+
                     if (field.dataset.originalValue === undefined) {
                         field.dataset.originalValue = field.value;
                         field.dataset.originalReadonly = field.hasAttribute('readonly') ? 'true' : 'false';

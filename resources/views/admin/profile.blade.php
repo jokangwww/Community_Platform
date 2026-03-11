@@ -330,8 +330,8 @@
                     @enderror
                 </div>
                 <div class="form-row full">
-                    <label for="email">Email</label>
-                    <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" required>
+                    <label for="email">Email (locked)</label>
+                    <input id="email" name="email" type="email" value="{{ old('email', $user?->email ?? '') }}" placeholder="email@example.com" readonly>
                     @error('email')
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror

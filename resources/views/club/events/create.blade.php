@@ -344,14 +344,14 @@
         </div>
         <div class="field">
             <label for="start_date">Event start date</label>
-            <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}" required>
+            <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}" max="{{ old('end_date') }}" required>
             @error('start_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
         <div class="field">
             <label for="end_date">Event end date</label>
-            <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}" required>
+            <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}" min="{{ old('start_date') }}" required>
             @error('end_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
@@ -467,7 +467,9 @@
 
             function syncEndDateMin() {
                 var startValue = startDateInput.value || '';
+                var endValue = endDateInput.value || '';
                 endDateInput.min = startValue;
+                startDateInput.max = endValue;
 
                 if (startValue && endDateInput.value && endDateInput.value < startValue) {
                     endDateInput.value = startValue;
@@ -475,6 +477,7 @@
             }
 
             startDateInput.addEventListener('change', syncEndDateMin);
+            endDateInput.addEventListener('change', syncEndDateMin);
             syncEndDateMin();
         })();
     </script>

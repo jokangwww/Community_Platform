@@ -67,6 +67,11 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const safeSearchQuery = searchQuery ?? '';
+  const safeSkillSearch = skillSearch ?? '';
+  const filteredSkills = skills.filter((s) =>
+    (s?.name ?? '').toLowerCase().includes(safeSkillSearch.toLowerCase())
+  );
 
   // Fetch skills on mount
   useEffect(() => {
@@ -75,7 +80,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
         const response = await fetch('/api/buddy/skills');
         if (response.ok) {
           const data = await response.json();
-          setSkills(data.data || []);
+          setSkills(Array.isArray(data?.data) ? data.data : []);
         }
       } catch (error) {
         console.error('Failed to fetch skills:', error);
@@ -100,7 +105,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
   // Search subjects with debounce
   useEffect(() => {
-    if (searchQuery.length < 2) {
+    if (safeSearchQuery.length < 2) {
       setSearchResults([]);
       return;
     }
@@ -108,10 +113,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/buddy/subjects/search?q=${encodeURIComponent(searchQuery)}&type=subject`);
+        const response = await fetch(`/api/buddy/subjects/search?q=${encodeURIComponent(safeSearchQuery)}&type=subject`);
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data.data || []);
+          setSearchResults(Array.isArray(data?.data) ? data.data : []);
           setShowDropdown(true);
         }
       } catch (error) {
@@ -122,7 +127,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [safeSearchQuery]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -138,7 +143,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
   const handleSelectSubject = (subject: Subject) => {
     setSelectedSubject(subject);
-    setSearchQuery(subject.display_name);
+    setSearchQuery(subject.display_name || subject.name || '');
     setShowDropdown(false);
     if (errors.subject) {
       setErrors(prev => {
@@ -162,7 +167,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
 
   const handleAddNewSubject = () => {
     setShowAddNew(true);
-    setNewSubjectName(searchQuery);
+    setNewSubjectName(safeSearchQuery);
     setNewSubjectCode('');
     setShowDropdown(false);
   };
@@ -189,7 +194,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
         const result = await response.json();
         const newSubject = result.data || result;
         setSelectedSubject(newSubject);
-        setSearchQuery(newSubject.display_name || newSubject.name);
+        setSearchQuery(newSubject.display_name || newSubject.name || '');
         setShowAddNew(false);
         setNewSubjectName('');
         setNewSubjectCode('');
@@ -677,14 +682,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 <div style={{ position: 'relative' }}>
                   <div style={{ position: 'relative' }}>
                     <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af', width: '16px', height: '16px' }} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setSelectedSubject(null);
-                      }}
-                      onFocus={() => (searchQuery?.length ?? 0) >= 2 && setShowDropdown(true)}
+                  <input
+                    type="text"
+                    value={safeSearchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value ?? '');
+                      setSelectedSubject(null);
+                    }}
+                    onFocus={() => safeSearchQuery.length >= 2 && setShowDropdown(true)}
                     className={`w-full h-11 pr-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.subject ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -700,9 +705,9 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 {/* Search Results Dropdown */}
                 {showDropdown && (
                   <div style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: '4px' }} className="w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {searchResults.length > 0 ? (
+                    {(Array.isArray(searchResults) ? searchResults : []).length > 0 ? (
                       <>
-                        {searchResults.map((subject) => (
+                        {(Array.isArray(searchResults) ? searchResults : []).map((subject) => (
                           <button
                             key={subject.id}
                             type="button"
@@ -721,17 +726,17 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                           className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2 cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
-                          Add "{searchQuery}" as new subject
+                          Add "{safeSearchQuery}" as new subject
                         </button>
                       </>
-                    ) : searchQuery.length >= 2 && !isSearching ? (
+                    ) : safeSearchQuery.length >= 2 && !isSearching ? (
                       <button
                         type="button"
                         onClick={handleAddNewSubject}
                         className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
-                        Add "{searchQuery}" as new subject
+                        Add "{safeSearchQuery}" as new subject
                       </button>
                     ) : null}
                   </div>
@@ -823,13 +828,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af', width: '16px', height: '16px' }} />
                   <input
                     type="text"
-                    value={skillSearch}
+                    value={safeSkillSearch}
                     onChange={(e) => {
-                      setSkillSearch(e.target.value);
+                      const nextValue = e.target.value ?? '';
+                      setSkillSearch(nextValue);
                       setSelectedSkill(null);
-                      setShowSkillDropdown(e.target.value.length >= 2);
+                      setShowSkillDropdown(nextValue.length >= 2);
                     }}
-                    onFocus={() => skillSearch.length >= 2 && setShowSkillDropdown(true)}
+                    onFocus={() => safeSkillSearch.length >= 2 && setShowSkillDropdown(true)}
                     className={`w-full h-11 pr-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.subject ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -841,17 +847,15 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 {/* Skill Dropdown */}
                 {showSkillDropdown && (
                   <div style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: '4px' }} className="w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {skills.filter(s => s.name.toLowerCase().includes(skillSearch.toLowerCase())).length > 0 ? (
+                    {filteredSkills.length > 0 ? (
                       <>
-                        {skills
-                          .filter(s => s.name.toLowerCase().includes(skillSearch.toLowerCase()))
-                          .map(skill => (
+                        {filteredSkills.map((skill) => (
                             <button
                               key={skill.id}
                               type="button"
                               onClick={() => {
                                 handleSelectSkill(skill);
-                                setSkillSearch(skill.name);
+                                setSkillSearch(skill.name ?? '');
                                 setShowSkillDropdown(false);
                               }}
                               className="w-full px-4 py-2 text-left hover:bg-blue-50 cursor-pointer"
@@ -864,27 +868,27 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                           type="button"
                           onClick={() => {
                             setShowAddNewSkill(true);
-                            setNewSkillName(skillSearch);
+                            setNewSkillName(safeSkillSearch);
                             setShowSkillDropdown(false);
                           }}
                           className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 border-t flex items-center gap-2 cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
-                          Add "{skillSearch}" as new skill
+                          Add "{safeSkillSearch}" as new skill
                         </button>
                       </>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
-                          setShowAddNewSkill(true);
-                          setNewSkillName(skillSearch);
-                          setShowSkillDropdown(false);
-                        }}
+                          onClick={() => {
+                            setShowAddNewSkill(true);
+                            setNewSkillName(safeSkillSearch);
+                            setShowSkillDropdown(false);
+                          }}
                         className="w-full px-4 py-2 text-left hover:bg-green-50 text-green-600 flex items-center gap-2 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
-                        Add "{skillSearch}" as new skill
+                        Add "{safeSkillSearch}" as new skill
                       </button>
                     )}
                   </div>

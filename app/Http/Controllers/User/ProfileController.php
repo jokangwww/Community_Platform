@@ -241,7 +241,6 @@ class ProfileController extends Controller
                 'string',
                 'max:255',
             ],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'bio' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -254,7 +253,6 @@ class ProfileController extends Controller
         $user->role = $role;
         $user->ic_number = $icNumber;
         $user->programme = $programme;
-        $user->email = $validated['email'];
         $user->bio = $validated['bio'];
         $user->save();
 

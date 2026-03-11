@@ -107,7 +107,6 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'department' => ['nullable', 'string', 'max:255', Rule::exists('departments', 'name')],
             'position' => ['nullable', 'string', 'max:255'],
             'contact_information' => ['nullable', 'string', 'max:255'],
@@ -116,7 +115,6 @@ class ProfileController extends Controller
 
         $user->update([
             'name' => $validated['name'],
-            'email' => $validated['email'],
             'department' => $validated['department'] ?? null,
             'staff_id' => $user->staff_id ?: ($user->student_id ?: ('ADMIN-' . $user->id)),
             'position' => $validated['position'] ?? null,

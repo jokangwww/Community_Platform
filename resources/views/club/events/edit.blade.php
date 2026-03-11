@@ -440,14 +440,14 @@
         </div>
         <div class="field">
             <label for="start_date">Event start date</label>
-            <input id="start_date" name="start_date" type="date" value="{{ old('start_date', $event->start_date) }}">
+            <input id="start_date" name="start_date" type="date" value="{{ old('start_date', $event->start_date) }}" max="{{ old('end_date', $event->end_date) }}">
             @error('start_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
         </div>
         <div class="field">
             <label for="end_date">Event end date</label>
-            <input id="end_date" name="end_date" type="date" value="{{ old('end_date', $event->end_date) }}">
+            <input id="end_date" name="end_date" type="date" value="{{ old('end_date', $event->end_date) }}" min="{{ old('start_date', $event->start_date) }}">
             @error('end_date')
                 <div class="error-text">{{ $message }}</div>
             @enderror
@@ -654,6 +654,31 @@
     </div>
     </div>
 
+    <script>
+        (function () {
+            var startDateInput = document.getElementById('start_date');
+            var endDateInput = document.getElementById('end_date');
+
+            if (!startDateInput || !endDateInput) {
+                return;
+            }
+
+            function syncDateRange() {
+                var startValue = startDateInput.value || '';
+                var endValue = endDateInput.value || '';
+                endDateInput.min = startValue;
+                startDateInput.max = endValue;
+
+                if (startValue && endDateInput.value && endDateInput.value < startValue) {
+                    endDateInput.value = startValue;
+                }
+            }
+
+            startDateInput.addEventListener('change', syncDateRange);
+            endDateInput.addEventListener('change', syncDateRange);
+            syncDateRange();
+        })();
+    </script>
     <script>
         (function () {
             const list = document.getElementById('committee_position_list');

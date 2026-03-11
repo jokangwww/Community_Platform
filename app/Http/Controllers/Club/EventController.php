@@ -828,6 +828,8 @@ class EventController extends Controller
             'faculty_limit.*' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
+        ], [
+            'end_date.after_or_equal' => 'Event end date cannot be before event start date.',
         ]);
 
         // Normalize and validate dynamic sections before persisting the main event.
@@ -919,6 +921,8 @@ class EventController extends Controller
             'faculty_limit.*' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
+        ], [
+            'end_date.after_or_equal' => 'Event end date cannot be before event start date.',
         ]);
 
         // Rebuild dynamic related data from form arrays before updating the event and child tables.
