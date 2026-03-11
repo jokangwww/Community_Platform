@@ -117,7 +117,7 @@
                 <li class="quick-link"><a href="{{ route('club.events.attendance') }}">Attendance Records <span>&#8250;</span></a></li>
                 <li class="quick-link"><a href="{{ route('club.feedback.index') }}">Review Feedback <span>&#8250;</span></a></li>
                 <li class="quick-link"><a href="{{ route('club.venue-bookings.index') }}">Venue Bookings <span>&#8250;</span></a></li>
-                <li class="quick-link"><a href="{{ route('club.vendor-booth-applications.index') }}">Vendor Applications <span>&#8250;</span></a></li>
+                <li class="quick-link"><a href="{{ route('club.vendor-booth-applications.applications') }}">Vendor Applications <span>&#8250;</span></a></li>
             </ul>
         </article>
 

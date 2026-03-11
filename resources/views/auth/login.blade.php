@@ -60,6 +60,46 @@
             border-color: #2e63e6;
             box-shadow: 0 0 0 3px rgba(46, 99, 230, 0.15);
         }
+        .password-wrap {
+            position: relative;
+        }
+        .password-wrap input {
+            padding-right: 46px;
+        }
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            cursor: pointer;
+        }
+        .password-toggle:hover {
+            background: #f2f2f2;
+            color: #1f1f1f;
+        }
+        .password-toggle:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(46, 99, 230, 0.15);
+        }
+        .password-toggle .icon-eye-off {
+            display: none;
+        }
+        .password-wrap.is-visible .password-toggle .icon-eye {
+            display: none;
+        }
+        .password-wrap.is-visible .password-toggle .icon-eye-off {
+            display: inline;
+        }
         .btn {
             width: 100%;
             padding: 12px;
@@ -122,7 +162,21 @@
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
-                    <input id="password" name="password" type="password" placeholder="Your password" required>
+                    <div class="password-wrap" id="password-wrap">
+                        <input id="password" name="password" type="password" placeholder="Your password" required>
+                        <button type="button" class="password-toggle" id="password-toggle" aria-label="Show password" aria-pressed="false">
+                            <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M1 12C2.73 7.61 6.96 4.5 12 4.5C17.04 4.5 21.27 7.61 23 12C21.27 16.39 17.04 19.5 12 19.5C6.96 19.5 2.73 16.39 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M9.88 5.09C10.57 4.89 11.28 4.79 12 4.79C16.6 4.79 20.48 7.57 22 12C21.41 13.73 20.45 15.27 19.21 16.53" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M6.23 6.23C4.2 7.52 2.62 9.52 2 12C3.52 16.43 7.4 19.21 12 19.21C13.58 19.21 15.09 18.88 16.45 18.28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn">Sign In</button>
             </form>
@@ -140,5 +194,23 @@
 
         <div class="bottom-bar"></div>
     </div>
+    <script>
+        (function () {
+            var toggle = document.getElementById('password-toggle');
+            var input = document.getElementById('password');
+            var wrap = document.getElementById('password-wrap');
+
+            if (!toggle || !input || !wrap) return;
+
+            toggle.addEventListener('click', function () {
+                var isHidden = input.type === 'password';
+                input.type = isHidden ? 'text' : 'password';
+                wrap.classList.toggle('is-visible', isHidden);
+                toggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+                toggle.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                input.focus();
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -15,6 +15,7 @@
         .cf-card { border:1px solid #d8d8d8; border-radius:10px; background:#fcfcfc; padding:12px; }
         .cf-card h3 { margin:0 0 8px; font-size:18px; }
         .cf-meta { display:grid; gap:4px; font-size:14px; color:#333; }
+        .cf-link { margin-top:10px; display:inline-flex; border:1px solid #c7c7c7; border-radius:6px; padding:8px 10px; font-size:14px; color:#1f1f1f; text-decoration:none; background:#fff; }
         .cf-comments { margin-top:10px; border-top:1px dashed #d0d0d0; padding-top:10px; display:grid; gap:8px; }
         .cf-comment-item { border:1px solid #e0e0e0; border-radius:8px; background:#fff; padding:8px 10px; font-size:14px; }
         .cf-comment-head { color:#555; font-size:13px; margin-bottom:4px; }
@@ -49,13 +50,14 @@
                             <div><strong>Rating Count:</strong> {{ $row['rating_count'] }}</div>
                             <div><strong>Comment Count:</strong> {{ $row['comment_count'] }}</div>
                         </div>
+                        <a class="cf-link" href="{{ route('club.feedback.comments', $event) }}">View Comments</a>
 
                         <div class="cf-comments">
                             @php $commentItems = $feedbacks->filter(fn ($item) => filled($item->comment)); @endphp
                             @if ($commentItems->isEmpty())
                                 <div class="cf-empty">No comments submitted yet.</div>
                             @else
-                                @foreach ($commentItems as $feedback)
+                                @foreach ($commentItems->take(3) as $feedback)
                                     <div class="cf-comment-item">
                                         <div class="cf-comment-head">
                                             {{ $feedback->student->name ?? 'Student' }}
@@ -68,6 +70,9 @@
                                         <div>{{ $feedback->comment }}</div>
                                     </div>
                                 @endforeach
+                                @if ($commentItems->count() > 3)
+                                    <div class="cf-empty">Showing latest 3 comments. Open "View Comments" for full list and filters.</div>
+                                @endif
                             @endif
                         </div>
                     </article>
@@ -76,4 +81,3 @@
         @endif
     </section>
 @endsection
-

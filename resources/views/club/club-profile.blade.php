@@ -60,6 +60,29 @@
             color: #4a4a4a;
             font-size: 14px;
         }
+        .club-main-type {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid #d7e2f3;
+            border-radius: 8px;
+            background: #f5f9ff;
+            color: #23466f;
+            font-size: 14px;
+        }
+        .type-breakdown {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .type-badge {
+            border: 1px solid #c2d3eb;
+            border-radius: 999px;
+            padding: 4px 10px;
+            background: #fff;
+            color: #2f4f74;
+            font-size: 12px;
+        }
         .club-bio {
             margin-top: 12px;
             color: #2f2f2f;
@@ -124,6 +147,16 @@
         <div>
             <h1 class="club-name">{{ $club->display_name ?: $club->name }}</h1>
             <div class="club-meta">Email: {{ $club->email }}</div>
+            <div class="club-main-type">
+                <strong>Main Event Type:</strong> {{ $mainEventType ?? 'Not enough event history yet' }}
+                @if (($eventTypeBreakdown ?? collect())->isNotEmpty())
+                    <div class="type-breakdown">
+                        @foreach ($eventTypeBreakdown as $type => $count)
+                            <span class="type-badge">{{ $type }} ({{ $count }})</span>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
             @if ($club->bio)
                 <div class="club-bio">{{ $club->bio }}</div>
             @else

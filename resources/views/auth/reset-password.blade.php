@@ -60,6 +60,42 @@
             border-color: #2e63e6;
             box-shadow: 0 0 0 3px rgba(46, 99, 230, 0.15);
         }
+        .strength {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .strength-label {
+            font-size: 12px;
+            color: #6a6a6a;
+        }
+        .strength-bar {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: #e6e6e6;
+            overflow: hidden;
+        }
+        .strength-bar span {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: #d14b4b;
+            transition: width 0.2s ease, background 0.2s ease;
+        }
+        .strength-hints {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 12px;
+            color: #6a6a6a;
+        }
+        .strength-hints li {
+            margin: 2px 0;
+        }
+        .strength-hints li.ok {
+            color: #2f8f4e;
+        }
         .btn {
             width: 100%;
             padding: 12px;
@@ -115,6 +151,16 @@
             <div class="field">
                 <label for="password">New password</label>
                 <input id="password" name="password" type="password" required>
+                <div class="strength" id="password-strength">
+                    <div class="strength-label">Strength: <span id="strength-text">Too weak</span></div>
+                    <div class="strength-bar"><span id="strength-bar"></span></div>
+                    <ul class="strength-hints" id="strength-hints">
+                        <li data-rule="length">At least 8 characters</li>
+                        <li data-rule="upper">One uppercase letter</li>
+                        <li data-rule="number">One number</li>
+                        <li data-rule="symbol">One special character</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="field">
@@ -128,5 +174,80 @@
 
     <div class="bottom-bar"></div>
 </div>
+<script>
+    (function () {
+        var input = document.getElementById('password');
+        var bar = document.getElementById('strength-bar');
+        var text = document.getElementById('strength-text');
+        var hints = document.getElementById('strength-hints');
+        var form = document.querySelector('form[action="{{ route('password.update') }}"]');
+
+        if (!input || !bar || !text || !hints) return;
+
+        function scorePassword(value) {
+            var score = 0;
+            if (value.length >= 8) score += 1;
+            if (value.length >= 12) score += 1;
+            if (/[A-Z]/.test(value)) score += 1;
+            if (/[0-9]/.test(value)) score += 1;
+            if (/[^A-Za-z0-9]/.test(value)) score += 1;
+            return score;
+        }
+
+        function updateStrength() {
+            var value = input.value || '';
+            var score = scorePassword(value);
+            var levels = [
+                { label: 'Too weak', color: '#d14b4b', width: 10 },
+                { label: 'Weak', color: '#e06b3c', width: 30 },
+                { label: 'Fair', color: '#d9a63a', width: 50 },
+                { label: 'Good', color: '#5fa66a', width: 70 },
+                { label: 'Strong', color: '#2f8f4e', width: 90 },
+                { label: 'Very strong', color: '#1f7a3f', width: 100 }
+            ];
+            var level = levels[Math.min(score, levels.length - 1)];
+
+            bar.style.width = value.length ? level.width + '%' : '0%';
+            bar.style.background = level.color;
+            text.textContent = value.length ? level.label : 'Too weak';
+
+            var rules = {
+                length: value.length >= 8,
+                upper: /[A-Z]/.test(value),
+                number: /[0-9]/.test(value),
+                symbol: /[^A-Za-z0-9]/.test(value)
+            };
+            Object.keys(rules).forEach(function (key) {
+                var item = hints.querySelector('[data-rule="' + key + '"]');
+                if (!item) return;
+                item.classList.toggle('ok', rules[key]);
+            });
+
+            var meetsRequirement = value.length >= 8
+                && /[A-Z]/.test(value)
+                && /[0-9]/.test(value)
+                && /[^A-Za-z0-9]/.test(value);
+
+            input.setCustomValidity(
+                meetsRequirement || value.length === 0
+                    ? ''
+                    : 'Password must have at least 8 characters, one uppercase letter, one number, and one special character.'
+            );
+        }
+
+        input.addEventListener('input', updateStrength);
+        updateStrength();
+
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                updateStrength();
+                if (!input.checkValidity()) {
+                    event.preventDefault();
+                    input.reportValidity();
+                }
+            });
+        }
+    })();
+</script>
 </body>
 </html>

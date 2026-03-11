@@ -49,7 +49,7 @@ class VendorBoothController extends Controller
         foreach ($events as $event) {
             $takenBoothIdsByEvent[$event->id] = VendorBoothApplication::query()
                 ->where('event_id', $event->id)
-                ->whereIn('status', ['pending_organizer', 'pending_admin', 'approved'])
+                ->where('status', 'approved')
                 ->pluck('selected_event_booth_id')
                 ->filter()
                 ->map(fn ($id) => (int) $id)
@@ -93,10 +93,16 @@ class VendorBoothController extends Controller
             ->where('event_id', $event->id)
             ->first();
 
+        if (($currentApplication->status ?? null) === 'approved') {
+            return back()->withErrors([
+                'vendor' => 'Your application for this event is already approved. Resubmission is not allowed.',
+            ]);
+        }
+
         $boothAlreadyTaken = VendorBoothApplication::query()
             ->where('event_id', $event->id)
             ->where('selected_event_booth_id', $selectedBooth->id)
-            ->whereIn('status', ['pending_organizer', 'pending_admin', 'approved'])
+            ->where('status', 'approved')
             ->when($currentApplication, fn ($query) => $query->where('id', '!=', $currentApplication->id))
             ->exists();
 

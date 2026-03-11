@@ -520,7 +520,7 @@
                 <li><a class="nav-link {{ request()->routeIs('club.lucky-draw.*') ? 'is-active' : '' }}" href="{{ route('club.lucky-draw.index') }}">Lucky Draw</a></li>
                 <li><a class="nav-link {{ request()->routeIs('club.events.attendance*') ? 'is-active' : '' }}" href="{{ route('club.events.attendance') }}">Event Attendance</a></li>
                 <li><a class="nav-link {{ request()->routeIs('club.venue-bookings.*') ? 'is-active' : '' }}" href="{{ route('club.venue-bookings.index') }}">Venue Booking</a></li>
-                <li><a class="nav-link {{ request()->routeIs('club.vendor-booth-applications.*') ? 'is-active' : '' }}" href="{{ route('club.vendor-booth-applications.index') }}">Vendor Applications</a></li>
+                <li><a class="nav-link {{ request()->routeIs('club.vendor-booth-applications.*') ? 'is-active' : '' }}" href="{{ route('club.vendor-booth-applications.applications') }}">Vendor Applications</a></li>
             </ul>
         </aside>
         <main class="content">

@@ -828,6 +828,8 @@ class EventController extends Controller
             'faculty_limit.*' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
+        ], [
+            'end_date.after_or_equal' => 'Event end date cannot be before event start date.',
         ]);
 
         // Normalize and validate dynamic sections before persisting the main event.
@@ -919,6 +921,8 @@ class EventController extends Controller
             'faculty_limit.*' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx', 'max:5120'],
+        ], [
+            'end_date.after_or_equal' => 'Event end date cannot be before event start date.',
         ]);
 
         // Rebuild dynamic related data from form arrays before updating the event and child tables.
@@ -1001,6 +1005,9 @@ class EventController extends Controller
             $event->update([
                 'live_stream_url' => $validated['stream_url'],
                 'live_stream_started_at' => now(),
+                'live_stream_stop_reason' => null,
+                'live_stream_stopped_at' => null,
+                'live_stream_stopped_by_admin_id' => null,
             ]);
 
             return back()->with('status', 'Live stream started/updated.');
@@ -1009,6 +1016,9 @@ class EventController extends Controller
         $event->update([
             'live_stream_url' => null,
             'live_stream_started_at' => null,
+            'live_stream_stop_reason' => null,
+            'live_stream_stopped_at' => null,
+            'live_stream_stopped_by_admin_id' => null,
         ]);
         $event->streamViewers()->delete();
 

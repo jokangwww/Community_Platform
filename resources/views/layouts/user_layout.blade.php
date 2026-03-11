@@ -562,18 +562,18 @@
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
-                <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
-                <li><a class="nav-link" href="{{ route('forum') }}">- Forum</a></li>
-                <li><a class="nav-link" href="{{ route('poll-petition') }}">- Polls & Petitions</a></li>
-                <li><a class="nav-link" href="{{ route('user.event-posting') }}">- Event Posting</a></li>
-                <li><a class="nav-link" href="{{ route('user.recruitment') }}">- Recruitment</a></li>
-                <li><a class="nav-link" href="{{ route('user.calendar') }}">- Calendar</a></li>
-                <li><a class="nav-link" href="{{ route('user.location') }}">- Location</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">- Feedback</a></li>
-                <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">- E-Ticket</a></li>
-                <li><a class="nav-link" href="{{ route('user.live-stream') }}">- Live Stream</a></li>
-                <li><a class="nav-link" href="{{ route('user.lucky-draw') }}">- Lucky Draw</a></li>
-                <li><a class="nav-link" href="{{ route('user.attendance') }}">- Event Attendance</a></li>
+                <li><a class="nav-link" href="{{ route('buddy-programme') }}">Buddy Programme</a></li>
+                <li><a class="nav-link" href="{{ route('forum') }}">Forum</a></li>
+                <li><a class="nav-link" href="{{ route('poll-petition') }}">Polls & Petitions</a></li>
+                <li><a class="nav-link" href="{{ route('user.event-posting') }}">Event Posting</a></li>
+                <li><a class="nav-link" href="{{ route('user.recruitment') }}">Recruitment</a></li>
+                <li><a class="nav-link" href="{{ route('user.calendar') }}">Calendar</a></li>
+                <li><a class="nav-link" href="{{ route('user.location') }}">Location</a></li>
+                <li><a class="nav-link" href="{{ route('events.section', 'feedback') }}">Feedback</a></li>
+                <li><a class="nav-link" href="{{ route('events.section', 'e-ticket') }}">E-Ticket</a></li>
+                <li><a class="nav-link" href="{{ route('user.live-stream') }}">Live Stream</a></li>
+                <li><a class="nav-link" href="{{ route('user.lucky-draw') }}">Lucky Draw</a></li>
+                <li><a class="nav-link" href="{{ route('user.attendance') }}">Event Attendance</a></li>
             </ul>
         </aside>
         <main class="content">

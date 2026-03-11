@@ -57,6 +57,7 @@
                             $takenBoothIds = $takenBoothIdsByEvent[$event->id] ?? [];
                             $myExistingApp = $myApplications->firstWhere('event_id', $event->id);
                             $mySelectedBoothId = $myExistingApp?->selected_event_booth_id;
+                            $isApprovedLocked = ($myExistingApp?->status ?? null) === 'approved';
                         @endphp
                         <article class="card">
                             <h3>{{ $event->name }}</h3>
@@ -82,7 +83,7 @@
                             @endif
                             <form method="POST" action="{{ route('vendor.booth-applications.store', $event) }}" class="apply-form">
                                 @csrf
-                                <select name="selected_event_booth_id" required>
+                                <select name="selected_event_booth_id" required @disabled($isApprovedLocked)>
                                     <option value="">Select booth location</option>
                                     @foreach ($boothPlaces as $place)
                                         <optgroup label="{{ $place->name }} ({{ $place->start_date?->format('Y-m-d') ?: '-' }} to {{ $place->end_date?->format('Y-m-d') ?: '-' }})">
@@ -98,10 +99,13 @@
                                         </optgroup>
                                     @endforeach
                                 </select>
-                                <textarea name="items_for_sale" placeholder="Describe items for sale (food, drinks, merchandise, etc.)" maxlength="2000" required></textarea>
-                                <button type="submit" @disabled($boothPlaces->isEmpty())>
-                                    {{ $boothPlaces->isEmpty() ? 'Booth Not Configured Yet' : ($appliedStatus ? 'Resubmit Application' : 'Apply for Vendor Space') }}
+                                <textarea name="items_for_sale" placeholder="Describe items for sale (food, drinks, merchandise, etc.)" maxlength="2000" required @disabled($isApprovedLocked)>{{ old('items_for_sale', $myExistingApp?->items_for_sale) }}</textarea>
+                                <button type="submit" @disabled($boothPlaces->isEmpty() || $isApprovedLocked)>
+                                    {{ $isApprovedLocked ? 'Application Approved (Locked)' : ($boothPlaces->isEmpty() ? 'Booth Not Configured Yet' : ($appliedStatus ? 'Resubmit Application' : 'Apply for Vendor Space')) }}
                                 </button>
+                                @if ($isApprovedLocked)
+                                    <div style="font-size:12px; color:#555;">This application has been approved by organizer and admin. You cannot resubmit.</div>
+                                @endif
                             </form>
                         </article>
                     @endforeach
@@ -146,5 +150,4 @@
         </aside>
     </div>
 @endsection
-
 

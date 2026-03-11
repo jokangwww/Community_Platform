@@ -86,14 +86,22 @@
             flex-wrap: wrap;
         }
         .approval-actions button,
-        .approval-actions a {
+        .approval-actions a,
+        .approval-actions input {
             padding: 8px 12px;
             border-radius: 6px;
             border: 1px solid #1f1f1f;
-            background: #fff;
-            cursor: pointer;
             font-size: 14px;
+            background: #fff;
+        }
+        .approval-actions button,
+        .approval-actions a {
+            cursor: pointer;
             text-decoration: none;
+            color: #1f1f1f;
+        }
+        .approval-actions input {
+            min-width: 260px;
             color: #1f1f1f;
         }
         .approval-actions .reject {
@@ -116,6 +124,16 @@
 
     @if (session('status'))
         <div class="approval-status">{{ session('status') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="approval-status" style="border-color:#f5c2c2;background:#ffecec;color:#7f1d1d;">
+            <strong>Please correct the following:</strong>
+            <ul style="margin:8px 0 0 18px;padding:0;">
+                @foreach ($errors->all() as $error)
+                    <li style="margin-bottom:4px;">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
     @endif
 
     <form method="GET" action="{{ route('admin.club-accounts.index') }}" class="approval-filters">
@@ -142,6 +160,12 @@
                     <div class="approval-meta">
                         <div><strong>Email:</strong> {{ $club->email }}</div>
                         <div><strong>Status:</strong> {{ ucfirst($club->club_approval_status ?? 'pending') }}</div>
+                        @if (($club->club_approval_status ?? '') === 'rejected' && $club->club_rejection_reason)
+                            <div><strong>Rejection Reason:</strong> {{ $club->club_rejection_reason }}</div>
+                        @endif
+                        @if ($club->club_resubmission_remark)
+                            <div><strong>Latest Resubmission Remark:</strong> {{ $club->club_resubmission_remark }}</div>
+                        @endif
                         <div><strong>Registered:</strong> {{ optional($club->created_at)->format('Y-m-d H:i') }}</div>
                         <div><strong>Approved At:</strong> {{ optional($club->club_approved_at)->format('Y-m-d H:i') ?? 'Not approved yet' }}</div>
                         <div>
@@ -164,6 +188,13 @@
                         @if (($club->club_approval_status ?? 'pending') !== 'rejected')
                             <form method="POST" action="{{ route('admin.club-accounts.reject', $club) }}">
                                 @csrf
+                                <input
+                                    type="text"
+                                    name="rejection_reason"
+                                    placeholder="Reason for rejection (required)"
+                                    maxlength="1000"
+                                    required
+                                >
                                 <button type="submit" class="reject">Reject</button>
                             </form>
                         @endif

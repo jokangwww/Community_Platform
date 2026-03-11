@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -26,9 +26,33 @@ class ProfileController extends Controller
     // Render club profile page (profile fields, password form, photo upload form).
     public function show(Request $request): View
     {
-        $this->requireClub($request);
+        $club = $this->requireClub($request);
 
-        return view('club.profile');
+        $pastEvents = Event::query()
+            ->where('club_id', $club->id)
+            ->where('approval_status', 'approved')
+            ->where('status', 'ended')
+            ->with('softSkillCategory:id,name')
+            ->orderByDesc('end_date')
+            ->orderByDesc('start_date')
+            ->get();
+
+        $eventTypeBreakdown = $pastEvents
+            ->map(function (Event $event): string {
+                $typeName = trim((string) optional($event->softSkillCategory)->name);
+
+                return $typeName !== '' ? $typeName : 'Uncategorized';
+            })
+            ->countBy()
+            ->sortDesc();
+
+        $mainEventType = $eventTypeBreakdown->keys()->first();
+
+        return view('club.profile', [
+            'pastEvents' => $pastEvents,
+            'mainEventType' => $mainEventType,
+            'eventTypeBreakdown' => $eventTypeBreakdown,
+        ]);
     }
 
     // Replace the club profile photo and remove the previous image from storage if it exists.
@@ -72,6 +96,12 @@ class ProfileController extends Controller
             ]);
         }
 
+        if (Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'New password cannot be the same as old password.',
+            ]);
+        }
+
         $user->password = Hash::make($validated['password']);
         $user->save();
 
@@ -86,13 +116,11 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'display_name' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'bio' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $user->name = $validated['name'];
         $user->display_name = $validated['display_name'] ?: $validated['name'];
-        $user->email = $validated['email'];
         $user->bio = $validated['bio'];
         $user->save();
 

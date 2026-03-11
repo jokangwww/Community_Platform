@@ -512,36 +512,21 @@
                 </button>
             </div>
             <ul class="nav-list is-collapsed" id="event-nav">
-                <li><a class="nav-link" href="{{ route('buddy-programme') }}">- Buddy Programme</a></li>
-                <li><a class="nav-link" href="{{ route('admin.forum') }}">- Forum</a></li>
-                <li><a class="nav-link" href="{{ route('admin.poll-petition') }}">- Poll & Petition</a></li>
-                <li><a class="nav-link" href="{{ route('admin.event-proposals.index') }}">- Event Proposals</a></li>
-                <li><a class="nav-link" href="{{ route('admin.event-postings.index') }}">- Event Posting</a></li>
-                <li><a class="nav-link" href="{{ route('admin.locations.index') }}">- Location</a></li>
-                <li><a class="nav-link" href="{{ route('admin.departments.index') }}">- Departments</a></li>
-                <li><a class="nav-link" href="{{ route('admin.soft-skills.index') }}">- Soft Skill Points</a></li>
-                <li><a class="nav-link" href="#">- Feedback</a></li>
-                <li><a class="nav-link" href="#">- Live Stream</a></li>
-                <li><a class="nav-link" href="{{ route('admin.venue-bookings.index') }}">- Venue Booking</a></li>
-                <li><a class="nav-link" href="{{ route('admin.vendor-booth-applications.index') }}">- Vendor Booth Approval</a></li>
-                <li><a class="nav-link" href="{{ route('admin.club-accounts.index') }}">- Club Account Approvals</a></li>
-                <li><a class="nav-link" href="{{ route('admin.student-accounts.index') }}">- Student Accounts</a></li>
-                <li><a class="nav-link" href="{{ route('admin.user-profiles.index') }}">- User Profile Corrections</a></li>
-                <li><a class="nav-link" href="{{ route('admin.profile') }}">- Profile</a></li>
-                <li><a class="nav-link" href="{{ route('admin.venues.index') }}">- Venue</a></li>
+                <li><a class="nav-link {{ request()->routeIs('buddy-programme') ? 'is-active' : '' }}" href="{{ route('buddy-programme') }}">Buddy Programme</a></li>
+                <li><a class="nav-link {{ request()->routeIs('admin.forum*') ? 'is-active' : '' }}" href="{{ route('admin.forum') }}">Forum</a></li>
+                <li><a class="nav-link {{ request()->routeIs('admin.poll-petition*') ? 'is-active' : '' }}" href="{{ route('admin.poll-petition') }}">Poll & Petition</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.event-proposals.*') ? 'is-active' : '' }}" href="{{ route('admin.event-proposals.index') }}">Event Proposals</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.event-postings.*') ? 'is-active' : '' }}" href="{{ route('admin.event-postings.index') }}">Event Posting</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.locations.*') ? 'is-active' : '' }}" href="{{ route('admin.locations.index') }}">Location</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.departments.*') ? 'is-active' : '' }}" href="{{ route('admin.departments.index') }}">Departments</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.soft-skills.*') ? 'is-active' : '' }}" href="{{ route('admin.soft-skills.index') }}">Soft Skill Points</a></li>
-                <li><a class="nav-link" href="#">Feedback</a></li>
-                <li><a class="nav-link" href="#">Live Stream</a></li>
+                <li><a class="nav-link {{ request()->routeIs('admin.feedback.*') ? 'is-active' : '' }}" href="{{ route('admin.feedback.index') }}">Feedback</a></li>
+                <li><a class="nav-link {{ request()->routeIs('admin.live-stream.*') ? 'is-active' : '' }}" href="{{ route('admin.live-stream.index') }}">Live Stream</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.venue-bookings.*') ? 'is-active' : '' }}" href="{{ route('admin.venue-bookings.index') }}">Venue Booking</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.vendor-booth-applications.*') ? 'is-active' : '' }}" href="{{ route('admin.vendor-booth-applications.index') }}">Vendor Booth Approval</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.club-accounts.*') ? 'is-active' : '' }}" href="{{ route('admin.club-accounts.index') }}">Club Account Approvals</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.student-accounts.*') ? 'is-active' : '' }}" href="{{ route('admin.student-accounts.index') }}">Student Accounts</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.user-profiles.*') ? 'is-active' : '' }}" href="{{ route('admin.user-profiles.index') }}">User Profile Corrections</a></li>
-                <li><a class="nav-link {{ request()->routeIs('admin.profile') ? 'is-active' : '' }}" href="{{ route('admin.profile') }}">Profile</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.venues.*') ? 'is-active' : '' }}" href="{{ route('admin.venues.index') }}">Venue</a></li>
             </ul>
         </aside>
