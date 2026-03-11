@@ -233,7 +233,7 @@ class MatchingController extends Controller
             ->with('subjects')
             ->orderByRaw("CASE 
                 WHEN priority_tier = 'high' THEN 1 
-                WHEN priority_tier = 'medium' THEN 2 
+                WHEN priority_tier = 'normal' THEN 2 
                 WHEN priority_tier = 'low' THEN 3 
                 ELSE 4 
             END")

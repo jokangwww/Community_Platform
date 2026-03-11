@@ -227,6 +227,7 @@ class PollPetitionAdminController extends Controller
         $totalPetitions = Petition::count();
         $activePetitions = Petition::where('status', 'active')->count();
         $totalSupporters = PetitionSupport::count();
+        $successfulPetitions = Petition::where('status', 'successful')->count();
 
         // Low-usefulness polls (< 30%)
         $lowUsefulnessPolls = DB::table('polls')
@@ -236,17 +237,42 @@ class PollPetitionAdminController extends Controller
             ->havingRaw('SUM(CASE WHEN poll_ratings.is_useful = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) < 30')
             ->count();
 
+        // Polls with disputes (usefulness < 30%)
+        $pollsWithDisputes = $lowUsefulnessPolls;
+
+        // Low-participation petitions (< 30% of goal)
+        $lowParticipationPetitions = Petition::whereNotNull('supporter_goal')
+            ->where('supporter_goal', '>', 0)
+            ->whereRaw('(SELECT COUNT(*) FROM petition_supports WHERE petition_supports.petition_id = petitions.id) * 100.0 / supporter_goal < 30')
+            ->count();
+
+        // Average per day calculations
+        $firstPoll = Poll::orderBy('created_at', 'asc')->first();
+        $firstPetition = Petition::orderBy('created_at', 'asc')->first();
+
+        $pollDays = $firstPoll ? max(1, now()->diffInDays($firstPoll->created_at) + 1) : 1;
+        $petitionDays = $firstPetition ? max(1, now()->diffInDays($firstPetition->created_at) + 1) : 1;
+
+        $averagePollPerDay = round($totalPolls / $pollDays, 1);
+        $averagePetitionPerDay = round($totalPetitions / $petitionDays, 1);
+
         return response()->json([
             'polls' => [
                 'total'             => $totalPolls,
                 'active'            => $activePolls,
                 'totalVotes'        => $totalPollVotes,
-                'lowUsefulness'     => $lowUsefulnessPolls,
+                'lowParticipation'  => $lowUsefulnessPolls,
+                'hasDisputes'       => $pollsWithDisputes,
+                'averagePollPerDay' => $averagePollPerDay,
             ],
             'petitions' => [
-                'total'             => $totalPetitions,
-                'active'            => $activePetitions,
-                'totalSupporters'   => $totalSupporters,
+                'total'                 => $totalPetitions,
+                'active'                => $activePetitions,
+                'totalSupporters'       => $totalSupporters,
+                'successful'            => $successfulPetitions,
+                'lowParticipation'      => $lowParticipationPetitions,
+                'hasDisputes'           => 0,
+                'averagePetitionPerDay' => $averagePetitionPerDay,
             ],
         ]);
     }

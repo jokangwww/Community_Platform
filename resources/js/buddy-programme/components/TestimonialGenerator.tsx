@@ -1,4 +1,5 @@
 import { Award, Download, CheckCircle, AlertCircle, Calendar, Users, BookOpen, Star } from 'lucide-react';
+import { formatDate } from '../../shared/utils/date';
 
 interface MentorStats {
   name: string;
@@ -163,7 +164,7 @@ export function TestimonialGenerator({ mentorStats, isEligible, isApproved = fal
               <div class="signature">
                 <div class="signature-line"></div>
                 <p>Date Issued</p>
-                <p class="details">${new Date().toLocaleDateString()}</p>
+                <p class="details">${formatDate(new Date())}</p>
               </div>
             </div>
             <div class="verification">
@@ -355,7 +356,7 @@ export function TestimonialGenerator({ mentorStats, isEligible, isApproved = fal
               <div className="text-center">
                 <div className="w-32 h-1 bg-gray-900 mb-2"></div>
                 <p className="text-gray-700">Date Issued</p>
-                <p className="text-gray-600">{new Date().toLocaleDateString()}</p>
+                <p className="text-gray-600">{formatDate(new Date())}</p>
               </div>
             </div>
 

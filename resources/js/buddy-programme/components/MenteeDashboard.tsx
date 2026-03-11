@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Clock, Calendar, Users, Bell, AlertCircle, FileText, Vote, BookOpen, Loader2, MessageSquare, Award, Archive } from 'lucide-react';
+import { formatDate } from '../../shared/utils/date';
 import { SchedulingPanel } from './SchedulingPanel';
 import { AttendancePanel } from './AttendancePanel';
 import { VirtualClassroom } from './VirtualClassroom';
@@ -78,15 +79,6 @@ export function MenteeDashboard({ studentId: propStudentId, selectedSemesterId =
   const [isReadonly, setIsReadonly] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // Format date to DD-MMM-YYYY
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
   const [pairing, setPairing] = useState<Pairing | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
@@ -168,7 +160,7 @@ export function MenteeDashboard({ studentId: propStudentId, selectedSemesterId =
         // Generate notifications based on data
         const generatedNotifications: Notification[] = [];
         const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 1);
         
         const pendingMeetings = (data.meetings || []).filter((m: Meeting) => m.status === 'pending');
         if (pendingMeetings.length > 0) {
@@ -272,7 +264,7 @@ export function MenteeDashboard({ studentId: propStudentId, selectedSemesterId =
         // Generate activities from classroom data
         const newActivities: Activity[] = [];
         const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 1);
 
         // Add recent materials (only within 1 week)
         (data.materials || [])
@@ -343,16 +335,41 @@ export function MenteeDashboard({ studentId: propStudentId, selectedSemesterId =
         // Sort by timestamp (most recent first)
         newActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-        // Prepend voting notification if slots are published and mentee hasn't voted yet
-        if (slotsPublished && !hasVoted && !isScheduled) {
+        // Schedule-related activity feed items
+        if (slotsPublished) {
+          if (!hasVoted && !isScheduled) {
+            // Mentee hasn't voted yet — prompt them to vote
+            newActivities.unshift({
+              id: 'voting-open',
+              type: 'vote',
+              title: 'Time Slots Available for Voting',
+              description: 'Your mentor has published meeting time slots. Go to Schedule Meeting to vote.',
+              timestamp: new Date().toISOString(),
+              icon: 'Vote',
+              color: 'purple',
+            });
+          } else if (!isScheduled) {
+            // Mentee has voted, waiting for schedule confirmation
+            newActivities.unshift({
+              id: 'schedule-voted',
+              type: 'vote',
+              title: 'Schedule Vote Submitted',
+              description: 'You have voted on time slots. Waiting for schedule to be confirmed.',
+              timestamp: new Date().toISOString(),
+              icon: 'CheckCircle',
+              color: 'green',
+            });
+          }
+
+          // Always show the "Schedule Published" notification
           newActivities.unshift({
-            id: 'voting-open',
+            id: 'schedule-published',
             type: 'vote',
-            title: 'Time Slots Available for Voting',
-            description: 'Your mentor has published meeting time slots. Go to Schedule Meeting to vote.',
+            title: 'Meeting Schedule Published',
+            description: 'Your mentor has published the meeting schedule. Check the Schedule Meeting tab for details.',
             timestamp: new Date().toISOString(),
             icon: 'Vote',
-            color: 'purple',
+            color: 'blue',
           });
         }
 

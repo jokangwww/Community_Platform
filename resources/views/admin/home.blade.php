@@ -68,11 +68,94 @@
             color: #4a5568;
             line-height: 1.5;
         }
+
+        /* Notification styles — identical to student notification page */
+        .notification-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 0 12px;
+            border-bottom: 1px solid #dbe4f0;
+        }
+        .notification-header h2 {
+            margin: 0;
+            font-size: 26px;
+        }
+        .notification-list {
+            margin-top: 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 16px 30px -28px rgba(15, 23, 42, 0.7);
+        }
+        .notification-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e8eef8;
+            background: #ffffff;
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item.unread {
+            background: #f2f8ff;
+        }
+        .notification-title {
+            font-weight: 700;
+            margin: 0 0 4px;
+            color: #0f172a;
+        }
+        .notification-message {
+            margin: 0 0 6px;
+            color: #34455c;
+        }
+        .notification-meta {
+            font-size: 12px;
+            color: #5b6b84;
+        }
+        .notification-link {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0b4ea5;
+        }
+        .notification-empty {
+            margin-top: 14px;
+            border: 1px dashed #bfd2ea;
+            border-radius: 12px;
+            padding: 16px;
+            background: #f8fbff;
+            color: #4b6079;
+        }
+        /* Bell badge on action icon */
+        .action-icon-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+        .notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #e53e3e;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 10px;
+            line-height: 1.4;
+            pointer-events: none;
+        }
     </style>
 
     <div class="tabs">
         <div class="tab">Admin Home</div>
         <div class="actions">
+            @php $notifCount = ($pendingMentors ?? 0) + ($pendingRepeaters ?? 0); @endphp
+            <span class="action-icon-wrap">
+                <a class="action-icon" href="{{ route('admin.notifications') }}" aria-label="Notifications">&#128276;</a>
+                @if($notifCount > 0)
+                    <span class="notif-badge">{{ $notifCount }}</span>
+                @endif
+            </span>
             <a class="action-icon" href="{{ route('admin.profile') }}" aria-label="Profile">&#128100;</a>
         </div>
     </div>
@@ -81,6 +164,36 @@
         <h1>{{ $admin?->name ?: 'Admin' }}, platform operations center</h1>
         <p>Review submissions, moderate accounts, and maintain campus event quality through centralized governance tools.</p>
     </section>
+
+    {{-- Notification section --}}
+    <div id="admin-notifications">
+        <div class="notification-header">
+            <h2>Notifications</h2>
+        </div>
+
+        @if(($pendingMentors ?? 0) > 0 || ($pendingRepeaters ?? 0) > 0)
+            <div class="notification-list">
+                @if(($pendingMentors ?? 0) > 0)
+                    <div class="notification-item unread">
+                        <p class="notification-title">Pending Mentor Verification</p>
+                        <p class="notification-message">{{ $pendingMentors }} mentor {{ $pendingMentors === 1 ? 'application requires' : 'applications require' }} verification.</p>
+                        <p class="notification-meta">Buddy Programme &middot; Action required</p>
+                        <a class="notification-link" href="{{ route('buddy-programme') }}">Review Mentors &rarr;</a>
+                    </div>
+                @endif
+                @if(($pendingRepeaters ?? 0) > 0)
+                    <div class="notification-item unread">
+                        <p class="notification-title">Pending Repeater Verification</p>
+                        <p class="notification-message">{{ $pendingRepeaters }} repeater {{ $pendingRepeaters === 1 ? 'application requires' : 'applications require' }} verification.</p>
+                        <p class="notification-meta">Buddy Programme &middot; Action required</p>
+                        <a class="notification-link" href="{{ route('buddy-programme') }}">Review Repeaters &rarr;</a>
+                    </div>
+                @endif
+            </div>
+        @else
+            <div class="notification-empty">No pending notifications.</div>
+        @endif
+    </div>
 
     <div class="dash-grid">
         <a href="{{ route('admin.event-proposals.index') }}" class="dash-link">

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
+import { formatDate } from "../shared/utils/date";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -20,6 +21,7 @@ import { PollArchive } from "./components/poll-petition/PollArchive";
 import { PetitionCard } from "./components/poll-petition/PetitionCard";
 import { PetitionView } from "./components/poll-petition/PetitionView";
 import { CreatePetitionForm } from "./components/poll-petition/CreatePetitionForm";
+import { PetitionArchive } from "./components/poll-petition/PetitionArchive";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { ForumManager } from "./components/forum/ForumManager";
 import { UserDashboardPage } from "./pages/UserDashboardPage";
@@ -118,7 +120,7 @@ const isMuted = (() => {
   return mutedUntil ? new Date(mutedUntil) > new Date() : false;
 })();
 const mutedUntilDate = (window as any).authUser?.muted_until
-  ? new Date((window as any).authUser.muted_until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  ? formatDate((window as any).authUser.muted_until)
   : null;
 
 export default function App() {
@@ -145,8 +147,9 @@ export default function App() {
   const [pollsLoading, setPollsLoading] = useState(false);
   
   // Petition state
-  const [petitionView, setPetitionView] = useState<'list' | 'view' | 'create'>('list');
+  const [petitionView, setPetitionView] = useState<'list' | 'view' | 'create' | 'archive'>('list');
   const [petitions, setPetitions] = useState<Petition[]>([]);
+  const [archivedPetitions, setArchivedPetitions] = useState<any[]>([]);
   const [selectedPetitionId, setSelectedPetitionId] = useState<string | null>(null);
   const [canCreatePetitionFlag, setCanCreatePetitionFlag] = useState(true);
   const [nextPetitionDate, setNextPetitionDate] = useState<string | undefined>(undefined);
@@ -243,6 +246,15 @@ export default function App() {
       setPetitionsLoading(false);
     }
   }, [activePetitionSearch]);
+
+  const fetchArchivedPetitions = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/poll-petition/petitions/archived');
+      setArchivedPetitions(data);
+    } catch (e) {
+      console.error('Failed to fetch archived petitions', e);
+    }
+  }, []);
 
   const fetchCanCreatePoll = useCallback(async () => {
     try {
@@ -672,12 +684,20 @@ export default function App() {
                           Support petitions that matter to you
                         </p>
                       </div>
-                      <Button onClick={() => { setPetitionView('create'); fetchCanCreatePetition(); }}
-                        className="hover: cursor-pointer"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Petition
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button onClick={() => { setPetitionView('archive'); fetchArchivedPetitions(); }} variant="outline"
+                          className="hover: cursor-pointer"
+                        >
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archive
+                        </Button>
+                        <Button onClick={() => { setPetitionView('create'); fetchCanCreatePetition(); }}
+                          className="hover: cursor-pointer"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Petition
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -755,6 +775,18 @@ export default function App() {
                     onCreatePetition={handleCreatePetition}
                     canCreatePetition={canCreatePetitionFlag}
                     nextAvailableDate={nextPetitionDate}
+                  />
+                )}
+
+                {petitionView === 'archive' && (
+                  <PetitionArchive
+                    archivedPetitions={archivedPetitions}
+                    onBack={() => setPetitionView('list')}
+                    onViewPetition={(id) => {
+                      setSelectedPetitionId(id);
+                      setPetitionView('view');
+                      fetchPetitionDetail(id);
+                    }}
                   />
                 )}
               </TabsContent>

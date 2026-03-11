@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Award, Download, CheckCircle, XCircle, TrendingUp, FileText, Users, Loader2, AlertCircle } from 'lucide-react';
+import { formatDate } from '../../../shared/utils/date';
 import { AdminSemesterFilter } from './AdminSemesterFilter';
 
 interface StudentAttendance {
@@ -347,7 +348,7 @@ export function AdminGAPPointTracker() {
 
                 <div className="pt-4 border-t border-gray-200 text-gray-600">
                   <p>Total Eligible: <span className="text-gray-900">{eligibleStudents.length}</span> students</p>
-                  <p className="mt-2">Generated: {new Date().toLocaleDateString()}</p>
+                  <p className="mt-2">Generated: {formatDate(new Date())}</p>
                 </div>
               </div>
             </div>

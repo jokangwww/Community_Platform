@@ -629,8 +629,39 @@ Route::post('/club/profile/password', [ClubProfileController::class, 'updatePass
     ->middleware(['auth', 'role:club'])
     ->name('club.profile.password');
 Route::get('/admin', function () {
-    return view('admin.home');
+    $activeSemester = \App\Models\BuddySemesterSetting::getActiveSemester();
+    $semesterId = $activeSemester?->id;
+
+    $pendingMentors = \App\Models\BuddyParticipant::mentors()
+        ->where('status', 'pending')
+        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+        ->count();
+
+    $pendingRepeaters = \App\Models\BuddyParticipant::mentees()
+        ->where('status', 'pending')
+        ->where('is_repeater', true)
+        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+        ->count();
+
+    return view('admin.home', compact('pendingMentors', 'pendingRepeaters'));
 })->middleware(['auth', 'role:admin'])->name('admin.home');
+Route::get('/admin/notifications', function () {
+    $activeSemester = \App\Models\BuddySemesterSetting::getActiveSemester();
+    $semesterId = $activeSemester?->id;
+
+    $pendingMentors = \App\Models\BuddyParticipant::mentors()
+        ->where('status', 'pending')
+        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+        ->count();
+
+    $pendingRepeaters = \App\Models\BuddyParticipant::mentees()
+        ->where('status', 'pending')
+        ->where('is_repeater', true)
+        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
+        ->count();
+
+    return view('admin.notifications', compact('pendingMentors', 'pendingRepeaters'));
+})->middleware(['auth', 'role:admin'])->name('admin.notifications');
 Route::get('/admin/profile', [AdminProfileController::class, 'show'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.profile');
@@ -904,6 +935,8 @@ Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')
         ->name('petitions.index');
     Route::get('/petitions/can-create', [\App\Http\Controllers\PollPetition\PetitionController::class, 'canCreate'])
         ->name('petitions.canCreate');
+    Route::get('/petitions/archived', [\App\Http\Controllers\PollPetition\PetitionController::class, 'archived'])
+        ->name('petitions.archived');
     Route::post('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'store'])
         ->name('petitions.store');
     Route::get('/petitions/{id}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'show'])

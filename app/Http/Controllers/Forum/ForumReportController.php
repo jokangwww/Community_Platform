@@ -338,6 +338,7 @@ class ForumReportController extends Controller
      */
     public function adminStats(): JsonResponse
     {
+        $totalReports = ForumReport::count();
         $pendingReports = ForumReport::where('status', 'pending')->count();
 
         $resolvedToday = ForumReport::where('status', 'reviewed')
@@ -357,15 +358,24 @@ class ForumReportController extends Controller
         // Warnings issued
         $warningsIssued = UserModerationAction::where('action', 'warn')->count();
 
+        // Total posts and average per day
+        $totalPosts = ForumPost::count();
+        $firstPost = ForumPost::orderBy('created_at', 'asc')->first();
+        $postDays = $firstPost ? max(1, now()->diffInDays($firstPost->created_at) + 1) : 1;
+        $averagePostPerDay = round($totalPosts / $postDays, 1);
+
         return response()->json([
             'success' => true,
             'data' => [
+                'totalReports' => $totalReports,
                 'pendingReports' => $pendingReports,
                 'resolvedToday' => $resolvedToday,
                 'totalUsers' => $totalUsers,
                 'mutedUsers' => $mutedUsers,
                 'deletedContent' => $deletedContent,
                 'warningsIssued' => $warningsIssued,
+                'totalPosts' => $totalPosts,
+                'averagePostPerDay' => $averagePostPerDay,
             ],
         ]);
     }

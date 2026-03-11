@@ -6,6 +6,7 @@ use App\Models\BuddyMatch;
 use App\Models\BuddyParticipant;
 use App\Models\BuddySetting;
 use App\Models\BuddySemesterSetting;
+use App\Notifications\BuddyMatchedNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -173,6 +174,15 @@ class BuddyMatchingService
                 // Update mentor's match count in memory
                 $mentor->mentor_matches_count++;
 
+                // Notify both mentor and mentee about the match
+                $subjectName = $mentee->subject->name ?? 'N/A';
+                if ($mentor->user) {
+                    $mentor->user->notify(new BuddyMatchedNotification($match, $mentee->full_name, $subjectName, 'mentor'));
+                }
+                if ($mentee->user) {
+                    $mentee->user->notify(new BuddyMatchedNotification($match, $mentor->full_name, $subjectName, 'mentee'));
+                }
+
                 return [
                     'match_id' => $match->id,
                     'mentor' => $mentor->full_name,
@@ -251,6 +261,16 @@ class BuddyMatchingService
             $mentorId => ['role' => 'mentor'],
             $menteeId => ['role' => 'mentee'],
         ]);
+
+        // Notify both mentor and mentee about the match
+        $subjectName = $mentee->subject->name ?? 'N/A';
+        $mentor = BuddyParticipant::find($mentorId);
+        if ($mentor && $mentor->user) {
+            $mentor->user->notify(new BuddyMatchedNotification($match, $mentee->full_name, $subjectName, 'mentor'));
+        }
+        if ($mentee->user) {
+            $mentee->user->notify(new BuddyMatchedNotification($match, $mentor->full_name ?? 'Mentor', $subjectName, 'mentee'));
+        }
 
         return $match;
     }

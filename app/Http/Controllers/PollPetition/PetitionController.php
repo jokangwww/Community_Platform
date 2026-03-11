@@ -64,22 +64,21 @@ class PetitionController extends Controller
     }
 
     /**
-     * Create a new petition (1 active petition per month limit).
+     * Create a new petition (1 petition per 30 days limit).
      */
     public function store(Request $request): JsonResponse
     {
         $userId = Auth::id();
 
-        // Check monthly limit
-        $hasActivePetitionThisMonth = Petition::where('user_id', $userId)
-            ->where('status', 'active')
-            ->where('created_at', '>=', now()->startOfMonth())
-            ->exists();
+        // Check 30-day cooldown
+        $lastPetition = Petition::where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->first();
 
-        if ($hasActivePetitionThisMonth) {
-            $nextDate = now()->addMonth()->startOfMonth()->toDateString();
+        if ($lastPetition && $lastPetition->created_at->diffInDays(now()) < 30) {
+            $nextDate = $lastPetition->created_at->addDays(30)->toDateString();
             return response()->json([
-                'message' => 'You can only have one active petition per month.',
+                'message' => 'You can only create one petition every 30 days.',
                 'next_available_date' => $nextDate,
             ], 422);
         }
@@ -162,15 +161,17 @@ class PetitionController extends Controller
     {
         $userId = Auth::id();
 
-        $hasActivePetitionThisMonth = Petition::where('user_id', $userId)
-            ->where('status', 'active')
-            ->where('created_at', '>=', now()->startOfMonth())
-            ->exists();
+        $lastPetition = Petition::where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->first();
 
-        $canCreate = !$hasActivePetitionThisMonth;
-        $nextDate = $hasActivePetitionThisMonth
-            ? now()->addMonth()->startOfMonth()->toDateString()
-            : null;
+        $canCreate = true;
+        $nextDate = null;
+
+        if ($lastPetition && $lastPetition->created_at->diffInDays(now()) < 30) {
+            $canCreate = false;
+            $nextDate = $lastPetition->created_at->addDays(30)->toDateString();
+        }
 
         return response()->json([
             'can_create'          => $canCreate,
@@ -187,6 +188,45 @@ class PetitionController extends Controller
             ->findOrFail($attachmentId);
 
         return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
+    }
+
+    /**
+     * Get archived (closed / disabled) petitions.
+     */
+    public function archived(Request $request): JsonResponse
+    {
+        $userId = Auth::id();
+
+        $query = Petition::with(['user', 'attachments', 'supports.user'])
+            ->where(function ($q) {
+                $q->where('status', 'closed')
+                  ->orWhere('status', 'disabled');
+            });
+
+        // Search
+        if ($request->filled('search')) {
+            $term = $request->search;
+            $query->where(function ($q) use ($term) {
+                $q->where('title', 'like', "%{$term}%")
+                  ->orWhere('description', 'like', "%{$term}%");
+            });
+        }
+
+        // Sort
+        $sortBy = $request->get('sort', 'date');
+        if ($sortBy === 'popularity') {
+            $query->withCount('supports')->orderByDesc('supports_count');
+        } else {
+            $query->orderByDesc('created_at');
+        }
+
+        $petitions = $query->get();
+
+        $result = $petitions->map(function ($petition) use ($userId) {
+            return $this->formatPetitionCard($petition, $userId);
+        });
+
+        return response()->json($result);
     }
 
     /* ── Formatting helpers ───────────────────────── */

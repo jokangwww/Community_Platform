@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { formatDate } from "../../../shared/utils/date";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -28,7 +29,8 @@ import {
   PlayCircle,
   PauseCircle,
   Loader2,
-  User
+  User,
+  Search
 } from "lucide-react";
 import {
   Select,
@@ -65,12 +67,15 @@ interface ReportedContent {
 }
 
 interface ModStats {
+  totalReports: number;
   pendingReports: number;
   resolvedToday: number;
   totalUsers: number;
   mutedUsers: number;
   deletedContent: number;
   warningsIssued: number;
+  totalPosts: number;
+  averagePostPerDay: number;
 }
 
 interface AdminPoll {
@@ -83,7 +88,7 @@ interface AdminPoll {
   participation: number; // percentage
   expiresAt: string;
   createdAt: string;
-  status: "active" | "expired" | "closed";
+  status: "active" | "expired" | "closed" | "disabled";
   isOfficial: boolean;
   hasDisputes: boolean;
   disputeCount?: number;
@@ -101,7 +106,7 @@ interface AdminPetition {
   participation: number; // percentage
   expiresAt: string;
   createdAt: string;
-  status: "active" | "successful" | "expired" | "closed";
+  status: "active" | "successful" | "expired" | "closed" | "disabled";
   isOfficial: boolean;
   hasDisputes: boolean;
   disputeCount?: number;
@@ -142,6 +147,14 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
   }>({ isOpen: false, itemId: "", type: "poll" });
   const [newDeadline, setNewDeadline] = useState("");
   
+  // Disable confirmation dialog
+  const [disableDialog, setDisableDialog] = useState<{
+    isOpen: boolean;
+    itemId: string;
+    type: "poll" | "petition";
+    title: string;
+  }>({ isOpen: false, itemId: "", type: "poll", title: "" });
+
   // Analytics preview dialog
   const [analyticsPreview, setAnalyticsPreview] = useState<{
     isOpen: boolean;
@@ -151,12 +164,15 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
   
   // Forum moderation stats from API
   const [stats, setStats] = useState<ModStats>({
+    totalReports: 0,
     pendingReports: 0,
     resolvedToday: 0,
     totalUsers: 0,
     mutedUsers: 0,
     deletedContent: 0,
-    warningsIssued: 0
+    warningsIssued: 0,
+    totalPosts: 0,
+    averagePostPerDay: 0
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -169,6 +185,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
   const [petitions, setPetitions] = useState<AdminPetition[]>([]);
   const [pollsLoading, setPollsLoading] = useState(true);
   const [petitionsLoading, setPetitionsLoading] = useState(true);
+
+  // Search state for admin poll/petition tabs
+  const [pollSearchTerm, setPollSearchTerm] = useState("");
+  const [petitionSearchTerm, setPetitionSearchTerm] = useState("");
 
   const getCsrfToken = useCallback(() => {
     const meta = document.querySelector('meta[name="csrf-token"]');
@@ -240,12 +260,15 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
         const data = await res.json();
         if (data.data) {
           setStats({
+            totalReports: data.data.totalReports || 0,
             pendingReports: data.data.pendingReports || 0,
             resolvedToday: data.data.resolvedToday || 0,
             totalUsers: data.data.totalUsers || 0,
             mutedUsers: data.data.mutedUsers || 0,
             deletedContent: data.data.deletedContent || 0,
             warningsIssued: data.data.warningsIssued || 0,
+            totalPosts: data.data.totalPosts || 0,
+            averagePostPerDay: data.data.averagePostPerDay || 0,
           });
         }
       }
@@ -334,7 +357,7 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
       // Forum analytics remain local for now
       const reportData = {
         generatedAt: new Date().toISOString(),
-        generatedDate: new Date().toLocaleDateString(),
+        generatedDate: formatDate(new Date()),
         generatedTime: new Date().toLocaleTimeString(),
         period: "Last 30 days",
         type: type,
@@ -344,7 +367,11 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
           totalReports: reports.length,
           pendingReports: reports.filter(r => r.status === "pending").length,
           resolvedReports: reports.filter(r => r.status === "resolved").length,
-          dismissedReports: reports.filter(r => r.status === "dismissed").length
+          dismissedReports: reports.filter(r => r.status === "dismissed").length,
+          mutedUsers: stats.mutedUsers,
+          warningsIssued: stats.warningsIssued,
+          deletedContent: stats.deletedContent,
+          averagePostPerDay: stats.averagePostPerDay
         }
       };
       setAnalyticsPreview({ isOpen: true, type, data: reportData });
@@ -357,25 +384,27 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
         const analytics = await res.json();
         const reportData = {
           generatedAt: new Date().toISOString(),
-          generatedDate: new Date().toLocaleDateString(),
+          generatedDate: formatDate(new Date()),
           generatedTime: new Date().toLocaleTimeString(),
           period: "Last 30 days",
           type: type,
           summary: type === "polls" ? {
             totalPolls: analytics.polls?.total || 0,
             activePolls: analytics.polls?.active || 0,
-            averageParticipation: analytics.polls?.averageParticipation || "0.0",
+            averagePollPerDay: analytics.polls?.averagePollPerDay || "0.0",
             totalVotes: analytics.polls?.totalVotes || 0,
-            lowParticipation: analytics.polls?.lowParticipation || 0,
-            hasDisputes: 0
+            lowParticipation: polls.filter(p => p.participation < 30).length,
+            hasDisputes: polls.filter(p => p.hasDisputes).length,
+            disabledPolls: polls.filter(p => p.status === "disabled").length
           } : {
             totalPetitions: analytics.petitions?.total || 0,
             activePetitions: analytics.petitions?.active || 0,
             successfulPetitions: analytics.petitions?.successful || 0,
-            averageParticipation: analytics.petitions?.averageParticipation || "0.0",
+            averagePetitionPerDay: analytics.petitions?.averagePetitionPerDay || "0.0",
             totalSupporters: analytics.petitions?.totalSupporters || 0,
-            lowParticipation: analytics.petitions?.lowParticipation || 0,
-            hasDisputes: 0
+            lowParticipation: petitions.filter(p => p.participation < 30).length,
+            hasDisputes: petitions.filter(p => p.hasDisputes).length,
+            disabledPetitions: petitions.filter(p => p.status === "disabled").length
           }
         };
         setAnalyticsPreview({ isOpen: true, type, data: reportData });
@@ -389,63 +418,114 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
     if (!analyticsPreview.data) return;
     
     const type = analyticsPreview.type;
+    const summary = analyticsPreview.data.summary;
+    const title = (type?.charAt(0).toUpperCase() + type?.slice(1)) + " Analytics Report";
 
-    if (type === "polls" || type === "petitions") {
-      try {
-        const res = await apiFetch('/api/poll-petition/admin/analytics/export');
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `${type}-analytics-${new Date().toISOString().split('T')[0]}.json`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }
-      } catch (err) {
-        console.error('Failed to download analytics:', err);
-      }
-    } else {
-      // Forum analytics - local export
-      const dataStr = JSON.stringify(analyticsPreview.data, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${type}-analytics-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+    // Build summary rows based on report type
+    let rows = "";
+    if (type === "forum") {
+      rows = `
+        <tr><td>Total Reports</td><td>${summary.totalReports ?? 0}</td></tr>
+        <tr><td>Pending Reports</td><td>${summary.pendingReports ?? 0}</td></tr>
+        <tr><td>Resolved Reports</td><td>${summary.resolvedReports ?? 0}</td></tr>
+        <tr><td>Dismissed Reports</td><td>${summary.dismissedReports ?? 0}</td></tr>
+        <tr><td>Total Muted Users</td><td>${summary.mutedUsers ?? 0}</td></tr>
+        <tr><td>Total Warnings</td><td>${summary.warningsIssued ?? 0}</td></tr>
+        <tr><td>Total Deleted Posts</td><td>${summary.deletedContent ?? 0}</td></tr>
+        <tr><td>Average Post Per Day</td><td>${summary.averagePostPerDay ?? 0}</td></tr>
+      `;
+    } else if (type === "polls") {
+      rows = `
+        <tr><td>Total Polls</td><td>${summary.totalPolls ?? 0}</td></tr>
+        <tr><td>Active Polls</td><td>${summary.activePolls ?? 0}</td></tr>
+        <tr><td>Average Poll Per Day</td><td>${summary.averagePollPerDay ?? 0}</td></tr>
+        <tr><td>Total Votes</td><td>${summary.totalVotes ?? 0}</td></tr>
+        <tr><td>Low Participation</td><td>${summary.lowParticipation ?? 0}</td></tr>
+        <tr><td>Has Disputes</td><td>${summary.hasDisputes ?? 0}</td></tr>
+        <tr><td>Disabled Polls</td><td>${summary.disabledPolls ?? 0}</td></tr>
+      `;
+    } else if (type === "petitions") {
+      rows = `
+        <tr><td>Total Petitions</td><td>${summary.totalPetitions ?? 0}</td></tr>
+        <tr><td>Active Petitions</td><td>${summary.activePetitions ?? 0}</td></tr>
+        <tr><td>Successful Petitions</td><td>${summary.successfulPetitions ?? 0}</td></tr>
+        <tr><td>Average Petition Per Day</td><td>${summary.averagePetitionPerDay ?? 0}</td></tr>
+        <tr><td>Total Supporters</td><td>${summary.totalSupporters ?? 0}</td></tr>
+        <tr><td>Low Participation</td><td>${summary.lowParticipation ?? 0}</td></tr>
+        <tr><td>Has Disputes</td><td>${summary.hasDisputes ?? 0}</td></tr>
+        <tr><td>Disabled Petitions</td><td>${summary.disabledPetitions ?? 0}</td></tr>
+      `;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, Helvetica, sans-serif; padding: 40px; color: #1a1a2e; }
+          .header { text-align: center; margin-bottom: 32px; border-bottom: 2px solid #0e5ec6; padding-bottom: 20px; }
+          .header h1 { font-size: 24px; color: #0e5ec6; margin-bottom: 8px; }
+          .header p { font-size: 13px; color: #555; }
+          .badge { display: inline-block; background: #e0edff; color: #0e5ec6; padding: 4px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; margin-top: 8px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+          th { background: #f0f6ff; color: #0e5ec6; font-weight: 700; font-size: 13px; text-transform: uppercase; }
+          td:last-child { font-weight: 700; text-align: right; font-size: 18px; }
+          tr:hover { background: #f8fbff; }
+          .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #888; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${title}</h1>
+          <p>Generated on ${analyticsPreview.data.generatedDate} at ${analyticsPreview.data.generatedTime}</p>
+          <p>Period: ${analyticsPreview.data.period}</p>
+          <span class="badge">${type?.toUpperCase()}</span>
+        </div>
+        <table>
+          <thead><tr><th>Metric</th><th style="text-align:right">Value</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">
+          <p>Community Platform — Admin Analytics Report</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Open in a new tab and trigger print (Save as PDF)
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 400);
     }
 
     setAnalyticsPreview({ isOpen: false, type: null, data: null });
   };
 
-  const handleDisablePoll = async (pollId: string) => {
+  const confirmDisable = async () => {
+    const { itemId, type } = disableDialog;
     try {
-      const res = await apiFetch(`/api/poll-petition/admin/polls/${pollId}/disable`, { method: 'POST' });
+      const endpoint = type === "poll"
+        ? `/api/poll-petition/admin/polls/${itemId}/disable`
+        : `/api/poll-petition/admin/petitions/${itemId}/disable`;
+      const res = await apiFetch(endpoint, { method: 'POST' });
       if (res.ok) {
-        setPolls(prev => prev.map(p => p.id === pollId ? { ...p, status: "closed" as const } : p));
-        alert("Poll has been disabled");
+        if (type === "poll") {
+          setPolls(prev => prev.map(p => p.id === itemId ? { ...p, status: "disabled" as const } : p));
+        } else {
+          setPetitions(prev => prev.map(p => p.id === itemId ? { ...p, status: "disabled" as const } : p));
+        }
       }
     } catch (err) {
-      console.error('Failed to disable poll:', err);
+      console.error(`Failed to disable ${type}:`, err);
     }
-  };
-
-  const handleDisablePetition = async (petitionId: string) => {
-    try {
-      const res = await apiFetch(`/api/poll-petition/admin/petitions/${petitionId}/disable`, { method: 'POST' });
-      if (res.ok) {
-        setPetitions(prev => prev.map(p => p.id === petitionId ? { ...p, status: "closed" as const } : p));
-        alert("Petition has been disabled");
-      }
-    } catch (err) {
-      console.error('Failed to disable petition:', err);
-    }
+    setDisableDialog({ isOpen: false, itemId: "", type: "poll", title: "" });
   };
 
   const handleExtendDeadline = async () => {
@@ -536,6 +616,14 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
   const filteredReports = filterStatus === "all" 
     ? reports 
     : reports.filter(r => r.status === filterStatus);
+
+  const filteredPolls = pollSearchTerm
+    ? polls.filter(p => p.title.toLowerCase().includes(pollSearchTerm.toLowerCase()) || p.creator.toLowerCase().includes(pollSearchTerm.toLowerCase()) || p.category.toLowerCase().includes(pollSearchTerm.toLowerCase()))
+    : polls;
+
+  const filteredPetitions = petitionSearchTerm
+    ? petitions.filter(p => p.title.toLowerCase().includes(petitionSearchTerm.toLowerCase()) || p.creator.toLowerCase().includes(petitionSearchTerm.toLowerCase()) || p.description.toLowerCase().includes(petitionSearchTerm.toLowerCase()))
+    : petitions;
 
   return (
     <div className="min-h-screen bg-white py-6">
@@ -643,11 +731,11 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
               <Card className="p-4 flex-1 min-w-[120px] border border-indigo-200">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <Users className="h-5 w-5 text-indigo-600" />
+                    <Flag className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                    <p className="text-xs text-gray-600">Total Users</p>
+                    <p className="text-2xl font-bold">{stats.totalReports}</p>
+                    <p className="text-xs text-gray-600">Total Reports</p>
                   </div>
                 </div>
               </Card>
@@ -892,6 +980,19 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
               </Card>
             </div>
 
+            {/* Poll Search */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search polls..."
+                  value={pollSearchTerm}
+                  onChange={(e) => setPollSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
             {/* Poll Management */}
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Poll Management</h2>
@@ -903,7 +1004,11 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                       <p className="text-gray-500">Loading polls...</p>
                     </div>
                   </div>
-                ) : polls.map((poll) => (
+                ) : filteredPolls.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    {pollSearchTerm ? "No polls match your search." : "No polls found."}
+                  </div>
+                ) : filteredPolls.map((poll) => (
                   <div 
                     key={poll.id} 
                     className={`p-4 border-2 rounded-lg ${
@@ -957,7 +1062,8 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                       <Badge className={
                         poll.status === "active" ? "bg-green-100 text-green-700" :
                         poll.status === "expired" ? "bg-gray-100 text-gray-700" :
-                        "bg-red-100 text-red-700"
+                        poll.status === "disabled" ? "bg-red-100 text-red-700" :
+                        "bg-orange-100 text-orange-700"
                       }>
                         {poll.status}
                       </Badge>
@@ -984,7 +1090,7 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                         <Button 
                           size="sm" 
                           variant="destructive"
-                          onClick={() => handleDisablePoll(poll.id)}
+                          onClick={() => setDisableDialog({ isOpen: true, itemId: poll.id, type: "poll", title: poll.title })}
                         >
                           <PauseCircle className="h-4 w-4 mr-1" />
                           Disable
@@ -1058,6 +1164,19 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
               </Card>
             </div>
 
+            {/* Petition Search */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search petitions..."
+                  value={petitionSearchTerm}
+                  onChange={(e) => setPetitionSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
             {/* Petition Management */}
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Petition Management</h2>
@@ -1069,7 +1188,11 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                       <p className="text-gray-500">Loading petitions...</p>
                     </div>
                   </div>
-                ) : petitions.map((petition) => {
+                ) : filteredPetitions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    {petitionSearchTerm ? "No petitions match your search." : "No petitions found."}
+                  </div>
+                ) : filteredPetitions.map((petition) => {
                   const progress = (petition.supporters / petition.goal) * 100;
                   return (
                     <div 
@@ -1144,7 +1267,8 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                           petition.status === "active" ? "bg-blue-100 text-blue-700" :
                           petition.status === "successful" ? "bg-green-100 text-green-700" :
                           petition.status === "expired" ? "bg-gray-100 text-gray-700" :
-                          "bg-red-100 text-red-700"
+                          petition.status === "disabled" ? "bg-red-100 text-red-700" :
+                          "bg-orange-100 text-orange-700"
                         }>
                           {petition.status}
                         </Badge>
@@ -1155,7 +1279,7 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                           <Eye className="h-4 w-4 mr-1 cursor-pointer" />
                           View
                         </Button>
-                        {(petition.status === "active" || petition.status === "expired") && (
+                        {(petition.status === "active" || petition.status === "expired" || petition.status === "closed") && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1171,7 +1295,7 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => handleDisablePetition(petition.id)}
+                            onClick={() => setDisableDialog({ isOpen: true, itemId: petition.id, type: "petition", title: petition.title })}
                           >
                             <PauseCircle className="h-4 w-4 mr-1" />
                             Disable
@@ -1186,6 +1310,43 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Disable Confirmation Dialog */}
+      <Dialog
+        open={disableDialog.isOpen}
+        onOpenChange={(open) => {
+          if (!open) setDisableDialog({ isOpen: false, itemId: "", type: "poll", title: "" });
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Disable {disableDialog.type === "poll" ? "Poll" : "Petition"}
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to disable this {disableDialog.type}? This action will prevent further participation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="text-sm text-gray-700 font-medium">{disableDialog.title}</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDisableDialog({ isOpen: false, itemId: "", type: "poll", title: "" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDisable}
+            >
+              <PauseCircle className="h-4 w-4 mr-2" />
+              Confirm Disable
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Action Confirmation Dialog */}
       <Dialog 
@@ -1226,7 +1387,7 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                 </div>
                 {authorHistory.currentlyMuted && (
                   <p className="text-xs text-red-600 font-medium">
-                    Currently muted until {new Date(authorHistory.mutedUntil!).toLocaleDateString()}
+                    Currently muted until {formatDate(authorHistory.mutedUntil!)}
                   </p>
                 )}
                 {actionDialog.action === "mute" && (
@@ -1377,6 +1538,22 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-sm text-gray-600">Dismissed Reports</p>
                     <p className="text-3xl font-bold text-gray-900 mt-8">{analyticsPreview.data?.summary.dismissedReports}</p>
                   </Card>
+                  <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Total Muted Users</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.mutedUsers}</p>
+                  </Card>
+                  <Card className="p-6 bg-orange-50 border-orange-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Total Warnings</p>
+                    <p className="text-3xl font-bold text-orange-900 mt-8">{analyticsPreview.data?.summary.warningsIssued}</p>
+                  </Card>
+                  <Card className="p-6 bg-red-50 border-red-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Total Deleted Posts</p>
+                    <p className="text-3xl font-bold text-red-900 mt-8">{analyticsPreview.data?.summary.deletedContent}</p>
+                  </Card>
+                  <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Average Post Per Day</p>
+                    <p className="text-3xl font-bold text-indigo-900 mt-8">{analyticsPreview.data?.summary.averagePostPerDay}</p>
+                  </Card>
                 </div>
               </div>
             )}
@@ -1395,8 +1572,8 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-3xl font-bold text-green-900 mt-8">{analyticsPreview.data?.summary.activePolls}</p>
                   </Card>
                   <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
-                    <p className="text-sm text-gray-600">Average Participation</p>
-                    <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averageParticipation}%</p>
+                    <p className="text-sm text-gray-600">Average Poll Per Day</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averagePollPerDay}</p>
                   </Card>
                   <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Total Votes</p>
@@ -1409,6 +1586,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                   <Card className="p-6 bg-orange-50 border-orange-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Has Disputes</p>
                     <p className="text-3xl font-bold text-orange-900 mt-8">{analyticsPreview.data?.summary.hasDisputes}</p>
+                  </Card>
+                  <Card className="p-6 bg-gray-50 border-gray-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Disabled Polls</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-8">{analyticsPreview.data?.summary.disabledPolls}</p>
                   </Card>
                 </div>
               </div>
@@ -1432,8 +1613,8 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-3xl font-bold text-emerald-900 mt-8">{analyticsPreview.data?.summary.successfulPetitions}</p>
                   </Card>
                   <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
-                    <p className="text-sm text-gray-600">Average Participation</p>
-                    <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averageParticipation}%</p>
+                    <p className="text-sm text-gray-600">Average Petition Per Day</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averagePetitionPerDay}</p>
                   </Card>
                   <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Total Supporters</p>
@@ -1446,6 +1627,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                   <Card className="p-6 bg-orange-50 border-orange-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Has Disputes</p>
                     <p className="text-3xl font-bold text-orange-900 mt-8">{analyticsPreview.data?.summary.hasDisputes}</p>
+                  </Card>
+                  <Card className="p-6 bg-gray-50 border-gray-200 h-[120px] overflow-hidden gap-0 block">
+                    <p className="text-sm text-gray-600">Disabled Petitions</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-8">{analyticsPreview.data?.summary.disabledPetitions}</p>
                   </Card>
                 </div>
               </div>

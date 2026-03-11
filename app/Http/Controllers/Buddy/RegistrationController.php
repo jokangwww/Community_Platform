@@ -284,19 +284,27 @@ class RegistrationController extends Controller
      */
     protected function updateWaitlistPositions(): void
     {
-        // Get all active mentees ordered by priority
-        $mentees = BuddyParticipant::mentees()
+        $priorityEnabled = \App\Models\BuddySetting::isPriorityAllocationEnabled();
+
+        // Get all active mentees ordered by priority or date
+        $query = BuddyParticipant::mentees()
             ->whereIn('status', ['active', 'pending'])
             ->whereDoesntHave('menteeMatches', function ($query) {
                 $query->where('status', 'active');
-            })
-            ->orderByRaw("CASE priority_tier 
+            });
+
+        if ($priorityEnabled) {
+            $query->orderByRaw("CASE priority_tier 
                 WHEN 'high' THEN 1 
                 WHEN 'normal' THEN 2 
                 WHEN 'low' THEN 3 
                 END")
-            ->orderBy('created_at', 'asc')
-            ->get();
+            ->orderBy('created_at', 'asc');
+        } else {
+            $query->orderBy('created_at', 'asc');
+        }
+
+        $mentees = $query->get();
 
         $position = 1;
         foreach ($mentees as $mentee) {

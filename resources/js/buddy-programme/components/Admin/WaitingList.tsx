@@ -20,6 +20,7 @@ export function WaitingList() {
   const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [priorityEnabled, setPriorityEnabled] = useState(true);
 
   useEffect(() => {
     fetchWaitingList();
@@ -33,6 +34,7 @@ export function WaitingList() {
       
       if (data.success) {
         setWaitingList(data.data);
+        setPriorityEnabled(data.priorityEnabled ?? true);
       } else {
         setError('Failed to load waiting list');
       }
@@ -117,7 +119,9 @@ export function WaitingList() {
         <div className="mb-6">
           <h2 className="text-gray-900 mb-2">Mentee Waiting List</h2>
           <p className="text-gray-600">
-            Students waiting to be matched with mentors, ordered by priority and registration time
+            {priorityEnabled
+              ? 'Students waiting to be matched with mentors, ordered by priority and registration time'
+              : 'Students waiting to be matched with mentors, ordered by registration time (first-come, first-served)'}
           </p>
         </div>
 
@@ -139,81 +143,120 @@ export function WaitingList() {
               </tr>
             </thead>
             <tbody>
-              {highPriority.map(entry => (
-                <tr key={entry.id} className="border-b border-gray-100 hover:bg-amber-50">
-                  <td className="py-3 px-4">
-                    <div className="w-8 h-8 bg-[rgb(255,255,255)] text-[rgb(17,17,17)] rounded-full flex items-center justify-center">
-                      {entry.position}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{entry.name}</td>
-                  <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
-                  <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.course}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
-                  <td className="py-3 px-4">
-                    {entry.isRepeater && (
-                      <span className="px-2 py-1 bg-amber-200 text-amber-900 rounded flex items-center gap-1 w-fit">
-                        <Star className="w-3 h-3" />
-                        Repeater
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
-                </tr>
-              ))}
-              {normalPriority.map(entry => (
-                <tr key={entry.id} className="border-b border-gray-100 hover:bg-blue-50">
-                  <td className="py-3 px-4">
-                    <div className="w-8 h-8 bg-[rgba(47,47,47,0)] text-[rgb(6,6,6)] rounded-full flex items-center justify-center">
-                      {entry.position}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{entry.name}</td>
-                  <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
-                  <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.course}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
-                  <td className="py-3 px-4">-</td>
-                  <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
-                </tr>
-              ))}
-              {lowPriority.map(entry => (
-                <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <div className="w-8 h-8 bg-[rgba(74,85,101,0)] text-[rgb(0,0,0)] rounded-full flex items-center justify-center">
-                      {entry.position}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{entry.name}</td>
-                  <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
-                  <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
-                  <td className="py-3 px-4 text-gray-900">{entry.course}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded flex items-center gap-1 w-fit">
-                      <AlertCircle className="w-3 h-3" />
-                      Low Rating
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
-                </tr>
-              ))}
+              {priorityEnabled ? (
+                <>
+                  {highPriority.map(entry => (
+                    <tr key={entry.id} className="border-b border-gray-100 hover:bg-amber-50">
+                      <td className="py-3 px-4">
+                        <div className="w-8 h-8 bg-[rgb(255,255,255)] text-[rgb(17,17,17)] rounded-full flex items-center justify-center">
+                          {entry.position}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{entry.name}</td>
+                      <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
+                      <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.course}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
+                      <td className="py-3 px-4">
+                        {entry.isRepeater && (
+                          <span className="px-2 py-1 bg-amber-200 text-amber-900 rounded flex items-center gap-1 w-fit">
+                            <Star className="w-3 h-3" />
+                            Repeater
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
+                    </tr>
+                  ))}
+                  {normalPriority.map(entry => (
+                    <tr key={entry.id} className="border-b border-gray-100 hover:bg-blue-50">
+                      <td className="py-3 px-4">
+                        <div className="w-8 h-8 bg-[rgba(47,47,47,0)] text-[rgb(6,6,6)] rounded-full flex items-center justify-center">
+                          {entry.position}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{entry.name}</td>
+                      <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
+                      <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.course}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
+                      <td className="py-3 px-4">-</td>
+                      <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
+                    </tr>
+                  ))}
+                  {lowPriority.map(entry => (
+                    <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="w-8 h-8 bg-[rgba(74,85,101,0)] text-[rgb(0,0,0)] rounded-full flex items-center justify-center">
+                          {entry.position}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{entry.name}</td>
+                      <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
+                      <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
+                      <td className="py-3 px-4 text-gray-900">{entry.course}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
+                      <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded flex items-center gap-1 w-fit">
+                          <AlertCircle className="w-3 h-3" />
+                          Low Rating
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
+                    </tr>
+                  ))}
+                </>
+              ) : (
+                /* Priority disabled: render flat list in backend order (created_at) */
+                waitingList.map(entry => (
+                  <tr key={entry.id} className="border-b border-gray-100 hover:bg-blue-50">
+                    <td className="py-3 px-4">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                        {entry.position}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900">{entry.name}</td>
+                    <td className="py-3 px-4 text-gray-600">{entry.studentId}</td>
+                    <td className="py-3 px-4">{getPriorityBadge(entry.priorityTier)}</td>
+                    <td className="py-3 px-4 text-gray-900">{entry.faculty}</td>
+                    <td className="py-3 px-4 text-gray-900">{entry.course}</td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{entry.subject}</span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900">{Number(entry.cgpa).toFixed(2)}</td>
+                    <td className="py-3 px-4 text-gray-900">{Number(entry.rating).toFixed(1)}</td>
+                    <td className="py-3 px-4">
+                      {entry.isRepeater ? (
+                        <span className="px-2 py-1 bg-amber-200 text-amber-900 rounded flex items-center gap-1 w-fit">
+                          <Star className="w-3 h-3" />
+                          Repeater
+                        </span>
+                      ) : entry.priorityTier === 'low' ? (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded flex items-center gap-1 w-fit">
+                          <AlertCircle className="w-3 h-3" />
+                          Low Rating
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">{entry.registeredDate}</td>
+                  </tr>
+                ))
+              )}
               {waitingList.length === 0 && (
                 <tr>
                   <td colSpan={11} className="py-8 text-center text-gray-500">

@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Notifications\BuddyApprovalNotification;
 
 class AdminController extends Controller
 {
@@ -143,6 +144,11 @@ class AdminController extends Controller
             'verified_at' => now(),
         ]);
 
+        // Notify the mentor about approval
+        if ($mentor->user) {
+            $mentor->user->notify(new BuddyApprovalNotification('mentor', 'active'));
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Mentor approved successfully',
@@ -168,6 +174,11 @@ class AdminController extends Controller
         $mentor->update([
             'status' => 'rejected',
         ]);
+
+        // Notify the mentor about rejection
+        if ($mentor->user) {
+            $mentor->user->notify(new BuddyApprovalNotification('mentor', 'rejected'));
+        }
 
         return response()->json([
             'success' => true,
@@ -234,6 +245,11 @@ class AdminController extends Controller
             'verified_at' => now(),
         ]);
 
+        // Notify the mentee about approval
+        if ($repeater->user) {
+            $repeater->user->notify(new BuddyApprovalNotification('mentee', 'active'));
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Repeater approved successfully',
@@ -262,6 +278,11 @@ class AdminController extends Controller
         $repeater->update([
             'status' => 'rejected',
         ]);
+
+        // Notify the mentee about rejection
+        if ($repeater->user) {
+            $repeater->user->notify(new BuddyApprovalNotification('mentee', 'rejected'));
+        }
 
         return response()->json([
             'success' => true,
@@ -419,22 +440,32 @@ class AdminController extends Controller
             $semesterId = $active?->id;
         }
 
-        $waitingMentees = BuddyParticipant::mentees()
+        $priorityEnabled = BuddySetting::isPriorityAllocationEnabled();
+
+        $query = BuddyParticipant::mentees()
             ->where('status', 'active')
             ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
             ->whereDoesntHave('menteeMatches', function ($query) use ($semesterId) {
                 $query->where('status', 'active')
                       ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId));
             })
-            ->with('subject')
-            ->orderByRaw("CASE 
+            ->with('subject');
+
+        if ($priorityEnabled) {
+            // Sort by priority tier then registration date
+            $query->orderByRaw("CASE 
                 WHEN priority_tier = 'high' THEN 1 
                 WHEN priority_tier = 'normal' THEN 2 
                 WHEN priority_tier = 'low' THEN 3 
                 ELSE 4 
             END")
-            ->orderBy('created_at', 'asc')
-            ->get();
+            ->orderBy('created_at', 'asc');
+        } else {
+            // Simple first-come, first-served
+            $query->orderBy('created_at', 'asc');
+        }
+
+        $waitingMentees = $query->get();
 
         $position = 1;
         $waitingList = $waitingMentees->map(function ($mentee) use (&$position) {
@@ -456,7 +487,8 @@ class AdminController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $waitingList
+            'data' => $waitingList,
+            'priorityEnabled' => $priorityEnabled,
         ]);
     }
 

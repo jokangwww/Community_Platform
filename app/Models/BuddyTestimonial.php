@@ -9,6 +9,7 @@ class BuddyTestimonial extends Model
 {
     protected $fillable = [
         'participant_id',
+        'semester_id',
         'semester_year',
         'total_sessions',
         'total_mentees',

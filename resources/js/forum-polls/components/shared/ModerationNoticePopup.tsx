@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatDate } from "../../../shared/utils/date";
 import {
   Dialog,
   DialogContent,
@@ -173,7 +174,7 @@ export function ModerationNoticePopup({ mutedUntil }: ModerationNoticePopupProps
             </p>
             <p className="text-xs mt-1">
               You cannot post or comment until{" "}
-              <strong>{new Date(mutedUntil!).toLocaleDateString()}</strong>.
+              <strong>{formatDate(mutedUntil!)}</strong>.
             </p>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, BookOpen, MessageSquare, Award, Loader2, AlertCircle, Clock, Bell, FileText, CheckCircle, Archive } from 'lucide-react';
+import { formatDate } from '../../../shared/utils/date';
 import { MentorMentees } from './MentorMentees';
 import { MentorSchedule } from './MentorSchedule';
 import { MentorClassroom } from './MentorClassroom';
@@ -188,9 +189,9 @@ export function MentorDashboard({ studentId, selectedSemesterId = null, onSemest
             });
           }
 
-          // Filter out notifications older than 1 week
+          // Filter out notifications older than 1 day
           const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 1);
           const recentNotifications = generatedNotifications.filter(
             notif => new Date(notif.timestamp) >= oneWeekAgo
           );
@@ -207,7 +208,7 @@ export function MentorDashboard({ studentId, selectedSemesterId = null, onSemest
             const classroomResponse = await fetch(`/api/buddy/classroom/${classroomMatchId}`);
             const classroomData = await classroomResponse.json();
             const oneWeekAgoDate = new Date();
-            oneWeekAgoDate.setDate(oneWeekAgoDate.getDate() - 7);
+            oneWeekAgoDate.setDate(oneWeekAgoDate.getDate() - 1);
             const classroomNotifs: Notification[] = [];
 
             (classroomData.assignments || []).forEach((assignment: any) => {
@@ -552,16 +553,6 @@ function OverviewContent({
   notifications,
   onMarkNotificationRead,
 }: OverviewContentProps) {
-  // Format date to DD-MMM-YYYY
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
   const unreadCount = notifications.filter(n => !n.read).length;
   const avgAttendanceRate = mentees.length > 0 
     ? Math.round(mentees.reduce((sum, mentee) => sum + mentee.attendanceRate, 0) / mentees.length)

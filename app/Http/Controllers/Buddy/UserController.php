@@ -10,6 +10,7 @@ use App\Models\BuddySession;
 use App\Models\BuddyTimeSlot;
 use App\Models\BuddyTimeSlotVote;
 use App\Models\BuddySemesterSetting;
+use App\Notifications\BuddySchedulePublishedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -992,6 +993,14 @@ class UserController extends Controller
                     'status' => 'voting',
                 ]
             );
+
+            // Notify mentees in this match about published time slots
+            $mentees = $match->mentees;
+            foreach ($mentees as $mentee) {
+                if ($mentee->user) {
+                    $mentee->user->notify(new BuddySchedulePublishedNotification($match, $participant->full_name));
+                }
+            }
         }
 
         return response()->json([

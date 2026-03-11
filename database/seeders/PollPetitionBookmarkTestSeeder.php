@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Poll;
 use App\Models\PollOption;
 use App\Models\PollVote;
+use App\Models\PollRating;
 use App\Models\Petition;
 use App\Models\PetitionSupport;
 use App\Models\Bookmark;
@@ -46,6 +47,7 @@ class PollPetitionBookmarkTestSeeder extends Seeder
 
         $this->createTestUsers();
         $this->createPolls();
+        $this->createUsefulnessRatings();
         $this->createPetitions();
         $this->createBookmarks();
         $this->printTestingGuide();
@@ -149,6 +151,33 @@ class PollPetitionBookmarkTestSeeder extends Seeder
                 'options'     => ['Spread over 2 weeks', 'Concentrated in 1 week', 'Flexible self-scheduling'],
                 'votes'       => 67,
             ],
+            [
+                'title'       => 'Should campus parking be free for students?',
+                'description' => 'Parking fees have been a hot topic. Should students get free parking?',
+                'category'    => 'facilities',
+                'status'      => 'expired',
+                'expires_at'  => now()->subDays(5),
+                'options'     => ['Yes, completely free', 'Subsidised rates only', 'No, keep current pricing'],
+                'votes'       => 134,
+            ],
+            [
+                'title'       => 'Best social event for orientation week?',
+                'description' => 'Help plan the highlight event for new student orientation.',
+                'category'    => 'events',
+                'status'      => 'expired',
+                'expires_at'  => now()->subDays(14),
+                'options'     => ['Campus carnival', 'Movie night', 'Sports tournament', 'Talent show'],
+                'votes'       => 201,
+            ],
+            [
+                'title'       => 'Preferred online learning platform?',
+                'description' => 'Which LMS should the university adopt for blended learning?',
+                'category'    => 'academic',
+                'status'      => 'expired',
+                'expires_at'  => now()->subDays(20),
+                'options'     => ['Google Classroom', 'Moodle', 'Canvas', 'Microsoft Teams'],
+                'votes'       => 175,
+            ],
         ];
 
         foreach ($pollsData as $index => $data) {
@@ -200,6 +229,55 @@ class PollPetitionBookmarkTestSeeder extends Seeder
             
             $statusIcon = $data['status'] === 'active' ? '🟢' : ($data['status'] === 'expired' ? '🟡' : '🔴');
             $this->command->info("  {$statusIcon} Poll #{$poll->id}: {$data['title']} ({$data['status']}, {$data['votes']} votes)");
+        }
+
+        $this->command->newLine();
+    }
+
+    /**
+     * Create usefulness ratings for expired/archived polls (for Poll Archive sort testing).
+     */
+    private function createUsefulnessRatings(): void
+    {
+        $this->command->info('Creating usefulness ratings for archived polls...');
+
+        // Define usefulness patterns per poll index:
+        // index => [total_raters, useful_count]  → score = useful_count/total * 100
+        $ratingPatterns = [
+            2 => ['total' => 30, 'useful' => 24],   // Best time for events → 80% useful
+            4 => ['total' => 40, 'useful' => 10],   // WiFi improvement (disabled) → 25% useful (low)
+            6 => ['total' => 25, 'useful' => 17],   // Campus parking → 68% useful
+            7 => ['total' => 35, 'useful' => 30],   // Orientation event → 86% useful (highest)
+            8 => ['total' => 20, 'useful' => 9],    // Online learning → 45% useful
+        ];
+
+        $voters = array_values($this->users);
+
+        foreach ($ratingPatterns as $pollIndex => $pattern) {
+            if (!isset($this->polls[$pollIndex])) continue;
+
+            $poll = $this->polls[$pollIndex];
+            $usedRaters = [];
+            $usefulCount = 0;
+
+            for ($i = 0; $i < $pattern['total']; $i++) {
+                $voter = $voters[$i % count($voters)];
+                if (in_array($voter->id, $usedRaters)) continue;
+
+                $isUseful = $usefulCount < $pattern['useful'];
+                PollRating::firstOrCreate(
+                    ['poll_id' => $poll->id, 'user_id' => $voter->id],
+                    ['is_useful' => $isUseful]
+                );
+
+                if ($isUseful) $usefulCount++;
+                $usedRaters[] = $voter->id;
+            }
+
+            $score = count($usedRaters) > 0
+                ? round($usefulCount / count($usedRaters) * 100)
+                : 0;
+            $this->command->info("  📊 Poll #{$poll->id}: {$poll->title} → {$score}% useful ({$usefulCount}/" . count($usedRaters) . ")");
         }
 
         $this->command->newLine();
@@ -407,12 +485,27 @@ class PollPetitionBookmarkTestSeeder extends Seeder
         $this->command->info('  │     • Click "View" → should navigate to poll detail │');
         $this->command->info('  │     • Verify you can still view archived content    │');
         $this->command->info('  │                                                     │');
-        $this->command->info('  │  4. TEST MULTIPLE USERS                             │');
+        $this->command->info('  │  4. TEST POLL ARCHIVE SORTING                       │');
+        $this->command->info('  │     • Go to Polls tab → Click "Archive" button      │');
+        $this->command->info('  │     • Sort by "Most Recent" → check date order      │');
+        $this->command->info('  │     • Sort by "Most Popular" → check votes order    │');
+        $this->command->info('  │     • Sort by "Most Useful" → check score order     │');
+        $this->command->info('  │     • Expected usefulness scores:                   │');
+        $this->command->info('  │       Orientation event ~86%, Events ~80%,           │');
+        $this->command->info('  │       Parking ~68%, Online learning ~45%,            │');
+        $this->command->info('  │       WiFi improvement ~25% (low)                   │');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  5. TEST PETITION ARCHIVE                           │');
+        $this->command->info('  │     • Go to Petitions tab → Click "Archive" button  │');
+        $this->command->info('  │     • Should show closed/disabled petitions          │');
+        $this->command->info('  │     • Sort by date or popularity (supporters)       │');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  6. TEST MULTIPLE USERS                             │');
         $this->command->info('  │     • Switch between voter1, voter2, voter3         │');
         $this->command->info('  │     • Verify each user sees only THEIR bookmarks    │');
         $this->command->info('  │     • Bookmarks should be independent per user      │');
         $this->command->info('  │                                                     │');
-        $this->command->info('  │  5. API TESTING                                     │');
+        $this->command->info('  │  7. API TESTING                                     │');
         $this->command->info('  │     • POST /api/poll-petition/bookmarks/toggle      │');
         $this->command->info('  │       { type: "poll", id: 1 }                       │');
         $this->command->info('  │     • GET /api/poll-petition/bookmarks              │');
@@ -421,8 +514,9 @@ class PollPetitionBookmarkTestSeeder extends Seeder
         $this->command->info('  └─────────────────────────────────────────────────────┘');
         $this->command->newLine();
         $this->command->info('  📊 CREATED:');
-        $this->command->info("     • " . count($this->polls) . " polls (4 active, 1 expired, 1 archived)");
-        $this->command->info("     • " . count($this->petitions) . " petitions (3 active, 1 successful, 1 closed, 1 archived)");
+        $this->command->info("     • " . count($this->polls) . " polls (4 active, 4 expired, 1 archived/disabled)");
+        $this->command->info("     • " . count($this->petitions) . " petitions (3 active, 2 closed, 1 archived)");
+        $this->command->info("     • Usefulness ratings on 5 archived polls");
         $this->command->info("     • 3 test users with various bookmarks");
         $this->command->info("     • Total bookmarks: 6");
         $this->command->newLine();
