@@ -36,7 +36,8 @@ class PayPalService
             ]);
 
         if (! $response->successful()) {
-            throw new RuntimeException('Unable to create PayPal order.');
+            $details = trim((string) $response->body());
+            throw new RuntimeException('Unable to create PayPal order. ' . $details);
         }
 
         return $response->json();
@@ -51,7 +52,8 @@ class PayPalService
             ->post($this->baseUrl . '/v2/checkout/orders/' . $orderId . '/capture', (object) []);
 
         if (! $response->successful()) {
-            throw new RuntimeException('Unable to capture PayPal order.');
+            $details = trim((string) $response->body());
+            throw new RuntimeException('Unable to capture PayPal order. ' . $details);
         }
 
         return $response->json();

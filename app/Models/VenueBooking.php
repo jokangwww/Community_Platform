@@ -64,6 +64,11 @@ class VenueBooking extends Model
 
     public function getDisplayStatusAttribute(): string
     {
+        if ($this->status === 'approved' && $this->start_at && $this->end_at
+            && $this->start_at->lessThanOrEqualTo(now()) && $this->end_at->isFuture()) {
+            return 'using';
+        }
+
         if ($this->status === 'approved' && $this->end_at && $this->end_at->isPast()) {
             return 'completed';
         }
@@ -71,4 +76,3 @@ class VenueBooking extends Model
         return $this->status;
     }
 }
-

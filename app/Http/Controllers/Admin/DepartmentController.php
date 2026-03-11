@@ -30,7 +30,7 @@ class DepartmentController extends Controller
             'name' => trim($validated['name']),
         ]);
 
-        return back()->with('status', 'Department added successfully.');
+        return back()->with('status', 'Faculty added successfully.');
     }
 
     // Delete or close the selected record after access checks.
@@ -38,6 +38,6 @@ class DepartmentController extends Controller
     {
         $department->delete();
 
-        return back()->with('status', 'Department removed successfully.');
+        return back()->with('status', 'Faculty removed successfully.');
     }
 }

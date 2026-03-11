@@ -617,7 +617,7 @@
                             <tr>
                                 <td>{{ $registration->student->name ?? 'Unknown' }}</td>
                                 <td>{{ $registration->student->student_id ?? '-' }}</td>
-                                <td>{{ $registration->student->department ?? '-' }}</td>
+                                <td>{{ $registration->student->faculty ?? '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -627,4 +627,3 @@
     </div>
     </div>
 @endsection
-

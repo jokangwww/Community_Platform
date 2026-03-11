@@ -10,6 +10,7 @@ use App\Models\LocationPoint;
 use App\Models\RecruitmentApplication;
 use App\Models\TicketPurchase;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -393,11 +394,11 @@ class EventController extends Controller
 
     public function create(Request $request): View
     {
-        // Create form needs location/venue options and department list for dynamic event settings.
+        // Create form needs location/venue options and faculty list for dynamic event settings.
         return view('club.events.create', [
             'venueOptions' => $this->venueOptions(),
             'locationPointOptions' => $this->locationPointOptions(),
-            'departments' => Department::query()->orderBy('name')->get(['name']),
+            'faculties' => Department::query()->orderBy('name')->get(['name']),
         ]);
     }
 
@@ -608,7 +609,7 @@ class EventController extends Controller
                 $query->wherePivotNull('attended_at');
             })
             ->orderBy('users.name')
-            ->get(['users.id', 'users.name', 'users.student_id', 'users.programme', 'users.department']);
+            ->get(['users.id', 'users.name', 'users.student_id', 'users.programme', 'users.faculty']);
 
         return view('club.events.committee-attendance-show', [
             'event' => $event,
@@ -795,7 +796,7 @@ class EventController extends Controller
             'committeeIds' => $committeeIds ? implode(', ', $committeeIds) : null,
             'venueOptions' => $this->venueOptions(),
             'locationPointOptions' => $this->locationPointOptions(),
-            'departments' => Department::query()->orderBy('name')->get(['name']),
+            'faculties' => Department::query()->orderBy('name')->get(['name']),
         ]);
     }
 
@@ -980,6 +981,26 @@ class EventController extends Controller
         return redirect()
             ->route('club.events.edit', $event)
             ->with('status', 'Event updated.');
+    }
+
+    // Allow organizer to resubmit a previously rejected event proposal for admin review.
+    public function resubmit(Event $event): RedirectResponse
+    {
+        $user = $this->authenticatedClub();
+        if ($event->club_id !== $user->id) {
+            abort(403);
+        }
+
+        if (($event->approval_status ?? 'pending') !== 'rejected') {
+            return back()->with('status', 'Only rejected event proposals can be resubmitted.');
+        }
+
+        $event->update([
+            'approval_status' => 'pending',
+            'rejection_reason' => null,
+        ]);
+
+        return back()->with('status', 'Event proposal resubmitted. It is now pending admin review.');
     }
 
     // Live stream controls are managed from the event detail page (start/update/stop).

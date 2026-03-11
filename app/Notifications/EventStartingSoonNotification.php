@@ -6,7 +6,6 @@ use App\Models\Event;
 use App\Models\Posting;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class EventStartingSoonNotification extends Notification
@@ -23,7 +22,7 @@ class EventStartingSoonNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database'];
     }
 
     public function toArray(object $notifiable): array
@@ -44,15 +43,4 @@ class EventStartingSoonNotification extends Notification
         ];
     }
 
-    public function toMail(object $notifiable): MailMessage
-    {
-        $eventName = (string) ($this->event->name ?? 'Event');
-        $subEventLabel = $this->subEventTitle ? " ({$this->subEventTitle})" : '';
-
-        return (new MailMessage())
-            ->subject('Event Starting Soon: ' . $eventName)
-            ->line("\"{$eventName}\"{$subEventLabel} is starting soon.")
-            ->line('Start time: ' . $this->startAt->format('Y-m-d H:i'))
-            ->line('Please check the portal for details.');
-    }
 }

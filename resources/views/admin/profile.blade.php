@@ -304,25 +304,6 @@
                     @enderror
                 </div>
                 <div class="form-row">
-                    <label for="department">Department</label>
-                    <input
-                        id="department"
-                        name="department"
-                        type="text"
-                        list="department-options"
-                        value="{{ old('department', $user?->department ?? '') }}"
-                        placeholder="Type to find and select department"
-                    >
-                    <datalist id="department-options">
-                        @foreach (($departments ?? collect()) as $department)
-                            <option value="{{ $department->name }}"></option>
-                        @endforeach
-                    </datalist>
-                    @error('department')
-                        <div class="status-text" style="color: #b00020;">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="form-row">
                     <label for="contact_information">Contact Information</label>
                     <input id="contact_information" name="contact_information" type="text" value="{{ old('contact_information', $adminMeta->contact_information ?? '') }}" placeholder="Phone / extension / office contact">
                     @error('contact_information')

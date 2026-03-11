@@ -130,7 +130,7 @@
                     <tr>
                         <td>{{ $member->name ?? 'Unknown' }}</td>
                         <td>{{ $member->student_id ?? '-' }}</td>
-                        <td>{{ $member->programme ?? ($member->department ?? '-') }}</td>
+                        <td>{{ $member->programme ?? ($member->faculty ?? '-') }}</td>
                         <td>{{ $member->pivot?->position_name ?: '-' }}</td>
                         <td>{{ $member->pivot?->attended_at ? \Illuminate\Support\Carbon::parse($member->pivot->attended_at)->format('Y-m-d H:i') : 'Absent' }}</td>
                         <td>
@@ -153,4 +153,3 @@
         </table>
     </section>
 @endsection
-

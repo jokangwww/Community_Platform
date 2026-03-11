@@ -1,6 +1,6 @@
 @extends('layouts.admin_layout')
 
-@section('title', 'Departments')
+@section('title', 'Faculties')
 
 @section('content')
     <style>
@@ -86,7 +86,7 @@
     </style>
 
     <div class="department-header">
-        <h2>Department Management</h2>
+        <h2>Faculty Management</h2>
     </div>
 
     @if (session('status'))
@@ -105,21 +105,21 @@
             type="text"
             name="name"
             value="{{ old('name') }}"
-            placeholder="e.g. Finance Department"
+            placeholder="e.g. Faculty of Computing and Information Technology"
             maxlength="255"
             required
         >
-        <button type="submit">Add Department</button>
+        <button type="submit">Add Faculty</button>
     </form>
 
     @if ($departments->isEmpty())
-        <div class="department-empty">No departments yet.</div>
+        <div class="department-empty">No faculties yet.</div>
     @else
         <div class="department-list">
             @foreach ($departments as $department)
                 <div class="department-item">
                     <strong>{{ $department->name }}</strong>
-                    <form method="POST" action="{{ route('admin.departments.destroy', $department) }}" onsubmit="return confirm('Delete this department?');">
+                    <form method="POST" action="{{ route('admin.departments.destroy', $department) }}" onsubmit="return confirm('Delete this faculty?');">
                         @csrf
                         @method('DELETE')
                         <button type="submit">Delete</button>
@@ -129,4 +129,3 @@
         </div>
     @endif
 @endsection
-

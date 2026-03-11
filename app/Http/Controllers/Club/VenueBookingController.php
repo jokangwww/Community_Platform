@@ -15,6 +15,21 @@ use Illuminate\View\View;
 
 class VenueBookingController extends Controller
 {
+    private function bookingIsUsingNow(VenueBooking $venueBooking): bool
+    {
+        return $venueBooking->status === 'approved'
+            && $venueBooking->start_at
+            && $venueBooking->end_at
+            && $venueBooking->start_at->lessThanOrEqualTo(now())
+            && $venueBooking->end_at->isFuture();
+    }
+
+    private function bookingIsLockedForOrganizer(VenueBooking $venueBooking): bool
+    {
+        return in_array($venueBooking->status, ['rejected', 'cancelled', 'completed'], true)
+            || $this->bookingIsUsingNow($venueBooking);
+    }
+
     // Club booking list page with search/status filters and completed-booking display logic.
     public function index(Request $request): View
     {
@@ -34,7 +49,7 @@ class VenueBookingController extends Controller
                         });
                 });
             })
-            ->when($status !== '' && in_array($status, ['pending', 'approved', 'rejected', 'cancelled', 'completed'], true), function ($query) use ($status) {
+            ->when($status !== '' && in_array($status, ['pending', 'approved', 'using', 'rejected', 'cancelled', 'completed'], true), function ($query) use ($status) {
                 if ($status === 'completed') {
                     $query->where(function ($inner) {
                         $inner->where('status', 'completed')
@@ -43,6 +58,12 @@ class VenueBookingController extends Controller
                                     ->where('end_at', '<', now());
                             });
                     });
+                    return;
+                }
+                if ($status === 'using') {
+                    $query->where('status', 'approved')
+                        ->where('start_at', '<=', now())
+                        ->where('end_at', '>', now());
                     return;
                 }
                 $query->where('status', $status);
@@ -93,9 +114,14 @@ class VenueBookingController extends Controller
     }
 
     // Edit form for a club-owned booking; keeps the current venue selectable even if now inactive.
-    public function edit(Request $request, VenueBooking $venueBooking): View
+    public function edit(Request $request, VenueBooking $venueBooking): View|RedirectResponse
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
+        if ($this->bookingIsLockedForOrganizer($venueBooking)) {
+            return redirect()
+                ->route('club.venue-bookings.index')
+                ->withErrors(['booking' => 'Using, completed, rejected, or cancelled bookings cannot be edited. Please submit a new booking application.']);
+        }
 
         return view('club.venue-bookings.edit', [
             'booking' => $venueBooking->load('venue'),
@@ -108,8 +134,10 @@ class VenueBookingController extends Controller
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
 
-        if (in_array($venueBooking->status, ['cancelled', 'completed'], true)) {
-            return back()->withErrors(['booking' => 'This booking can no longer be updated.']);
+        if ($this->bookingIsLockedForOrganizer($venueBooking)) {
+            return redirect()
+                ->route('club.venue-bookings.index')
+                ->withErrors(['booking' => 'Using, completed, rejected, or cancelled bookings cannot be edited. Please submit a new booking application.']);
         }
 
         [$validated, $startAt, $endAt] = $this->validatedBookingInput($request);
@@ -123,8 +151,8 @@ class VenueBookingController extends Controller
             return back()->withErrors(['venue_id' => 'Selected venue is not available for this timeslot.'])->withInput();
         }
 
-        // Editing an approved booking resets review fields and sends it back to pending approval.
-        $nextStatus = $venueBooking->status === 'approved' ? 'pending' : $venueBooking->status;
+        // Any organizer edit requires admin re-review, so status is reset to pending.
+        $nextStatus = 'pending';
 
         $venueBooking->update([
             'venue_id' => (int) $validated['venue_id'],
@@ -138,11 +166,9 @@ class VenueBookingController extends Controller
             'admin_reviewed_at' => null,
         ]);
 
-        $message = $nextStatus === 'pending'
-            ? 'Booking updated and sent for approval again.'
-            : 'Booking updated.';
-
-        return redirect()->route('club.venue-bookings.index')->with('status', $message);
+        return redirect()
+            ->route('club.venue-bookings.index')
+            ->with('status', 'Booking updated and sent for approval again.');
     }
 
     // Cancel a club-owned booking (soft close via status change, not row deletion).
@@ -150,8 +176,8 @@ class VenueBookingController extends Controller
     {
         $this->ensureClubOwnsBooking($request, $venueBooking);
 
-        if (in_array($venueBooking->status, ['cancelled', 'completed'], true)) {
-            return back()->withErrors(['booking' => 'Booking is already closed.']);
+        if ($this->bookingIsLockedForOrganizer($venueBooking)) {
+            return back()->withErrors(['booking' => 'Using, completed, rejected, or cancelled bookings cannot be cancelled. Please submit a new booking application.']);
         }
 
         $venueBooking->update([

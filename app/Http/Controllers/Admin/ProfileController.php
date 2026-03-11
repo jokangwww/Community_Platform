@@ -3,13 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -44,7 +42,6 @@ class ProfileController extends Controller
 
         return view('admin.profile', [
             'adminMeta' => $this->adminMeta($user),
-            'departments' => Department::query()->orderBy('name')->get(['name']),
         ]);
     }
 
@@ -107,7 +104,6 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'department' => ['nullable', 'string', 'max:255', Rule::exists('departments', 'name')],
             'position' => ['nullable', 'string', 'max:255'],
             'contact_information' => ['nullable', 'string', 'max:255'],
             'responsibilities' => ['nullable', 'string', 'max:2000'],
@@ -115,7 +111,6 @@ class ProfileController extends Controller
 
         $user->update([
             'name' => $validated['name'],
-            'department' => $validated['department'] ?? null,
             'staff_id' => $user->staff_id ?: ($user->student_id ?: ('ADMIN-' . $user->id)),
             'position' => $validated['position'] ?? null,
             'contact_information' => $validated['contact_information'] ?? null,

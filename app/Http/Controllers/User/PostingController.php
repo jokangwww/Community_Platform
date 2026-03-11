@@ -16,6 +16,71 @@ use Illuminate\Support\Facades\DB;
 
 class PostingController extends Controller
 {
+    private function normalizedFaculty(?string $value): string
+    {
+        return mb_strtolower(trim((string) $value));
+    }
+
+    private function facultyLimitForStudent(Event $event, User $student): ?int
+    {
+        $event->loadMissing('facultyLimits');
+        if ($event->facultyLimits->isEmpty()) {
+            return null;
+        }
+
+        $studentFaculty = $this->normalizedFaculty($student->faculty ?? null);
+        if ($studentFaculty === '') {
+            return 0;
+        }
+
+        $matched = $event->facultyLimits->first(function ($row) use ($studentFaculty) {
+            return $this->normalizedFaculty($row->faculty_name ?? null) === $studentFaculty;
+        });
+
+        return $matched ? (int) $matched->limit : 0;
+    }
+
+    private function facultyRegistrationCount(Event $event, User $student): int
+    {
+        $studentFaculty = $this->normalizedFaculty($student->faculty ?? null);
+        if ($studentFaculty === '') {
+            return 0;
+        }
+
+        return EventRegistration::query()
+            ->join('users', 'users.id', '=', 'event_registrations.student_id')
+            ->where('event_registrations.event_id', $event->id)
+            ->whereRaw('LOWER(TRIM(COALESCE(users.faculty, ""))) = ?', [$studentFaculty])
+            ->count();
+    }
+
+    private function facultyLimitMessage(Event $event, User $student): ?string
+    {
+        $limit = $this->facultyLimitForStudent($event, $student);
+        if ($limit === null) {
+            return null;
+        }
+        if ($limit === 0) {
+            return 'Your faculty is not eligible for this event.';
+        }
+
+        $current = $this->facultyRegistrationCount($event, $student);
+        if ($current >= $limit) {
+            return 'Registration limit reached for your faculty.';
+        }
+
+        return null;
+    }
+
+    // Hide outdated postings from student-facing pages.
+    private function applyVisibleForStudentsFilter($query): void
+    {
+        $query->where(function ($builder) {
+            $builder->whereNull('outdated_at')
+                ->orWhere('outdated_at', '>', now());
+        });
+    }
+
     // Shared filters used by event posting list/favorites pages (keyword + lifecycle status).
     private function applySearchAndLifecycleFilters($query, Request $request): void
     {
@@ -40,9 +105,13 @@ class PostingController extends Controller
                 $builder->whereNull('outdated_at')
                     ->orWhere('outdated_at', '>', now());
             });
-        } elseif ($lifecycle === 'outdated') {
-            $query->whereNotNull('outdated_at')
-                ->where('outdated_at', '<=', now());
+        } elseif ($lifecycle === 'now') {
+            // "Available now" means registration is currently open and posting is not outdated.
+            $query->where('status', 'open')
+                ->where(function ($builder) {
+                    $builder->whereNull('outdated_at')
+                        ->orWhere('outdated_at', '>', now());
+                });
         }
     }
 
@@ -50,7 +119,7 @@ class PostingController extends Controller
     private function indexFilters(Request $request): array
     {
         $lifecycle = (string) $request->query('lifecycle', 'all');
-        if (! in_array($lifecycle, ['all', 'current', 'outdated'], true)) {
+        if (! in_array($lifecycle, ['all', 'current', 'now'], true)) {
             $lifecycle = 'all';
         }
 
@@ -290,6 +359,7 @@ class PostingController extends Controller
             })
             ->latest();
 
+        $this->applyVisibleForStudentsFilter($query);
         $this->applySearchAndLifecycleFilters($query, $request);
         $postings = $query->get();
 
@@ -319,6 +389,7 @@ class PostingController extends Controller
             })
             ->latest('postings.created_at');
 
+        $this->applyVisibleForStudentsFilter($query);
         $this->applySearchAndLifecycleFilters($query, $request);
         $postings = $query->get();
 
@@ -342,6 +413,9 @@ class PostingController extends Controller
         $posting->load(['club', 'event.ticketSetting', 'event.luckyDraw.numbers', 'images']);
         if (($posting->event?->status ?? 'in_progress') === 'ended'
             || ($posting->event?->approval_status ?? 'approved') !== 'approved') {
+            abort(404);
+        }
+        if ($posting->outdated_at && $posting->outdated_at->lte(now())) {
             abort(404);
         }
 
@@ -386,6 +460,14 @@ class PostingController extends Controller
             return redirect()
                 ->back()
                 ->with('status', 'Committee members cannot register as participants for this event.');
+        }
+        if ($posting->event) {
+            $facultyLimitMessage = $this->facultyLimitMessage($posting->event, $user);
+            if ($facultyLimitMessage !== null) {
+                return redirect()
+                    ->back()
+                    ->with('status', $facultyLimitMessage);
+            }
         }
         $limit = $posting->event?->participant_limit;
         if (($posting->event?->registration_type ?? 'register') === 'ticket') {

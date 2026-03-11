@@ -47,6 +47,7 @@
                 <option value="" @selected(($filters['status'] ?? '') === '')>All status</option>
                 <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
                 <option value="approved" @selected(($filters['status'] ?? '') === 'approved')>Approved</option>
+                <option value="using" @selected(($filters['status'] ?? '') === 'using')>Using</option>
                 <option value="rejected" @selected(($filters['status'] ?? '') === 'rejected')>Rejected</option>
                 <option value="cancelled" @selected(($filters['status'] ?? '') === 'cancelled')>Cancelled</option>
                 <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
@@ -71,14 +72,25 @@
                         @if ($booking->event_details)
                             <div class="cb-details">{{ $booking->event_details }}</div>
                         @endif
+                        @php
+                            $displayStatus = $booking->display_status;
+                            $canModify = ! in_array($displayStatus, ['using', 'completed'], true)
+                                && ! in_array($booking->status, ['rejected', 'cancelled'], true);
+                        @endphp
                         <div class="cb-actions">
-                            @if (! in_array($booking->status, ['cancelled', 'completed'], true))
+                            @if ($canModify)
                                 <a class="edit-link" href="{{ route('club.venue-bookings.edit', $booking) }}">Edit</a>
                                 <form method="POST" action="{{ route('club.venue-bookings.destroy', $booking) }}" onsubmit="return confirm('Cancel this booking?');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit">Cancel Booking</button>
                                 </form>
+                            @elseif ($displayStatus === 'using')
+                                <span style="font-size:13px;color:#555;">This booking is currently using the venue. Edit and cancel are disabled.</span>
+                            @elseif ($displayStatus === 'completed')
+                                <span style="font-size:13px;color:#555;">This booking is completed. Edit and cancel are disabled.</span>
+                            @elseif ($booking->status === 'rejected')
+                                <span style="font-size:13px;color:#555;">This booking is rejected. Please submit a new booking application.</span>
                             @endif
                         </div>
                     </article>
@@ -87,4 +99,3 @@
         @endif
     </section>
 @endsection
-

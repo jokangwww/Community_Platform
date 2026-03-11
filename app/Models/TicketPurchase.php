@@ -23,6 +23,10 @@ class TicketPurchase extends Model
         'resale_price',
         'resale_listed_at',
         'last_transferred_at',
+        'early_bird_applied',
+        'early_bird_discount_percent',
+        'bundle_discount_percent',
+        'base_unit_amount',
         'attended_at',
         'attendance_marked_by',
     ];
@@ -35,6 +39,10 @@ class TicketPurchase extends Model
             'resale_price' => 'decimal:2',
             'resale_listed_at' => 'datetime',
             'last_transferred_at' => 'datetime',
+            'early_bird_applied' => 'boolean',
+            'early_bird_discount_percent' => 'decimal:2',
+            'bundle_discount_percent' => 'decimal:2',
+            'base_unit_amount' => 'decimal:2',
         ];
     }
 

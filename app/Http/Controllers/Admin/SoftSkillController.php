@@ -19,7 +19,8 @@ class SoftSkillController extends Controller
     {
         $result = [];
         foreach (self::ELEMENTS as $element) {
-            $result[$element] = (int) ($validated[$prefix . '_' . $element] ?? 0);
+            $column = $prefix . '_' . $element;
+            $result[$column] = (int) ($validated[$column] ?? 0);
         }
 
         return $result;
@@ -175,6 +176,15 @@ class SoftSkillController extends Controller
         }
 
         return back()->with('status', 'Soft skill category updated: ' . $category->name);
+    }
+
+    // Controller action: delete category.
+    public function destroyCategory(SoftSkillCategory $category)
+    {
+        $categoryName = $category->name;
+        $category->delete();
+
+        return back()->with('status', 'Soft skill category removed: ' . $categoryName);
     }
 
     // Controller action: assign event category.

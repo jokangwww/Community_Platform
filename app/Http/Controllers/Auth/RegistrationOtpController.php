@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +25,11 @@ class RegistrationOtpController extends Controller
     // Render registration form.
     public function showRegisterForm(): View
     {
-        return view('auth.register');
+        return view('auth.register', [
+            'faculties' => Department::query()
+                ->orderBy('name')
+                ->get(['name']),
+        ]);
     }
 
     // Step 1: Validate registration input, store pending user data in session, and send OTP email.
@@ -45,6 +50,13 @@ class RegistrationOtpController extends Controller
                 'nullable',
                 'string',
                 'max:255',
+            ],
+            'faculty' => [
+                Rule::requiredIf((string) $request->input('role') === 'student'),
+                'nullable',
+                'string',
+                'max:255',
+                Rule::exists('departments', 'name'),
             ],
             'position' => [
                 Rule::requiredIf((string) $request->input('role') === 'admin'),
@@ -87,6 +99,7 @@ class RegistrationOtpController extends Controller
             'student_id' => (string) $validated['role'] === 'club' ? null : ($validated['student_id'] ?? null),
             'ic_number' => (string) $validated['role'] === 'student' ? ($validated['ic_number'] ?? null) : null,
             'programme' => (string) $validated['role'] === 'student' ? ($validated['programme'] ?? null) : null,
+            'faculty' => (string) $validated['role'] === 'student' ? ($validated['faculty'] ?? null) : null,
             'position' => (string) $validated['role'] === 'admin' ? ($validated['position'] ?? null) : null,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
@@ -147,6 +160,7 @@ class RegistrationOtpController extends Controller
             'student_id' => $pending['student_id'] ?? null,
             'ic_number' => $pending['ic_number'] ?? null,
             'programme' => $pending['programme'] ?? null,
+            'faculty' => $pending['faculty'] ?? null,
             'position' => $pending['position'] ?? null,
             'email' => (string) $pending['email'],
             'password' => (string) $pending['password'],

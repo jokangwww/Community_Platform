@@ -40,8 +40,25 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            min-width: 82px;
+            height: 36px;
+            border: 1px solid #c4d6ed;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            padding: 0 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f1f1f !important;
+        }
+        .search-icon:hover {
+            background: #f8fbff;
+            color: #1f1f1f !important;
+        }
+        .search-icon:focus-visible {
+            color: #1f1f1f !important;
+            outline: 2px solid #9ab7e6;
+            outline-offset: 2px;
         }
         .posting-tabs {
             display: flex;
@@ -94,14 +111,15 @@
             display: flex;
             width: 100%;
             height: 100%;
-            transition: transform 0.3s ease;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
         }
         .posting-track img {
             width: 100%;
             height: 100%;
             flex: 0 0 100%;
             object-fit: contain;
-            background: #e0e0e0;
+            background: #eef3fa;
         }
         .posting-empty {
             display: flex;
@@ -114,41 +132,68 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid #2f2f2f;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.42);
+            background: rgba(15, 23, 42, 0.68);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(4px);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            color: #fff;
+            opacity: 1;
+            pointer-events: auto;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            z-index: 2;
+        }
+        .carousel-btn:hover {
+            background: rgba(15, 23, 42, 0.85);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45);
+        }
+        .carousel-btn:focus-visible {
+            outline: 2px solid #93c5fd;
+            outline-offset: 2px;
         }
         .carousel-btn.prev {
-            left: 8px;
+            left: 12px;
         }
         .carousel-btn.next {
-            right: 8px;
+            right: 12px;
+        }
+        .carousel-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        .carousel-btn path {
+            stroke: #fff !important;
         }
         .carousel-dots {
             position: absolute;
-            bottom: 8px;
+            bottom: 12px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 6px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 4px 8px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            padding: 5px 10px;
             border-radius: 999px;
         }
         .carousel-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #b0b0b0;
+            background: rgba(255, 255, 255, 0.45);
+            transition: width 0.2s ease, background 0.2s ease;
         }
         .carousel-dot.active {
-            background: #1f1f1f;
+            width: 18px;
+            border-radius: 999px;
+            background: #fff;
         }
         .posting-body {
             display: flex;
@@ -373,6 +418,12 @@
             .posting-media {
                 width: 100%;
             }
+            .carousel-btn {
+                opacity: 1;
+                pointer-events: auto;
+                width: 38px;
+                height: 38px;
+            }
         }
     </style>
 
@@ -382,14 +433,9 @@
             <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search">
             <select name="lifecycle">
                 <option value="all" @selected(($filters['lifecycle'] ?? 'all') === 'all')>All</option>
-                <option value="current" @selected(($filters['lifecycle'] ?? 'all') === 'current')>Current</option>
-                <option value="outdated" @selected(($filters['lifecycle'] ?? 'all') === 'outdated')>Outdated</option>
+                <option value="now" @selected(($filters['lifecycle'] ?? 'all') === 'now')>Available Now</option>
             </select>
-            <span class="search-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="#111"/>
-                </svg>
-            </span>
+            <button type="submit" class="search-icon">Search</button>
         </form>
     </div>
 
@@ -522,6 +568,34 @@
                                             @endforeach
                                         @endif
                                     </div>
+                                    @php
+                                        $earlyBirdEnabled = (bool) ($ticketSetting?->early_bird_enabled ?? false);
+                                        $earlyBirdFaculties = collect($ticketSetting?->early_bird_faculties ?? [])->filter()->values();
+                                        $earlyBirdYears = collect($ticketSetting?->early_bird_study_years ?? [])->filter()->values();
+                                        $earlyBirdRoles = collect($ticketSetting?->early_bird_roles ?? [])->map(fn ($role) => ucfirst((string) $role))->filter()->values();
+                                        $eligibleParts = [];
+                                        if ($earlyBirdFaculties->isNotEmpty()) {
+                                            $eligibleParts[] = 'Faculty: ' . $earlyBirdFaculties->implode(', ');
+                                        }
+                                        if ($earlyBirdYears->isNotEmpty()) {
+                                            $eligibleParts[] = 'Student Session/Year: ' . $earlyBirdYears->implode(', ');
+                                        }
+                                        if ($earlyBirdRoles->isNotEmpty()) {
+                                            $eligibleParts[] = 'Role: ' . $earlyBirdRoles->implode(', ');
+                                        }
+                                        $earlyBirdEligibleText = $eligibleParts !== []
+                                            ? implode(' | ', $eligibleParts)
+                                            : 'All students';
+                                    @endphp
+                                    @if ($earlyBirdEnabled)
+                                        <div><strong>Early Bird Eligible:</strong> {{ $earlyBirdEligibleText }}</div>
+                                        <div>
+                                            <strong>Early Bird Period:</strong>
+                                            {{ optional($ticketSetting?->early_bird_start_at)->format('Y-m-d H:i') ?: '-' }}
+                                            to
+                                            {{ optional($ticketSetting?->early_bird_end_at)->format('Y-m-d H:i') ?: '-' }}
+                                        </div>
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -536,8 +610,10 @@
                                         <button type="button" class="register-btn" disabled>Outdated</button>
                                     @elseif ($isFull)
                                         <button type="button" class="register-btn" disabled>Full</button>
-                                    @elseif (($posting->status ?? 'open') !== 'open')
+                                    @elseif (($posting->status ?? 'open') === 'closed')
                                         <button type="button" class="register-btn" disabled>Closed</button>
+                                    @elseif (($posting->status ?? 'open') === 'none')
+                                        {{-- No action button for "none" status. --}}
                                     @else
                                         @php
                                             $eventEnded = ($posting->event->status ?? 'in_progress') === 'ended';

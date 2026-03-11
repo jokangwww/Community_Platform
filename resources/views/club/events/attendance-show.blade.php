@@ -156,7 +156,7 @@
                         <tr>
                             <td>{{ $registration->student->name ?? 'Unknown' }}</td>
                             <td>{{ $registration->student->student_id ?? '-' }}</td>
-                            <td>{{ $registration->student->department ?? '-' }}</td>
+                            <td>{{ $registration->student->faculty ?? '-' }}</td>
                             <td>{{ $registration->attended_at ? 'Present (' . $registration->attended_at->format('Y-m-d H:i') . ')' : 'Absent' }}</td>
                             <td>
                                 @if (! $registration->attended_at)
@@ -234,4 +234,3 @@
         </section>
     @endif
 @endsection
-

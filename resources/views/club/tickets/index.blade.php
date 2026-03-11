@@ -157,6 +157,47 @@
             font-size: 13px;
             color: #666;
         }
+        .eb-select-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .eb-add {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #aac4e6;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            color: #0b4ea5;
+            font-weight: 700;
+        }
+        .eb-selected-list {
+            display: grid;
+            gap: 8px;
+        }
+        .eb-chip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border: 1px solid #cfe0f5;
+            border-radius: 10px;
+            background: #fff;
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #1f1f1f;
+        }
+        .eb-remove {
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #c4d6ed;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            color: #555;
+        }
         .status-banner {
             margin-top: 12px;
             padding: 10px 12px;
@@ -217,6 +258,18 @@
                     $setting = $event->ticketSetting;
                     $useOldBundle = (string) old('event_id') === (string) $event->id;
                     $bundles = $setting?->bundle_discounts ?? [];
+                    $earlyBirdEnabled = $useOldBundle
+                        ? old('early_bird_enabled') === '1'
+                        : (bool) ($setting?->early_bird_enabled ?? false);
+                    $selectedEarlyBirdFaculties = $useOldBundle
+                        ? (array) old('early_bird_faculties', [])
+                        : (array) ($setting?->early_bird_faculties ?? []);
+                    $selectedEarlyBirdYears = $useOldBundle
+                        ? (array) old('early_bird_study_years', [])
+                        : (array) ($setting?->early_bird_study_years ?? []);
+                    $selectedEarlyBirdRoles = $useOldBundle
+                        ? (array) old('early_bird_roles', [])
+                        : (array) ($setting?->early_bird_roles ?? []);
                     if ($useOldBundle) {
                         $oldQty = old('bundle_quantity', []);
                         $oldPercent = old('bundle_discount_percent', []);
@@ -291,6 +344,101 @@
                                     <div class="bundle-empty" data-bundle-empty>No bundle rules added yet.</div>
                                 @endforelse
                             </div>
+                        </div>
+                        <div class="bundle-box">
+                            <div class="bundle-header">
+                                <div class="bundle-title">Early Bird Settings</div>
+                            </div>
+                            <div class="field">
+                                <label>
+                                    <input type="checkbox" name="early_bird_enabled" value="1" @checked($earlyBirdEnabled)>
+                                    Enable early bird access
+                                </label>
+                            </div>
+                            <div class="row">
+                                <div class="field">
+                                    <label>Early Bird Start</label>
+                                    <input type="datetime-local" name="early_bird_start_at" value="{{ old('early_bird_start_at', optional($setting?->early_bird_start_at)->format('Y-m-d\\TH:i')) }}">
+                                </div>
+                                <div class="field">
+                                    <label>Early Bird End</label>
+                                    <input type="datetime-local" name="early_bird_end_at" value="{{ old('early_bird_end_at', optional($setting?->early_bird_end_at)->format('Y-m-d\\TH:i')) }}">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Early Bird Discount %</label>
+                                <input type="number" name="early_bird_discount_percent" min="0.01" max="100" step="0.01" value="{{ old('early_bird_discount_percent', $setting?->early_bird_discount_percent ?? '') }}" placeholder="e.g. 20">
+                            </div>
+                            <div class="field">
+                                <label>Eligible Faculties</label>
+                                <div class="eb-select-row">
+                                    <select data-eb-select>
+                                        <option value="">Select faculty</option>
+                                        @foreach (($availableFaculties ?? []) as $faculty)
+                                            <option value="{{ $faculty }}">{{ $faculty }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="eb-add" data-eb-add data-input-name="early_bird_faculties[]">Add</button>
+                                </div>
+                                <div class="eb-selected-list" data-eb-list data-input-name="early_bird_faculties[]">
+                                    @forelse ($selectedEarlyBirdFaculties as $faculty)
+                                        <div class="eb-chip" data-eb-item data-value="{{ $faculty }}">
+                                            <span>{{ $faculty }}</span>
+                                            <input type="hidden" name="early_bird_faculties[]" value="{{ $faculty }}">
+                                            <button type="button" class="eb-remove" data-eb-remove>Remove</button>
+                                        </div>
+                                    @empty
+                                        <div class="bundle-empty" data-eb-empty>No faculty selected.</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Eligible Student Sessions / Years</label>
+                                <div class="eb-select-row">
+                                    <select data-eb-select>
+                                        <option value="">Select session/year</option>
+                                        @foreach (($availableStudyYears ?? []) as $studyYear)
+                                            <option value="{{ $studyYear }}">{{ $studyYear }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="eb-add" data-eb-add data-input-name="early_bird_study_years[]">Add</button>
+                                </div>
+                                <div class="eb-selected-list" data-eb-list data-input-name="early_bird_study_years[]">
+                                    @forelse ($selectedEarlyBirdYears as $studyYear)
+                                        <div class="eb-chip" data-eb-item data-value="{{ $studyYear }}">
+                                            <span>{{ $studyYear }}</span>
+                                            <input type="hidden" name="early_bird_study_years[]" value="{{ $studyYear }}">
+                                            <button type="button" class="eb-remove" data-eb-remove>Remove</button>
+                                        </div>
+                                    @empty
+                                        <div class="bundle-empty" data-eb-empty>No session/year selected.</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Eligible Roles</label>
+                                <div class="eb-select-row">
+                                    <select data-eb-select>
+                                        <option value="">Select role</option>
+                                        @foreach (($availableEarlyBirdRoles ?? []) as $earlyRole)
+                                            <option value="{{ $earlyRole }}">{{ ucfirst($earlyRole) }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="eb-add" data-eb-add data-input-name="early_bird_roles[]">Add</button>
+                                </div>
+                                <div class="eb-selected-list" data-eb-list data-input-name="early_bird_roles[]">
+                                    @forelse ($selectedEarlyBirdRoles as $earlyRole)
+                                        <div class="eb-chip" data-eb-item data-value="{{ $earlyRole }}">
+                                            <span>{{ ucfirst($earlyRole) }}</span>
+                                            <input type="hidden" name="early_bird_roles[]" value="{{ $earlyRole }}">
+                                            <button type="button" class="eb-remove" data-eb-remove>Remove</button>
+                                        </div>
+                                    @empty
+                                        <div class="bundle-empty" data-eb-empty>No role selected.</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="bundle-empty">Tip: If no faculty/year/role is selected, all students are eligible during early bird window.</div>
                         </div>
                         <div class="ticket-actions">
                             <button type="submit">Save Ticket Settings</button>
@@ -369,6 +517,80 @@
                 });
 
                 refreshEmptyState(box);
+            });
+
+            function refreshEarlyBirdEmpty(list, message) {
+                if (!list) return;
+                var itemCount = list.querySelectorAll('[data-eb-item]').length;
+                var empty = list.querySelector('[data-eb-empty]');
+                if (itemCount === 0 && !empty) {
+                    var hint = document.createElement('div');
+                    hint.className = 'bundle-empty';
+                    hint.setAttribute('data-eb-empty', '1');
+                    hint.textContent = message || 'No selection.';
+                    list.appendChild(hint);
+                }
+                if (itemCount > 0 && empty) {
+                    empty.remove();
+                }
+            }
+
+            document.querySelectorAll('[data-eb-add]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var field = button.closest('.field');
+                    if (!field) return;
+                    var select = field.querySelector('[data-eb-select]');
+                    var list = field.querySelector('[data-eb-list]');
+                    if (!select || !list) return;
+
+                    var value = (select.value || '').trim();
+                    if (!value) return;
+
+                    var exists = Array.from(list.querySelectorAll('[data-eb-item]')).some(function (node) {
+                        return (node.getAttribute('data-value') || '') === value;
+                    });
+                    if (exists) return;
+
+                    var option = select.options[select.selectedIndex];
+                    var label = option ? option.text : value;
+                    var inputName = button.getAttribute('data-input-name') || '';
+
+                    var row = document.createElement('div');
+                    row.className = 'eb-chip';
+                    row.setAttribute('data-eb-item', '1');
+                    row.setAttribute('data-value', value);
+                    row.innerHTML = '<span></span><input type="hidden"><button type="button" class="eb-remove" data-eb-remove>Remove</button>';
+                    row.querySelector('span').textContent = label;
+                    var hidden = row.querySelector('input[type=\"hidden\"]');
+                    hidden.name = inputName;
+                    hidden.value = value;
+
+                    list.appendChild(row);
+                    var hint = list.querySelector('[data-eb-empty]');
+                    if (hint) hint.remove();
+                });
+            });
+
+            document.querySelectorAll('[data-eb-list]').forEach(function (list) {
+                list.addEventListener('click', function (event) {
+                    var target = event.target;
+                    if (!(target instanceof HTMLElement) || !target.matches('[data-eb-remove]')) {
+                        return;
+                    }
+                    var row = target.closest('[data-eb-item]');
+                    if (row) row.remove();
+                    var message = 'No selection.';
+                    if ((list.getAttribute('data-input-name') || '') === 'early_bird_faculties[]') message = 'No faculty selected.';
+                    if ((list.getAttribute('data-input-name') || '') === 'early_bird_study_years[]') message = 'No session/year selected.';
+                    if ((list.getAttribute('data-input-name') || '') === 'early_bird_roles[]') message = 'No role selected.';
+                    refreshEarlyBirdEmpty(list, message);
+                });
+
+                var msg = 'No selection.';
+                if ((list.getAttribute('data-input-name') || '') === 'early_bird_faculties[]') msg = 'No faculty selected.';
+                if ((list.getAttribute('data-input-name') || '') === 'early_bird_study_years[]') msg = 'No session/year selected.';
+                if ((list.getAttribute('data-input-name') || '') === 'early_bird_roles[]') msg = 'No role selected.';
+                refreshEarlyBirdEmpty(list, msg);
             });
         })();
     </script>

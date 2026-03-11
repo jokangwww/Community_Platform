@@ -127,7 +127,19 @@
                 </div>
                 <div class="actions">
                     <button type="button" class="btn" data-rule-add>Add Position Rule</button>
-                    <button type="submit" class="btn">Save Category</button>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button type="submit" class="btn">Save Category</button>
+                        <button
+                            type="submit"
+                            class="btn"
+                            formaction="{{ route('admin.soft-skills.categories.destroy', $category) }}"
+                            formnovalidate
+                            onclick="return confirm('Remove this soft skill category? This will also unset it from events.')"
+                            style="border-color:#b71c1c; color:#b71c1c;"
+                        >
+                            Remove Category
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

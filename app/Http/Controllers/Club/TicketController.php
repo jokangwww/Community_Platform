@@ -5,12 +5,48 @@ namespace App\Http\Controllers\Club;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventTicketSetting;
+use App\Models\BuddyParticipant;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class TicketController extends Controller
 {
+    private function normalizeStringArray(array $items): array
+    {
+        $clean = array_map(fn ($item) => trim((string) $item), $items);
+        $filled = array_values(array_filter($clean, fn ($value) => $value !== ''));
+
+        return array_values(array_unique($filled));
+    }
+
+    private function availableFaculties(): array
+    {
+        return DB::table('departments')
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function availableStudyYears(): array
+    {
+        return User::query()
+            ->where('role', 'student')
+            ->whereNotNull('study_year')
+            ->pluck('study_year')
+            ->map(fn ($year) => trim((string) $year))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     // Normalize dynamic bundle discount rows and keep only valid quantity/discount combinations.
     private function normalizeBundleDiscounts(array $quantities, array $percents): array
     {
@@ -72,6 +108,9 @@ class TicketController extends Controller
         return view('club.tickets.index', [
             'events' => $events,
             'search' => $search,
+            'availableFaculties' => $this->availableFaculties(),
+            'availableStudyYears' => $this->availableStudyYears(),
+            'availableEarlyBirdRoles' => ['mentor'],
         ]);
     }
 
@@ -99,7 +138,71 @@ class TicketController extends Controller
             'bundle_quantity.*' => ['nullable', 'integer', 'min:2', 'max:100'],
             'bundle_discount_percent' => ['nullable', 'array'],
             'bundle_discount_percent.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'early_bird_enabled' => ['nullable', 'in:1'],
+            'early_bird_start_at' => ['nullable', 'date'],
+            'early_bird_end_at' => ['nullable', 'date'],
+            'early_bird_discount_percent' => ['nullable', 'numeric', 'min:0.01', 'max:100'],
+            'early_bird_faculties' => ['nullable', 'array'],
+            'early_bird_faculties.*' => ['nullable', 'string', 'max:255'],
+            'early_bird_study_years' => ['nullable', 'array'],
+            'early_bird_study_years.*' => ['nullable', 'string', 'max:100'],
+            'early_bird_roles' => ['nullable', 'array'],
+            'early_bird_roles.*' => ['nullable', 'string', 'max:50'],
         ]);
+
+        $earlyBirdEnabled = ($validated['early_bird_enabled'] ?? null) === '1';
+        $selectedFaculties = $this->normalizeStringArray($validated['early_bird_faculties'] ?? []);
+        $selectedStudyYears = $this->normalizeStringArray($validated['early_bird_study_years'] ?? []);
+        $selectedRoles = $this->normalizeStringArray($validated['early_bird_roles'] ?? []);
+        $allowedRoles = ['mentor'];
+
+        if ($earlyBirdEnabled) {
+            if (empty($validated['early_bird_start_at']) || empty($validated['early_bird_end_at'])) {
+                return back()->withErrors(['early_bird_start_at' => 'Early bird start and end are required when early bird is enabled.']);
+            }
+
+            $earlyBirdStartAt = Carbon::parse((string) $validated['early_bird_start_at']);
+            $earlyBirdEndAt = Carbon::parse((string) $validated['early_bird_end_at']);
+            if ($earlyBirdEndAt->lessThanOrEqualTo($earlyBirdStartAt)) {
+                return back()->withErrors(['early_bird_end_at' => 'Early bird end must be later than early bird start.']);
+            }
+            if (empty($validated['early_bird_discount_percent'])) {
+                return back()->withErrors(['early_bird_discount_percent' => 'Early bird discount is required when early bird is enabled.']);
+            }
+
+            if ($selectedFaculties !== []) {
+                $knownFaculties = array_map('mb_strtolower', $this->availableFaculties());
+                foreach ($selectedFaculties as $faculty) {
+                    if (! in_array(mb_strtolower($faculty), $knownFaculties, true)) {
+                        return back()->withErrors(['early_bird_faculties' => 'Selected faculty "' . $faculty . '" does not exist in student data.']);
+                    }
+                }
+            }
+
+            if ($selectedStudyYears !== []) {
+                $knownYears = array_map('mb_strtolower', $this->availableStudyYears());
+                foreach ($selectedStudyYears as $year) {
+                    if (! in_array(mb_strtolower($year), $knownYears, true)) {
+                        return back()->withErrors(['early_bird_study_years' => 'Selected student session/year "' . $year . '" does not exist in student data.']);
+                    }
+                }
+            }
+
+            foreach ($selectedRoles as $role) {
+                if (! in_array($role, $allowedRoles, true)) {
+                    return back()->withErrors(['early_bird_roles' => 'Invalid early bird role: ' . $role]);
+                }
+                if ($role === 'mentor') {
+                    $mentorExists = BuddyParticipant::query()
+                        ->where('role', 'mentor')
+                        ->where('status', 'active')
+                        ->exists();
+                    if (! $mentorExists) {
+                        return back()->withErrors(['early_bird_roles' => 'No mentor records found in student database.']);
+                    }
+                }
+            }
+        }
 
         // Persist ticket numbering config while ensuring numbering does not move backwards.
         $setting = EventTicketSetting::firstOrNew([
@@ -116,6 +219,19 @@ class TicketController extends Controller
             $validated['bundle_quantity'] ?? [],
             $validated['bundle_discount_percent'] ?? []
         ) ?: null;
+        $setting->early_bird_enabled = $earlyBirdEnabled;
+        $setting->early_bird_start_at = $earlyBirdEnabled && ! empty($validated['early_bird_start_at'])
+            ? Carbon::parse((string) $validated['early_bird_start_at'])
+            : null;
+        $setting->early_bird_end_at = $earlyBirdEnabled && ! empty($validated['early_bird_end_at'])
+            ? Carbon::parse((string) $validated['early_bird_end_at'])
+            : null;
+        $setting->early_bird_discount_percent = $earlyBirdEnabled
+            ? round((float) ($validated['early_bird_discount_percent'] ?? 0), 2)
+            : null;
+        $setting->early_bird_faculties = $earlyBirdEnabled ? ($selectedFaculties ?: null) : null;
+        $setting->early_bird_study_years = $earlyBirdEnabled ? ($selectedStudyYears ?: null) : null;
+        $setting->early_bird_roles = $earlyBirdEnabled ? ($selectedRoles ?: null) : null;
 
         $minLast = $setting->start_number - 1;
         $setting->last_number = max($setting->last_number ?? -1, $minLast);

@@ -132,7 +132,7 @@
             border: 1px solid #94a6c2;
             background: #fff;
             text-decoration: none;
-            color: var(--text-main);
+            color: var(--text-main) !important;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
@@ -142,12 +142,21 @@
             background: var(--primary);
             color: #fff;
         }
-        .btn-primary:hover {
+        .btn-primary:hover,
+        .btn-primary:focus-visible {
             background: var(--primary-dark);
             border-color: var(--primary-dark);
+            color: #fff;
         }
-        .btn:hover {
+        .btn:not(.btn-primary):hover {
             background: #f8fbff;
+            color: var(--text-main) !important;
+        }
+        .btn:not(.btn-primary):focus-visible {
+            background: #f8fbff;
+            color: var(--text-main) !important;
+            outline: 2px solid #9ab7e6;
+            outline-offset: 2px;
         }
         .help-text {
             color: var(--text-muted);
@@ -281,7 +290,7 @@
 
                 <div class="form-section">
                     <div class="form-actions">
-                        <a class="btn" href="{{ route('club.event-posting.mine') }}">Cancel</a>
+                        <a class="btn btn-primary" href="{{ route('club.event-posting.mine') }}">Cancel</a>
                         <button class="btn btn-primary" type="submit">Create Posting</button>
                     </div>
                 </div>

@@ -206,6 +206,18 @@
                     <input id="programme" name="programme" type="text" placeholder="e.g. Diploma in Business Information Systems" value="{{ old('programme') }}">
                 </div>
 
+                <div class="field" id="faculty-field" style="display:none;">
+                    <label for="faculty">Faculty</label>
+                    <select id="faculty" name="faculty">
+                        <option value="">Select faculty</option>
+                        @foreach (($faculties ?? collect()) as $facultyOption)
+                            <option value="{{ $facultyOption->name }}" {{ old('faculty') === $facultyOption->name ? 'selected' : '' }}>
+                                {{ $facultyOption->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="field" id="position-field" style="display:none;">
                     <label for="position">Position</label>
                     <input id="position" name="position" type="text" placeholder="e.g. Student Affairs Officer" value="{{ old('position') }}">
@@ -273,6 +285,8 @@
             var icNumberInput = document.getElementById('ic_number');
             var programmeField = document.getElementById('programme-field');
             var programmeInput = document.getElementById('programme');
+            var facultyField = document.getElementById('faculty-field');
+            var facultyInput = document.getElementById('faculty');
             var positionField = document.getElementById('position-field');
             var positionInput = document.getElementById('position');
             var clubAttachmentField = document.getElementById('club-attachment-field');
@@ -375,6 +389,17 @@
                     programmeInput.required = isStudent;
                     if (!isStudent) {
                         programmeInput.value = '';
+                    }
+                }
+
+                if (facultyField) {
+                    facultyField.style.display = isStudent ? 'block' : 'none';
+                }
+
+                if (facultyInput) {
+                    facultyInput.required = isStudent;
+                    if (!isStudent) {
+                        facultyInput.value = '';
                     }
                 }
 

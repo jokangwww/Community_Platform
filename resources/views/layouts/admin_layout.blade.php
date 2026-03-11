@@ -518,7 +518,7 @@
                 <li><a class="nav-link {{ request()->routeIs('admin.event-proposals.*') ? 'is-active' : '' }}" href="{{ route('admin.event-proposals.index') }}">Event Proposals</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.event-postings.*') ? 'is-active' : '' }}" href="{{ route('admin.event-postings.index') }}">Event Posting</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.locations.*') ? 'is-active' : '' }}" href="{{ route('admin.locations.index') }}">Location</a></li>
-                <li><a class="nav-link {{ request()->routeIs('admin.departments.*') ? 'is-active' : '' }}" href="{{ route('admin.departments.index') }}">Departments</a></li>
+                <li><a class="nav-link {{ request()->routeIs('admin.departments.*') ? 'is-active' : '' }}" href="{{ route('admin.departments.index') }}">Faculties</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.soft-skills.*') ? 'is-active' : '' }}" href="{{ route('admin.soft-skills.index') }}">Soft Skill Points</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.feedback.*') ? 'is-active' : '' }}" href="{{ route('admin.feedback.index') }}">Feedback</a></li>
                 <li><a class="nav-link {{ request()->routeIs('admin.live-stream.*') ? 'is-active' : '' }}" href="{{ route('admin.live-stream.index') }}">Live Stream</a></li>

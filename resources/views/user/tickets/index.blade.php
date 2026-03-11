@@ -34,6 +34,8 @@
         .ticket-actions .buy { border-color:#19703a; color:#19703a; }
         .ticket-actions .secondary { border-color:#0b4ea5; color:#0b4ea5; }
         .ticket-note { margin-top:8px; font-size:13px; color:#555; }
+        .ticket-history { margin-top: 14px; border-top: 1px dashed #c8d8ef; padding-top: 12px; }
+        .ticket-history h4 { margin: 0 0 8px; font-size: 16px; }
         .empty-box { margin-top: 12px; border:1px dashed #bfd2ea; border-radius:12px; padding:14px; color:#4b6079; background: #f8fbff; }
         @media (max-width: 920px) {
             .ticket-filters { grid-template-columns:1fr; }
@@ -121,6 +123,27 @@
                         </article>
                     @endforeach
                 </div>
+
+                <section class="ticket-history">
+                    <h4>Resale Sales History</h4>
+                    @if (($resaleSales ?? collect())->isEmpty())
+                        <div class="empty-box" style="margin-top: 8px;">No resale sales history yet.</div>
+                    @else
+                        <div class="ticket-list">
+                            @foreach ($resaleSales as $sale)
+                                <article class="ticket-card">
+                                    <h3>{{ $sale->event_name ?? 'Event' }}</h3>
+                                    <div class="ticket-meta">
+                                        <div><strong>Ticket Number:</strong> {{ $sale->ticket_number }}</div>
+                                        <div><strong>Sold Price:</strong> {{ $sale->currency }} {{ number_format((float) $sale->amount, 2) }}</div>
+                                        <div><strong>Buyer:</strong> {{ $sale->buyer_name }} ({{ $sale->buyer_student_id ?: '-' }})</div>
+                                        <div><strong>Purchased At:</strong> {{ \Illuminate\Support\Carbon::parse($sale->purchased_at)->format('Y-m-d h:i A') }}</div>
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+                    @endif
+                </section>
             @endif
         @else
             @if ($resellListings->isEmpty())
@@ -138,11 +161,9 @@
                                 <div><strong>Listed At:</strong> {{ optional($ticket->resale_listed_at)->format('Y-m-d h:i A') ?: '-' }}</div>
                             </div>
                             <div class="ticket-actions">
-                                <form method="POST" action="{{ route('user.tickets.buy', $ticket) }}" onsubmit="return confirm('Buy this resale ticket? Ownership will transfer to your account.');">
-                                    @csrf
-                                    <input type="text" value="Buy this ticket at listed resale price" readonly>
-                                    <button type="submit" class="buy">Buy Resell Ticket</button>
-                                </form>
+                                <a href="{{ route('user.tickets.resell.checkout', $ticket) }}" class="buy" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:9px 10px;border-radius:10px;border:1px solid #19703a;">
+                                    Buy via PayPal
+                                </a>
                             </div>
                             <div class="ticket-note">System enforces resale price <= original ticket price.</div>
                         </article>
@@ -152,4 +173,3 @@
         @endif
     </section>
 @endsection
-

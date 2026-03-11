@@ -60,6 +60,62 @@
         .softskill-scroll {
             overflow-x: auto;
         }
+        .portfolio-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .portfolio-pill {
+            border: 1px solid #d9e4f5;
+            border-radius: 8px;
+            background: #f5f9ff;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: #35557d;
+        }
+        .portfolio-pill strong {
+            display: block;
+            font-size: 16px;
+            color: #1f3f68;
+        }
+        .buddy-list {
+            margin: 10px 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 8px;
+        }
+        .buddy-item {
+            border: 1px solid #e7e7e7;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #2f2f2f;
+        }
+        .buddy-meta {
+            font-size: 12px;
+            color: #686868;
+            margin-top: 3px;
+        }
+        .buddy-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 12px;
+            margin-top: 8px;
+        }
+        .buddy-kv strong {
+            color: #2c2c2c;
+        }
+        .buddy-subtitle {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #4c4c4c;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
         .panel-title {
             font-size: 14px;
             font-weight: 600;
@@ -237,6 +293,12 @@
                 grid-template-columns: 1fr;
             }
             .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .portfolio-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .buddy-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -425,6 +487,16 @@
                         <div class="status-text" style="color: #b00020;">{{ $message }}</div>
                     @enderror
                 </div>
+                <div class="form-row" id="faculty-row">
+                    <label for="faculty_display">Faculty</label>
+                    <input
+                        id="faculty_display"
+                        type="text"
+                        value="{{ $user?->faculty ?? '' }}"
+                        placeholder="Faculty"
+                        readonly
+                    >
+                </div>
             </div>
             <div class="section-title" style="margin-top: 16px;">About the User</div>
             <div class="form-row full" style="margin-top: 10px;">
@@ -503,6 +575,193 @@
                 </div>
             @endif
         </div>
+        <div class="profile-panel">
+            <div class="section-title">Buddy Programme Profile</div>
+            @php
+                $buddy = $buddyProfile ?? null;
+            @endphp
+            @if (! $buddy)
+                <div class="status-text" style="margin-top: 10px; color: #4a4a4a;">No active Buddy Programme record found.</div>
+            @elseif (($buddy['role'] ?? null) === 'mentee')
+                <div class="buddy-grid">
+                    <div class="buddy-kv"><strong>Name:</strong> {{ $buddy['participant']['name'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Faculty:</strong> {{ $buddy['participant']['faculty'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Course:</strong> {{ $buddy['participant']['course'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Area of Interest:</strong> {{ $buddy['participant']['expertise'] ?? '-' }}</div>
+                </div>
+
+                <div class="buddy-subtitle">Active Mentor Assignment</div>
+                @if (! empty($buddy['active_assignment']))
+                    <ul class="buddy-list">
+                        <li class="buddy-item">
+                            <div><strong>Mentor:</strong> {{ $buddy['active_assignment']['mentor_name'] ?? '-' }}</div>
+                            <div class="buddy-meta">
+                                {{ $buddy['active_assignment']['subject'] ?? 'N/A' }}
+                                | Matched on {{ $buddy['active_assignment']['matched_date'] ?? '-' }}
+                            </div>
+                        </li>
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No active mentor assignment.</div>
+                @endif
+
+                <div class="buddy-subtitle">Attendance History</div>
+                @if (! empty($buddy['attendance_history']) && count($buddy['attendance_history']) > 0)
+                    <ul class="buddy-list">
+                        @foreach ($buddy['attendance_history'] as $attendance)
+                            <li class="buddy-item">
+                                <div><strong>{{ $attendance['topic'] ?? 'Session' }}</strong> ({{ $attendance['attendance'] ?? '-' }})</div>
+                                <div class="buddy-meta">
+                                    {{ $attendance['session_date'] ?? '-' }} {{ $attendance['session_time'] ?? '' }}
+                                    | Mentor: {{ $attendance['counterparty_name'] ?? '-' }}
+                                    | {{ ucfirst((string) ($attendance['status'] ?? '')) }}
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No attendance history yet.</div>
+                @endif
+
+                <div class="buddy-subtitle">Past Feedback Ratings</div>
+                @if (! empty($buddy['feedback_ratings']) && count($buddy['feedback_ratings']) > 0)
+                    <ul class="buddy-list">
+                        @foreach ($buddy['feedback_ratings'] as $rating)
+                            <li class="buddy-item">
+                                <div><strong>{{ $rating['subject'] ?? 'Session' }}</strong> - {{ $rating['rating'] ?? 0 }}/5</div>
+                                <div class="buddy-meta">Mentor: {{ $rating['mentor_name'] ?? '-' }} | {{ $rating['submitted_at'] ?? '-' }}</div>
+                                @if (! empty($rating['feedback']))
+                                    <div class="buddy-meta">{{ $rating['feedback'] }}</div>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No feedback ratings submitted yet.</div>
+                @endif
+            @else
+                <div class="buddy-grid">
+                    <div class="buddy-kv"><strong>Username:</strong> {{ $buddy['participant']['username'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Name:</strong> {{ $buddy['participant']['name'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Faculty:</strong> {{ $buddy['participant']['faculty'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Area of Expertise:</strong> {{ $buddy['participant']['expertise'] ?? '-' }}</div>
+                    <div class="buddy-kv"><strong>Times Served:</strong> {{ $buddy['times_served'] ?? 0 }}</div>
+                    <div class="buddy-kv"><strong>Average Rating:</strong> {{ number_format((float) ($buddy['average_rating'] ?? 0), 2) }}/5</div>
+                </div>
+
+                <div class="buddy-subtitle">Endorsements By Skill</div>
+                @if (! empty($buddy['endorsements_by_skill']) && count($buddy['endorsements_by_skill']) > 0)
+                    <ul class="buddy-list">
+                        @foreach ($buddy['endorsements_by_skill'] as $endorsement)
+                            <li class="buddy-item">
+                                <div><strong>{{ $endorsement['skill'] ?? 'Skill' }}</strong></div>
+                                <div class="buddy-meta">
+                                    {{ $endorsement['endorsements'] ?? 0 }} endorsement(s)
+                                    | Avg: {{ number_format((float) ($endorsement['average_rating'] ?? 0), 2) }}/5
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No endorsements yet.</div>
+                @endif
+
+                <div class="buddy-subtitle">Active Mentorship Sessions</div>
+                @if (! empty($buddy['active_sessions']) && count($buddy['active_sessions']) > 0)
+                    <ul class="buddy-list">
+                        @foreach ($buddy['active_sessions'] as $session)
+                            <li class="buddy-item">
+                                <div><strong>{{ $session['topic'] ?? 'Session' }}</strong> ({{ $session['subject'] ?? 'N/A' }})</div>
+                                <div class="buddy-meta">
+                                    {{ $session['session_date'] ?? '-' }} {{ $session['session_time'] ?? '' }}
+                                    | Mentee: {{ $session['mentee_name'] ?? '-' }}
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No active sessions currently.</div>
+                @endif
+
+                <div class="buddy-subtitle">Testimonial Records</div>
+                @if (! empty($buddy['testimonial_records']) && count($buddy['testimonial_records']) > 0)
+                    <ul class="buddy-list">
+                        @foreach ($buddy['testimonial_records'] as $testimonial)
+                            <li class="buddy-item">
+                                <div><strong>{{ $testimonial['semester_year'] ?? '-' }}</strong> ({{ ucfirst((string) ($testimonial['status'] ?? '')) }})</div>
+                                <div class="buddy-meta">
+                                    Sessions: {{ $testimonial['total_sessions'] ?? 0 }}
+                                    | Mentees: {{ $testimonial['total_mentees'] ?? 0 }}
+                                    | Score: {{ number_format((float) ($testimonial['avg_feedback_score'] ?? 0), 2) }}/5
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="status-text" style="margin-top: 8px; color: #4a4a4a;">No testimonial records yet.</div>
+                @endif
+
+                <div style="margin-top: 10px;">
+                    @if (! empty($buddy['testimonial_enabled']) && ! empty($buddy['has_approved_testimonial']))
+                        <a href="{{ route('buddy-programme') }}" class="action-btn" style="width: auto; display: inline-block;">
+                            Download Certificate / Reference Letter
+                        </a>
+                    @elseif (! empty($buddy['testimonial_enabled']))
+                        <div class="status-text" style="margin: 0; color: #4a4a4a;">Testimonial is enabled, but no approved certificate is available yet.</div>
+                    @else
+                        <div class="status-text" style="margin: 0; color: #4a4a4a;">Testimonial display is currently disabled by admin.</div>
+                    @endif
+                </div>
+            @endif
+        </div>
+        <div class="profile-panel">
+            <div class="section-title">Profile Portfolio</div>
+            @php
+                $portfolioStats = $portfolioStats ?? [];
+                $portfolioItems = $portfolioItems ?? collect();
+            @endphp
+            <div class="portfolio-summary">
+                <div class="portfolio-pill"><strong>{{ (int) ($portfolioStats['total_events'] ?? 0) }}</strong>Total Events</div>
+                <div class="portfolio-pill"><strong>{{ (int) ($portfolioStats['joined_events'] ?? 0) }}</strong>Joined</div>
+                <div class="portfolio-pill"><strong>{{ (int) ($portfolioStats['organized_events'] ?? 0) }}</strong>Organized</div>
+                <div class="portfolio-pill"><strong>{{ (int) ($portfolioStats['certificates_earned'] ?? 0) }}</strong>Certificates</div>
+            </div>
+            <div style="margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap;">
+                <a href="{{ route('profile.portfolio.download') }}" class="action-btn" style="width:auto; display:inline-block;">
+                    Generate & Download Portfolio PDF
+                </a>
+            </div>
+            @if (! empty($portfolioStats['has_soft_skill_certificate']))
+                <div class="status-text" style="margin-top: 8px;">Soft Skill Certificate included in portfolio summary.</div>
+            @endif
+
+            @if ($portfolioItems->isEmpty())
+                <div class="status-text" style="margin-top: 10px; color: #4a4a4a;">No joined or organized events to preview yet.</div>
+            @else
+                <div class="softskill-scroll" style="margin-top: 10px;">
+                    <table class="softskill-table">
+                        <thead>
+                            <tr>
+                                <th>Event Title</th>
+                                <th>Date</th>
+                                <th>Roles</th>
+                                <th>Certificates</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($portfolioItems as $item)
+                                <tr>
+                                    <td>{{ $item['title'] ?? '-' }}</td>
+                                    <td>{{ $item['date_range'] ?? '-' }}</td>
+                                    <td>{{ !empty($item['roles']) ? implode(', ', $item['roles']) : 'N/A' }}</td>
+                                    <td>{{ !empty($item['certificates']) ? implode(', ', $item['certificates']) : 'None' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     </div>
     <script>
         (function () {
@@ -518,12 +777,14 @@
             const icNumberField = document.getElementById('ic_number');
             const programmeRow = document.getElementById('programme-row');
             const programmeField = document.getElementById('programme');
+            const facultyRow = document.getElementById('faculty-row');
 
             const toggleStudentFields = () => {
-                if (!roleField || !icNumberRow || !icNumberField || !programmeRow || !programmeField) return;
+                if (!roleField || !icNumberRow || !icNumberField || !programmeRow || !programmeField || !facultyRow) return;
                 const isStudent = roleField.value === 'student';
                 icNumberRow.style.display = isStudent ? 'flex' : 'none';
                 programmeRow.style.display = isStudent ? 'flex' : 'none';
+                facultyRow.style.display = isStudent ? 'flex' : 'none';
                 icNumberField.required = isStudent;
                 programmeField.required = isStudent;
                 if (!isStudent) {

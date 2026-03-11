@@ -436,6 +436,8 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
         ->name('profile');
     Route::get('/profile/soft-skill-certificate', [ProfileController::class, 'certificate'])
         ->name('profile.soft-skill-certificate');
+    Route::get('/profile/portfolio/download', [ProfileController::class, 'downloadPortfolioPdf'])
+        ->name('profile.portfolio.download');
     Route::put('/profile', [ProfileController::class, 'update'])
         ->name('profile.update');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])
@@ -463,6 +465,12 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
         ->name('user.tickets.resell');
     Route::post('/events/e-ticket/{ticket}/resell/cancel', [UserTicketController::class, 'cancelResale'])
         ->name('user.tickets.resell.cancel');
+    Route::get('/events/e-ticket/{ticket}/resell/checkout', [UserTicketController::class, 'resaleCheckout'])
+        ->name('user.tickets.resell.checkout');
+    Route::post('/events/e-ticket/{ticket}/resell/paypal/create', [UserTicketController::class, 'createResaleOrder'])
+        ->name('user.tickets.resell.paypal.create');
+    Route::post('/events/e-ticket/{ticket}/resell/paypal/capture', [UserTicketController::class, 'captureResaleOrder'])
+        ->name('user.tickets.resell.paypal.capture');
     Route::post('/events/e-ticket/{ticket}/buy', [UserTicketController::class, 'buyResale'])
         ->name('user.tickets.buy');
     Route::post('/events/{event}/paypal/create', [UserTicketController::class, 'createOrder'])
@@ -524,6 +532,10 @@ Route::get('/event-posting/{posting}', function (Posting $posting) {
             'posting' => $posting,
             'streamViewerCount' => $posting->event?->activeStreamViewerCount() ?? 0,
         ]);
+    }
+
+    if ($posting->outdated_at && $posting->outdated_at->lte(now())) {
+        abort(404);
     }
 
     $favoriteIds = $user->favoritePostings()
@@ -744,6 +756,9 @@ Route::post('/admin/soft-skills/categories', [AdminSoftSkillController::class, '
 Route::post('/admin/soft-skills/categories/{category}', [AdminSoftSkillController::class, 'updateCategory'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.soft-skills.categories.update');
+Route::post('/admin/soft-skills/categories/{category}/delete', [AdminSoftSkillController::class, 'destroyCategory'])
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.soft-skills.categories.destroy');
 Route::post('/admin/soft-skills/events/apply-category', [AdminSoftSkillController::class, 'applyCategoryToAll'])
     ->middleware(['auth', 'role:admin'])
     ->name('admin.soft-skills.events.apply-category');
@@ -803,6 +818,7 @@ Route::prefix('club')->middleware(['auth', 'role:club'])->group(function () {
     Route::get('/events/{event}', [EventController::class, 'show'])->name('club.events.show');
     Route::get('/events/{event}/edit', [EventController::class, 'edit'])->name('club.events.edit');
     Route::put('/events/{event}', [EventController::class, 'update'])->name('club.events.update');
+    Route::post('/events/{event}/resubmit', [EventController::class, 'resubmit'])->name('club.events.resubmit');
     Route::post('/events/{event}/stream', [EventController::class, 'updateStream'])->name('club.events.stream.update');
     Route::post('/events/{event}/committee-positions', [EventController::class, 'updateCommitteePositions'])
         ->name('club.events.committee-positions.update');

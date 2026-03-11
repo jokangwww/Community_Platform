@@ -68,6 +68,20 @@
             font-size: 13px;
             color: #1f7a1f;
         }
+        .capacity-note {
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #4a4a4a;
+        }
+        .earlybird-note {
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #0b4ea5;
+            border: 1px solid #bfd2ea;
+            border-radius: 8px;
+            background: #f5f9ff;
+            padding: 8px 10px;
+        }
     </style>
 
     <div class="checkout-header">
@@ -80,10 +94,16 @@
         <div class="checkout-amount">
             Base price: {{ $setting->currency }} {{ number_format($setting->price, 2) }}
         </div>
+        @if (! is_null($remainingTickets))
+            <div class="capacity-note">Available tickets: {{ max((int) $remainingTickets, 0) }}</div>
+        @endif
+        @if (($earlyBird['active'] ?? false) && ($earlyBird['eligible'] ?? false))
+            <div class="earlybird-note">Early bird active for your account: {{ rtrim(rtrim(number_format((float) ($earlyBird['discount_percent'] ?? 0), 2), '0'), '.') }}% off will be applied automatically.</div>
+        @endif
         <div class="checkout-breakdown">
             <div class="checkout-row">
                 <span>Quantity</span>
-                <input id="ticket-quantity" type="number" min="1" max="100" step="1" value="1">
+                <input id="ticket-quantity" type="number" min="1" max="{{ is_null($remainingTickets) ? 100 : max((int) $remainingTickets, 1) }}" step="1" value="1">
             </div>
             <div class="checkout-row">
                 <span>Bundle discount</span>
@@ -110,6 +130,10 @@
             var currency = "{{ $setting->currency }}";
             var basePrice = {{ number_format((float) $setting->price, 2, '.', '') }};
             var bundleDiscounts = @json($bundleDiscounts ?? []);
+            var earlyBirdActive = {{ (($earlyBird['active'] ?? false) && ($earlyBird['eligible'] ?? false)) ? 'true' : 'false' }};
+            var earlyBirdPercent = {{ number_format((float) ($earlyBird['discount_percent'] ?? 0), 2, '.', '') }};
+            var remainingTickets = {{ is_null($remainingTickets) ? 'null' : max((int) $remainingTickets, 0) }};
+            var maxQuantity = remainingTickets === null ? 100 : Math.max(Math.min(remainingTickets, 100), 1);
 
             function showStatus(message, isError) {
                 if (!statusBox) return;
@@ -121,7 +145,7 @@
             function currentQuantity() {
                 var value = parseInt((quantityInput && quantityInput.value) || '1', 10);
                 if (isNaN(value) || value < 1) value = 1;
-                if (value > 100) value = 100;
+                if (value > maxQuantity) value = maxQuantity;
                 if (quantityInput) quantityInput.value = String(value);
                 return value;
             }
@@ -137,20 +161,25 @@
 
             function updateSummary() {
                 var qty = currentQuantity();
-                var discount = resolveDiscount(qty);
+                var bundleDiscount = resolveDiscount(qty);
+                var earlyBirdDiscount = earlyBirdActive ? earlyBirdPercent : 0;
+                var discount = Math.min(100, bundleDiscount + earlyBirdDiscount);
                 var subtotal = basePrice * qty;
                 var total = Math.max(subtotal - (subtotal * (discount / 100)), 0);
                 if (discountText) {
-                    discountText.textContent = discount.toFixed(2).replace(/\.00$/, '') + '%';
+                    var parts = [];
+                    if (bundleDiscount > 0) parts.push('Bundle ' + bundleDiscount.toFixed(2).replace(/\.00$/, '') + '%');
+                    if (earlyBirdDiscount > 0) parts.push('Early bird ' + earlyBirdDiscount.toFixed(2).replace(/\.00$/, '') + '%');
+                    discountText.textContent = parts.length ? (discount.toFixed(2).replace(/\.00$/, '') + '% (' + parts.join(' + ') + ')') : '0%';
                 }
                 if (totalText) {
                     totalText.textContent = currency + ' ' + total.toFixed(2);
                 }
                 if (bundleNote) {
-                    if (bundleDiscounts.length === 0) {
-                        bundleNote.textContent = 'No bundle discounts for this event.';
-                    } else if (discount > 0) {
-                        bundleNote.textContent = 'Bundle price applied for quantity ' + qty + '.';
+                    if (bundleDiscounts.length === 0 && earlyBirdDiscount <= 0) {
+                        bundleNote.textContent = 'No discount applied for this event.';
+                    } else if (bundleDiscount > 0 || earlyBirdDiscount > 0) {
+                        bundleNote.textContent = 'Discount applied automatically for quantity ' + qty + '.';
                     } else {
                         bundleNote.textContent = 'No bundle discount for quantity ' + qty + '.';
                     }
@@ -174,7 +203,12 @@
                         },
                         body: JSON.stringify({ quantity: qty })
                     }).then(function (res) {
-                        return res.json();
+                        return res.json().then(function (data) {
+                            if (!res.ok) {
+                                throw new Error((data && data.message) ? data.message : 'Unable to create PayPal order.');
+                            }
+                            return data;
+                        });
                     }).then(function (data) {
                         if (!data || !data.id) {
                             throw new Error('Order ID missing');
@@ -192,19 +226,24 @@
                         },
                         body: JSON.stringify({ orderID: data.orderID, quantity: qty })
                     }).then(function (res) {
-                        return res.json();
+                        return res.json().then(function (payload) {
+                            if (!res.ok) {
+                                throw new Error((payload && payload.message) ? payload.message : 'Payment capture failed.');
+                            }
+                            return payload;
+                        });
                     }).then(function (result) {
                         if (result.ticketId) {
                             window.location.href = "{{ route('tickets.success', ['event' => $event, 'ticket' => '__TICKET__']) }}".replace('__TICKET__', result.ticketId);
                         } else {
-                            showStatus('Payment completed but ticket not created.', true);
+                            showStatus(result && result.message ? result.message : 'Payment completed but ticket not created.', true);
                         }
-                    }).catch(function () {
-                        showStatus('Payment failed. Please try again.', true);
+                    }).catch(function (error) {
+                        showStatus(error && error.message ? error.message : 'Payment failed. Please try again.', true);
                     });
                 },
-                onError: function () {
-                    showStatus('PayPal error. Please try again.', true);
+                onError: function (error) {
+                    showStatus((error && error.message) ? error.message : 'PayPal error. Please try again.', true);
                 }
             }).render('#paypal-button-container');
         })();

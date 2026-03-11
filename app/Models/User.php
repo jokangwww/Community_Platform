@@ -17,6 +17,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $student_id
  * @property string|null $ic_number
  * @property string|null $programme
+ * @property string|null $faculty
  * @property string|null $staff_id
  * @property string|null $contact_information
  */
@@ -37,6 +38,7 @@ class User extends Authenticatable
         'staff_id',
         'study_year',
         'department',
+        'faculty',
         'programme',
         'position',
         'contact_information',

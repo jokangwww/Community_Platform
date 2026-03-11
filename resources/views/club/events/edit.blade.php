@@ -545,7 +545,7 @@
                 @if (is_array(old('faculty_name')))
                     @foreach (old('faculty_name') as $index => $name)
                         <div class="faculty-row">
-                            <input type="text" name="faculty_name[]" list="department-options" value="{{ $name }}" placeholder="Type to find department">
+                            <input type="text" name="faculty_name[]" list="faculty-options" value="{{ $name }}" placeholder="Type to find faculty">
                             <input type="number" name="faculty_limit[]" min="1" max="100000" value="{{ old('faculty_limit.' . $index) }}" placeholder="Limit">
                             <button type="button" class="faculty-remove">Remove</button>
                         </div>
@@ -553,16 +553,16 @@
                 @else
                     @foreach ($event->facultyLimits as $limit)
                         <div class="faculty-row">
-                            <input type="text" name="faculty_name[]" list="department-options" value="{{ $limit->faculty_name }}" placeholder="Type to find department">
+                            <input type="text" name="faculty_name[]" list="faculty-options" value="{{ $limit->faculty_name }}" placeholder="Type to find faculty">
                             <input type="number" name="faculty_limit[]" min="1" max="100000" value="{{ $limit->limit }}" placeholder="Limit">
                             <button type="button" class="faculty-remove">Remove</button>
                         </div>
                     @endforeach
                 @endif
             </div>
-            <datalist id="department-options">
-                @foreach (($departments ?? collect()) as $department)
-                    <option value="{{ $department->name }}"></option>
+            <datalist id="faculty-options">
+                @foreach (($faculties ?? collect()) as $faculty)
+                    <option value="{{ $faculty->name }}"></option>
                 @endforeach
             </datalist>
             <button type="button" id="faculty_add" class="faculty-add">Add faculty limit</button>
@@ -962,8 +962,8 @@
                 var nameInput = document.createElement('input');
                 nameInput.type = 'text';
                 nameInput.name = 'faculty_name[]';
-                nameInput.placeholder = 'Type to find department';
-                nameInput.setAttribute('list', 'department-options');
+                nameInput.placeholder = 'Type to find faculty';
+                nameInput.setAttribute('list', 'faculty-options');
                 nameInput.value = nameValue || '';
 
                 var limitInput = document.createElement('input');

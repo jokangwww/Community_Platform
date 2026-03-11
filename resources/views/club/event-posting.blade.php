@@ -119,14 +119,15 @@
             display: flex;
             width: 100%;
             height: 100%;
-            transition: transform 0.3s ease;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
         }
         .posting-track img {
             width: 100%;
             height: 100%;
             flex: 0 0 100%;
             object-fit: contain;
-            background: #e0e0e0;
+            background: #eef3fa;
         }
         .posting-empty {
             display: flex;
@@ -139,41 +140,68 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid #2f2f2f;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.42);
+            background: rgba(15, 23, 42, 0.68);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(4px);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            color: #fff;
+            opacity: 1;
+            pointer-events: auto;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            z-index: 2;
+        }
+        .carousel-btn:hover {
+            background: rgba(15, 23, 42, 0.85);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45);
+        }
+        .carousel-btn:focus-visible {
+            outline: 2px solid #93c5fd;
+            outline-offset: 2px;
         }
         .carousel-btn.prev {
-            left: 8px;
+            left: 12px;
         }
         .carousel-btn.next {
-            right: 8px;
+            right: 12px;
+        }
+        .carousel-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        .carousel-btn path {
+            stroke: #fff !important;
         }
         .carousel-dots {
             position: absolute;
-            bottom: 8px;
+            bottom: 12px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 6px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 4px 8px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            padding: 5px 10px;
             border-radius: 999px;
         }
         .carousel-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #b0b0b0;
+            background: rgba(255, 255, 255, 0.45);
+            transition: width 0.2s ease, background 0.2s ease;
         }
         .carousel-dot.active {
-            background: #1f1f1f;
+            width: 18px;
+            border-radius: 999px;
+            background: #fff;
         }
         .posting-body {
             display: flex;
@@ -371,6 +399,12 @@
             }
             .posting-media {
                 width: 100%;
+            }
+            .carousel-btn {
+                opacity: 1;
+                pointer-events: auto;
+                width: 38px;
+                height: 38px;
             }
         }
     </style>

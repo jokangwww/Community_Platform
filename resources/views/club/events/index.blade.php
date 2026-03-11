@@ -128,6 +128,10 @@
             display: grid;
             gap: 14px;
         }
+        .event-item {
+            display: grid;
+            gap: 8px;
+        }
         .event-card {
             border: 1px solid #d6dfee;
             border-radius: 14px;
@@ -239,6 +243,34 @@
             padding: 3px 10px;
             background: #f8fbff;
         }
+        .rejection-reason {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #f0b9b6;
+            background: #fff1f0;
+            color: #8d1d1d;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .event-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .resubmit-btn {
+            padding: 8px 12px;
+            border-radius: 9px;
+            border: 1px solid var(--brand);
+            background: var(--brand);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .resubmit-btn:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
         .empty-state {
             margin-top: 18px;
             padding: 30px 22px;
@@ -314,30 +346,46 @@
         @else
             <div class="events-list">
                 @foreach ($events as $event)
-                    <a class="event-card" href="{{ route('club.events.show', $event) }}">
-                        <div class="event-logo">
-                            @if ($event->logo_path)
-                                <img src="{{ asset('storage/' . $event->logo_path) }}" alt="{{ $event->name }} logo">
-                            @else
-                                No Logo
-                            @endif
-                        </div>
-                        <div class="event-meta">
-                            <div class="event-head">
-                                <h3 class="event-name">{{ $event->name }}</h3>
-                                <div class="badge-row">
-                                    @if (($event->status ?? 'in_progress') === 'ended')
-                                        <span class="event-status">Ended</span>
-                                    @endif
-                                    <span class="approval-status approval-{{ $event->approval_status ?? 'approved' }}">
-                                        {{ ucfirst($event->approval_status ?? 'approved') }}
-                                    </span>
-                                </div>
+                    <div class="event-item">
+                        <a class="event-card" href="{{ route('club.events.show', $event) }}">
+                            <div class="event-logo">
+                                @if ($event->logo_path)
+                                    <img src="{{ asset('storage/' . $event->logo_path) }}" alt="{{ $event->name }} logo">
+                                @else
+                                    No Logo
+                                @endif
                             </div>
-                            <p>{{ $event->description }}</p>
-                            <span class="event-footer">Open event to view details and actions</span>
-                        </div>
-                    </a>
+                            <div class="event-meta">
+                                <div class="event-head">
+                                    <h3 class="event-name">{{ $event->name }}</h3>
+                                    <div class="badge-row">
+                                        @if (($event->status ?? 'in_progress') === 'ended')
+                                            <span class="event-status">Ended</span>
+                                        @endif
+                                        <span class="approval-status approval-{{ $event->approval_status ?? 'approved' }}">
+                                            {{ ucfirst($event->approval_status ?? 'approved') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <p>{{ $event->description }}</p>
+                                @if (($event->approval_status ?? '') === 'rejected' && $event->rejection_reason)
+                                    <div class="rejection-reason">
+                                        <strong>Rejected Reason:</strong> {{ $event->rejection_reason }}
+                                    </div>
+                                @endif
+                                <span class="event-footer">Open event to view details and actions</span>
+                            </div>
+                        </a>
+
+                        @if (($event->approval_status ?? '') === 'rejected')
+                            <div class="event-actions">
+                                <form method="POST" action="{{ route('club.events.resubmit', $event) }}">
+                                    @csrf
+                                    <button type="submit" class="resubmit-btn">Resubmit Application</button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
                 @endforeach
             </div>
         @endif

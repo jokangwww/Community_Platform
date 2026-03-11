@@ -30,9 +30,16 @@ class DatabaseSeeder extends Seeder
         ]);
 
         DB::table('departments')->insertOrIgnore([
-            ['name' => 'General', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Finance Department', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Computer Science Department', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Accountancy, Finance and Business', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Applied Sciences', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Computing and Information Technology', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Built Environment', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Engineering and Technology', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Communication and Creative Industries', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Social Science and Humanities', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Hospitality and Tourism Management', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Business Studies', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Faculty of Pre-University and Professional Studies', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $club = User::factory()->create([
@@ -57,7 +64,8 @@ class DatabaseSeeder extends Seeder
             'role' => 'student',
             'student_id' => '26WMR12345',
             'study_year' => 'Year 1',
-            'department' => 'General',
+            'department' => null,
+            'faculty' => 'Faculty of Computing and Information Technology',
             'password' => $password,
             'email_verified_at' => now(),
         ]);
