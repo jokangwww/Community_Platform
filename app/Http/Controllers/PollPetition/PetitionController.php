@@ -189,51 +189,6 @@ class PetitionController extends Controller
         return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
     }
 
-    /**
-     * User dashboard: petitions the user created or supported.
-     */
-    public function userDashboard(): JsonResponse
-    {
-        $userId = Auth::id();
-
-        // Petitions user created
-        $created = Petition::with(['supports'])
-            ->where('user_id', $userId)
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn($p) => [
-                'id'          => (string) $p->id,
-                'title'       => $p->title,
-                'description' => $p->description,
-                'supporters'  => $p->supports->count(),
-                'status'      => $p->status,
-                'createdByMe' => true,
-                'iSupported'  => $p->hasUserSupported($userId),
-            ]);
-
-        // Petitions user supported but did not create
-        $supportedIds = PetitionSupport::where('user_id', $userId)->pluck('petition_id');
-        $supported = Petition::with(['supports'])
-            ->whereIn('id', $supportedIds)
-            ->where('user_id', '!=', $userId)
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn($p) => [
-                'id'          => (string) $p->id,
-                'title'       => $p->title,
-                'description' => $p->description,
-                'supporters'  => $p->supports->count(),
-                'status'      => $p->status,
-                'createdByMe' => false,
-                'iSupported'  => true,
-            ]);
-
-        return response()->json([
-            'created'   => $created,
-            'supported' => $supported,
-        ]);
-    }
-
     /* ── Formatting helpers ───────────────────────── */
 
     private function formatPetitionCard(Petition $petition, int $userId): array

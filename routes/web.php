@@ -315,8 +315,6 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
 
     // Evaluation Routes - Require authentication and buddy participant status
     Route::middleware(['auth', 'buddy.participant'])->prefix('evaluations')->name('evaluations.')->group(function () {
-        // Route::get('/', [\App\Http\Controllers\Buddy\EvaluationController::class, 'index'])
-        //     ->name('list');
         Route::post('/', [\App\Http\Controllers\Buddy\EvaluationController::class, 'store'])
             ->name('store');
         Route::get('/check', [\App\Http\Controllers\Buddy\EvaluationController::class, 'checkSubmission'])
@@ -884,8 +882,6 @@ Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')
         ->name('polls.vote');
     Route::post('/polls/{id}/rate', [\App\Http\Controllers\PollPetition\PollController::class, 'rate'])
         ->name('polls.rate');
-    Route::get('/polls/dashboard/my', [\App\Http\Controllers\PollPetition\PollController::class, 'userDashboard'])
-        ->name('polls.dashboard');
 
     // Petitions
     Route::get('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'index'])
@@ -900,8 +896,6 @@ Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')
         ->name('petitions.support');
     Route::get('/petitions/{petitionId}/attachments/{attachmentId}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'downloadAttachment'])
         ->name('petitions.attachment');
-    Route::get('/petitions/dashboard/my', [\App\Http\Controllers\PollPetition\PetitionController::class, 'userDashboard'])
-        ->name('petitions.dashboard');
 
     // Dashboard (combined polls + petitions for user dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\PollPetition\PollPetitionDashboardController::class, 'index'])

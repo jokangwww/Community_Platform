@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Separator } from "../ui/separator";
 import {
   MessageCircle,
-  Heart,
   CheckCircle2,
   Bell,
   TrendingUp,
@@ -24,13 +19,7 @@ import {
   Users,
   ThumbsUp,
   Bookmark,
-  Calendar,
   AlertCircle,
-  Flame,
-  Trophy,
-  Settings,
-  Edit3,
-  User
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
@@ -81,25 +70,6 @@ interface PetitionParticipation {
   createdByMe: boolean;
 }
 
-interface CampusVoice {
-  id: string;
-  title: string;
-  type: "poll" | "petition";
-  totalVotes: number;
-  totalInteractions: number;
-  author: string;
-  authorAvatar: string;
-}
-
-interface CampusConcern {
-  id: string;
-  title: string;
-  type: "poll" | "petition";
-  currentParticipants: number;
-  weekOverWeekIncrease: number;
-  category: string;
-}
-
 interface UserDashboardProps {
   userId: string;
   userNickname: string;
@@ -110,24 +80,8 @@ interface UserDashboardProps {
 
 export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, onPetitionClick }: UserDashboardProps) {
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterTag, setFilterTag] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("forum");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [nickname, setNickname] = useState(userNickname);
-  const [bio, setBio] = useState("");
-
-  const handleSave = () => {
-    if (nickname.trim()) {
-      // Handle save logic here
-      setIsEditing(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setNickname(userNickname);
-    setIsEditing(false);
-  };
 
   // Forum stats from API
   const [stats, setStats] = useState<UserStats>({
@@ -149,8 +103,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
   const [petitionParticipation, setPetitionParticipation] = useState<PetitionParticipation[]>([]);
   const [bookmarkedPolls, setBookmarkedPolls] = useState<PollParticipation[]>([]);
   const [bookmarkedPetitions, setBookmarkedPetitions] = useState<PetitionParticipation[]>([]);
-  const [topCampusVoices, setTopCampusVoices] = useState<CampusVoice[]>([]);
-  const [topCampusConcerns, setTopCampusConcerns] = useState<CampusConcern[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
 
   const getCsrfToken = useCallback(() => {
@@ -220,8 +172,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
           const createdPetitions = (data.petitions?.created || []).map((p: any) => ({ ...p, createdByMe: true }));
           const supportedPetitions = (data.petitions?.supported || []).map((p: any) => ({ ...p, createdByMe: false }));
           setPetitionParticipation([...createdPetitions, ...supportedPetitions]);
-          setTopCampusVoices(data.topCampusVoices || []);
-          setTopCampusConcerns(data.topCampusConcerns || []);
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -539,12 +489,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
                 </div>
               </Card>
             </div>
-
-            {/* Top 3 Campus Voices */}
-            
-
-            {/* Top 3 Campus Concerns */}
-            
 
             {/* My Poll Participation */}
             <Card className="p-6">
@@ -871,71 +815,6 @@ export function UserDashboard({ userId, userNickname, onPostClick, onPollClick, 
               )}
             </Card>
           </TabsContent>
-
-          {/* SETTINGS TAB */}
-          {/* <TabsContent value="settings" className="space-y-6 cursor-pointer"> */}
-            {/* Profile Card - Centered with max width */}
-            {/* <div className="max-w-2xl mx-auto cursor-pointer">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 cursor-pointer">
-                  <div className="flex flex-col items-center space-y-4 cursor-pointer">
-                    <Avatar className="h-20 w-20 cursor-pointer">
-                      <AvatarFallback className="text-xl cursor-pointer">
-                        {nickname.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    {isEditing ? (
-                      <div className="space-y-3 w-full max-w-md cursor-pointer">
-                        <div className="space-y-2 cursor-pointer">
-                          <Label htmlFor="nickname">Nickname</Label>
-                          <Input
-                            id="nickname"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
-                            placeholder="Enter your nickname"
-                            maxLength={20}
-                          />
-                        </div>
-                        <div className="flex gap-2 cursor-pointer">
-                          <Button onClick={handleSave} size="sm" className="flex-1 cursor-pointer">
-                            Save
-                          </Button>
-                          <Button onClick={handleCancel} variant="outline" size="sm" className="flex-1 cursor-pointer">
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center space-y-2 cursor-pointer">
-                        <h3 className="text-lg cursor-pointer">{nickname}</h3>
-                        <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-                          <Edit3 className="h-4 w-4 mr-2 cursor-pointer" />
-                          Edit Nickname
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2 max-w-md mx-auto cursor-pointer">
-                    <div className="flex justify-between text-sm cursor-pointer">
-                      <span className="text-muted-foreground cursor-pointer">Member since</span>
-                      <span>January 2024</span>
-                    </div>
-                    <div className="flex justify-between text-sm cursor-pointer">
-                      <span className="text-muted-foreground cursor-pointer">User ID</span>
-                      <span className="font-mono text-xs cursor-pointer">#{userId}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent> */}
         </Tabs>
       </div>
     </div>

@@ -2,8 +2,6 @@
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Badge } from "./components/ui/badge";
-import { Avatar, AvatarFallback } from "./components/ui/avatar";
 import { 
   MessageCircle, 
   BarChart3, 
@@ -12,9 +10,7 @@ import {
   Plus, 
   Filter, 
   Archive,
-  User,
   LayoutDashboard,
-  AlertCircle,
   Loader2,
 } from "lucide-react";
 import { PollCard } from "./components/poll-petition/PollCard";
