@@ -75,6 +75,7 @@ class ProfileController extends Controller
     // Helper method: soft skill summary.
     private function softSkillSummary(User $user): array
     {
+        // Participant points come from attended events (registration or ticket path).
         $attendedRegisterEventIds = EventRegistration::query()
             ->where('student_id', $user->id)
             ->whereNotNull('attended_at')
@@ -92,6 +93,7 @@ class ProfileController extends Controller
             $attendedTicketEventIds
         )));
 
+        // Volunteer points come from committee participation.
         $volunteerEventIds = DB::table('event_committees')
             ->where('user_id', $user->id)
             ->pluck('event_id')
@@ -107,6 +109,7 @@ class ProfileController extends Controller
             ];
         }
 
+        // Build quick lookup maps to avoid repeated searching during scoring.
         $participantMap = array_fill_keys($participantEventIds, true);
         $volunteerMap = array_fill_keys($volunteerEventIds, true);
         $committeePositionMap = DB::table('event_committees')
@@ -122,6 +125,7 @@ class ProfileController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'soft_skill_category_id']);
 
+        // For each event, combine participant base points + volunteer position-rule points.
         $breakdown = $events->map(function (Event $event) use ($participantMap, $volunteerMap, $committeePositionMap) {
             $category = $event->softSkillCategory;
             $participantScores = array_fill_keys(self::ELEMENTS, 0);
@@ -152,7 +156,7 @@ class ProfileController extends Controller
                     }
                 }
             }
-
+// Calculate sum of each elements.
             $totals = [];
             foreach (self::ELEMENTS as $element) {
                 $totals[$element] = $participantScores[$element] + $volunteerScores[$element];
@@ -169,6 +173,7 @@ class ProfileController extends Controller
             ]);
         });
 
+        // Aggregate all per-event element scores into profile-level totals.
         $elementTotals = array_fill_keys(self::ELEMENTS, 0);
         foreach ($breakdown as $item) {
             foreach (self::ELEMENTS as $element) {
@@ -183,6 +188,7 @@ class ProfileController extends Controller
         ];
     }
 
+    // Helper method: build buddy profile summary (role-specific data for mentee/mentor).
     private function buddyProfileSummary(User $user): ?array
     {
         $participant = BuddyParticipant::query()
@@ -390,6 +396,7 @@ class ProfileController extends Controller
         ]);
     }
 
+    // Helper method: collect portfolio records, certificates, and overall counters.
     private function portfolioSummary(User $user): array
     {
         $records = [];
@@ -523,6 +530,7 @@ class ProfileController extends Controller
         ];
     }
 
+    // Helper method: create the base shape for one portfolio event record.
     private function newPortfolioRecord(Event $event): array
     {
         return [
@@ -535,6 +543,7 @@ class ProfileController extends Controller
         ];
     }
 
+    // Helper method: format date range text shown in portfolio UI/PDF.
     private function formatDateRange(?string $startDate, ?string $endDate): string
     {
         if ($startDate === null && $endDate === null) {

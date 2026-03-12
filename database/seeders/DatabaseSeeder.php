@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Event;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -19,15 +20,17 @@ class DatabaseSeeder extends Seeder
     {
         $password = Hash::make('123123123');
 
-        $admin = User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@gmail.com',
-            'role' => 'admin',
-            'staff_id' => 'ADMIN-001',
-            'position' => 'System Admin',
-            'password' => $password,
-            'email_verified_at' => now(),
-        ]);
+        User::updateOrCreate(
+            ['email' => 'admin@gmail.com'],
+            [
+                'name' => 'Admin User',
+                'role' => 'admin',
+                'staff_id' => 'ADMIN-001',
+                'position' => 'System Admin',
+                'password' => $password,
+                'email_verified_at' => now(),
+            ]
+        );
 
         DB::table('departments')->insertOrIgnore([
             ['name' => 'Faculty of Accountancy, Finance and Business', 'created_at' => now(), 'updated_at' => now()],
@@ -42,44 +45,62 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Faculty of Pre-University and Professional Studies', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $club = User::factory()->create([
-            'name' => 'Club User',
-            'email' => 'club@gmail.com',
-            'role' => 'club',
-            'password' => $password,
-            'email_verified_at' => now(),
-        ]);
+        $club = User::updateOrCreate(
+            ['email' => 'club@gmail.com'],
+            [
+                'name' => 'Club User',
+                'role' => 'club',
+                'password' => $password,
+                'email_verified_at' => now(),
+            ]
+        );
 
-        DB::table('clubs')->insert([
+        DB::table('clubs')->updateOrInsert([
             'club_id' => $club->id,
+        ], [
             'club_category' => 'General',
             'staff_id' => 'CLUB-001',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $student = User::factory()->create([
-            'name' => 'Student User',
-            'email' => 'student@gmail.com',
-            'role' => 'student',
-            'student_id' => '26WMR12345',
-            'study_year' => 'Year 1',
-            'department' => null,
-            'faculty' => 'Faculty of Computing and Information Technology',
-            'password' => $password,
-            'email_verified_at' => now(),
-        ]);
+        User::updateOrCreate(
+            ['email' => 'student@gmail.com'],
+            [
+                'name' => 'Student User',
+                'role' => 'student',
+                'student_id' => '26WMR12345',
+                'study_year' => 'Year 1',
+                'department' => null,
+                'faculty' => 'Faculty of Computing and Information Technology',
+                'password' => $password,
+                'email_verified_at' => now(),
+            ]
+        );
 
-        DB::table('events')->insert([
-            'club_id' => 2,
-            'name' => 'Testing',
-            'description' => 'This is used for testing.',
-            'logo_path' => null,
-            'attachment_path' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        Event::updateOrCreate(
+            [
+                'club_id' => $club->id,
+                'name' => 'Testing',
+            ],
+            [
+                'description' => 'This is used for testing.',
+                'venue' => 'TAR UMT Main Campus',
+                'status' => 'in_progress',
+                'approval_status' => 'approved',
+                'registration_type' => 'register',
+                'participant_limit' => 80,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addDay()->toDateString(),
+                'logo_path' => null,
+                'attachment_path' => null,
+            ]
+        );
 
-        $this->call(DemoAccountsSeeder::class);
+        $this->call([
+            DemoAccountsSeeder::class,
+            TarumtClubEventPostingSeeder::class,
+            SoftSkillCategorySeeder::class,
+        ]);
     }
 }

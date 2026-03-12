@@ -17,10 +17,25 @@ class VendorBoothController extends Controller
         $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
         $vendor = $request->user();
+        $today = now()->toDateString();
 
         $events = Event::query()
-            ->with(['club', 'boothPlaces.booths'])
+            ->with([
+                'club',
+                'boothPlaces' => function ($query) use ($today) {
+                    $query->where(function ($inner) use ($today) {
+                        $inner->whereNull('end_date')
+                            ->orWhereDate('end_date', '>=', $today);
+                    })->with('booths');
+                },
+            ])
             ->where('approval_status', 'approved')
+            ->whereHas('boothPlaces', function ($query) use ($today) {
+                $query->where(function ($inner) use ($today) {
+                    $inner->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', $today);
+                });
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($inner) use ($q) {
                     $inner->where('name', 'like', '%' . $q . '%')
@@ -86,6 +101,13 @@ class VendorBoothController extends Controller
             ->find((int) $validated['selected_event_booth_id']);
         if (! $selectedBooth || (int) ($selectedBooth->boothPlace?->event_id) !== (int) $event->id) {
             return back()->withErrors(['selected_event_booth_id' => 'Selected booth is invalid for this event.']);
+        }
+
+        $boothEndDate = $selectedBooth->boothPlace?->end_date?->toDateString();
+        if ($boothEndDate !== null && $boothEndDate < now()->toDateString()) {
+            return back()->withErrors([
+                'selected_event_booth_id' => 'This booth rental period has ended and is no longer available.',
+            ]);
         }
 
         $currentApplication = VendorBoothApplication::query()

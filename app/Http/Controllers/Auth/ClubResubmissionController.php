@@ -12,6 +12,7 @@ use Illuminate\View\View;
 
 class ClubResubmissionController extends Controller
 {
+    // Show the resubmission form only when token + email still match a rejected club account.
     public function show(Request $request, string $token): View
     {
         $email = trim((string) $request->query('email', ''));
@@ -26,8 +27,10 @@ class ClubResubmissionController extends Controller
         ]);
     }
 
+    // Handle rejected club resubmission (new attachment + remark).
     public function submit(Request $request): RedirectResponse
     {
+        // Basic form validation for token, identity, file and remark.
         $validated = $request->validate([
             'token' => ['required', 'string'],
             'email' => ['required', 'email'],
@@ -35,6 +38,7 @@ class ClubResubmissionController extends Controller
             'resubmission_remark' => ['required', 'string', 'max:1000'],
         ]);
 
+        // Re-check token validity server-side before saving anything.
         $club = $this->resolveRejectedClub((string) $validated['email'], (string) $validated['token']);
         if (! $club instanceof User) {
             return back()->withErrors([
@@ -42,12 +46,14 @@ class ClubResubmissionController extends Controller
             ])->withInput($request->except('token', 'club_attachment'));
         }
 
+        // Replace old attachment file with the latest upload.
         if ($club->club_attachment_path) {
             Storage::delete($club->club_attachment_path);
         }
 
         $attachmentPath = $request->file('club_attachment')->store('club-attachments');
 
+        // Move account back to pending review and clear previous rejection token/reason.
         $club->update([
             'club_attachment_path' => $attachmentPath,
             'club_resubmission_remark' => trim((string) $validated['resubmission_remark']),
@@ -63,6 +69,7 @@ class ClubResubmissionController extends Controller
             ->with('status', 'Resubmission sent successfully. Your club account is pending admin approval.');
     }
 
+    // Resolve a rejected club by email + token hash + token expiry checks.
     private function resolveRejectedClub(string $email, string $token): ?User
     {
         $club = User::query()

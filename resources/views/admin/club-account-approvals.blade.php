@@ -3,6 +3,7 @@
 @section('title', 'Club Account Approvals')
 
 @section('content')
+    {{-- Page-scoped styles for the club approval admin screen --}}
     <style>
         .approval-header {
             padding: 12px 0;
@@ -118,13 +119,17 @@
         }
     </style>
 
+
     <div class="approval-header">
         <h2>Club Account Approvals</h2>
     </div>
 
+    {{-- Success message returned from controller actions (approve/reject) --}}
     @if (session('status'))
         <div class="approval-status">{{ session('status') }}</div>
     @endif
+
+    {{-- Validation errors (for example: missing rejection reason) --}}
     @if ($errors->any())
         <div class="approval-status" style="border-color:#f5c2c2;background:#ffecec;color:#7f1d1d;">
             <strong>Please correct the following:</strong>
@@ -136,6 +141,7 @@
         </div>
     @endif
 
+    {{-- Search + status filters for narrowing club approval records --}}
     <form method="GET" action="{{ route('admin.club-accounts.index') }}" class="approval-filters">
         <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search club name or email">
         <select name="status">
@@ -148,11 +154,14 @@
         <a href="{{ route('admin.club-accounts.index') }}">Reset</a>
     </form>
 
+
     <div class="approval-result">{{ $clubs->count() }} club account(s) found.</div>
 
     @if ($clubs->isEmpty())
+
         <div class="approval-empty">No club account requests found.</div>
     @else
+        {{-- Club approval cards --}}
         <div class="approval-list">
             @foreach ($clubs as $club)
                 <div class="approval-card">
@@ -178,6 +187,9 @@
                         </div>
                     </div>
 
+                    {{-- Card actions:
+                         - Approve shown unless already approved
+                         - Reject shown unless already rejected --}}
                     <div class="approval-actions">
                         @if (($club->club_approval_status ?? 'pending') !== 'approved')
                             <form method="POST" action="{{ route('admin.club-accounts.approve', $club) }}">

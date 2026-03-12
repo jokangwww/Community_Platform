@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -22,6 +23,7 @@ class PayPalService
     {
         $token = $this->getAccessToken();
 
+        /** @var Response $response */
         $response = Http::withToken($token)
             ->post($this->baseUrl . '/v2/checkout/orders', [
                 'intent' => 'CAPTURE',
@@ -47,6 +49,7 @@ class PayPalService
     {
         $token = $this->getAccessToken();
 
+        /** @var Response $response */
         $response = Http::withToken($token)
             ->withHeaders(['Content-Type' => 'application/json'])
             ->post($this->baseUrl . '/v2/checkout/orders/' . $orderId . '/capture', (object) []);
@@ -65,6 +68,7 @@ class PayPalService
             throw new RuntimeException('PayPal credentials are missing.');
         }
 
+        /** @var Response $response */
         $response = Http::asForm()
             ->withBasicAuth($this->clientId, $this->clientSecret)
             ->post($this->baseUrl . '/v1/oauth2/token', [

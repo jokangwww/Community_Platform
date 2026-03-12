@@ -161,9 +161,11 @@ class TicketController extends Controller
             return 0;
         }
 
-        $matched = $event->facultyLimits->first(function ($row) use ($studentFaculty) {
-            return $this->normalizedFaculty($row->faculty_name ?? null) === $studentFaculty;
-        });
+        $matched = $event->facultyLimits
+            ->filter(function ($row) use ($studentFaculty) {
+                return $this->normalizedFaculty($row->faculty_name ?? null) === $studentFaculty;
+            })
+            ->first();
 
         return $matched ? (int) $matched->limit : 0;
     }
@@ -387,7 +389,7 @@ class TicketController extends Controller
     }
 
     // Standard ticket purchase flow (checkout page, create PayPal order, capture payment, success page).
-    public function checkout(Request $request, Event $event): View
+    public function checkout(Request $request, Event $event): View|RedirectResponse
     {
         $user = $request->user();
 

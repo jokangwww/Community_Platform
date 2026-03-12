@@ -13,13 +13,16 @@ use Illuminate\View\View;
 
 class VendorRegistrationController extends Controller
 {
+    // Show vendor registration form.
     public function show(): View
     {
         return view('auth.vendor-register');
     }
 
+    // Handle vendor sign-up and sign the user in immediately.
     public function store(Request $request): RedirectResponse
     {
+        // Validate profile fields and enforce strong password policy.
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
@@ -34,6 +37,7 @@ class VendorRegistrationController extends Controller
             ],
         ]);
 
+        // Create vendor account with normalized values.
         $user = User::create([
             'name' => trim($validated['name']),
             'email' => strtolower(trim($validated['email'])),
@@ -45,6 +49,7 @@ class VendorRegistrationController extends Controller
             'club_approved_at' => now(),
         ]);
 
+        // Log in new vendor and rotate session ID.
         Auth::login($user);
         $request->session()->regenerate();
 

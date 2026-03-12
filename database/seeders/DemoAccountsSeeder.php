@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Event;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,57 @@ class DemoAccountsSeeder extends Seeder
                     'updated_at' => $now,
                 ]
             );
+
+            // Seed 3 past approved/ended events for demo club1 only.
+            if ($i === 1) {
+                $pastEvents = [
+                    [
+                        'name' => 'Club Leadership Sharing 2025',
+                        'description' => 'Past sharing session on leadership planning and committee transition.',
+                        'venue' => 'Block A Seminar Room',
+                        'participant_limit' => 60,
+                        'start_date' => now()->subMonths(4)->startOfMonth()->addDays(8)->toDateString(),
+                        'end_date' => now()->subMonths(4)->startOfMonth()->addDays(8)->toDateString(),
+                    ],
+                    [
+                        'name' => 'Community Service Day 2025',
+                        'description' => 'Past community outreach activity organized by the club committee.',
+                        'venue' => 'Student Commons',
+                        'participant_limit' => 120,
+                        'start_date' => now()->subMonths(3)->startOfMonth()->addDays(12)->toDateString(),
+                        'end_date' => now()->subMonths(3)->startOfMonth()->addDays(12)->toDateString(),
+                    ],
+                    [
+                        'name' => 'Academic Networking Meetup 2025',
+                        'description' => 'Past networking meetup for members, alumni, and student leaders.',
+                        'venue' => 'Lecture Theatre 3',
+                        'participant_limit' => 90,
+                        'start_date' => now()->subMonths(2)->startOfMonth()->addDays(16)->toDateString(),
+                        'end_date' => now()->subMonths(2)->startOfMonth()->addDays(16)->toDateString(),
+                    ],
+                ];
+
+                foreach ($pastEvents as $eventData) {
+                    Event::updateOrCreate(
+                        [
+                            'club_id' => $clubUser->id,
+                            'name' => $eventData['name'],
+                        ],
+                        [
+                            'description' => $eventData['description'],
+                            'venue' => $eventData['venue'],
+                            'status' => 'ended',
+                            'approval_status' => 'approved',
+                            'registration_type' => 'register',
+                            'participant_limit' => $eventData['participant_limit'],
+                            'start_date' => $eventData['start_date'],
+                            'end_date' => $eventData['end_date'],
+                            'logo_path' => null,
+                            'attachment_path' => null,
+                        ]
+                    );
+                }
+            }
         }
     }
 

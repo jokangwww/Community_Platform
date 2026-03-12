@@ -18,11 +18,13 @@ class PasswordResetController extends Controller
 {
     private const TOKEN_EXPIRY_MINUTES = 60;
 
+    // Render forgot-password page (email input form).
     public function showLinkRequestForm(): View
     {
         return view('auth.forgot-password');
     }
 
+    // Generate and email reset link if account exists (generic response to avoid account enumeration).
     public function sendResetLinkEmail(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -60,6 +62,7 @@ class PasswordResetController extends Controller
         return back()->with('status', 'If the email exists, a password reset link has been sent.');
     }
 
+    // Render reset-password page with token + email from link.
     public function showResetForm(Request $request, string $token): View
     {
         return view('auth.reset-password', [
@@ -68,8 +71,10 @@ class PasswordResetController extends Controller
         ]);
     }
 
+    // Validate token and update account password.
     public function reset(Request $request): RedirectResponse
     {
+        // Validate token/email/password strength + confirmation.
         $validated = $request->validate([
             'token' => ['required', 'string'],
             'email' => ['required', 'email'],
@@ -93,6 +98,7 @@ class PasswordResetController extends Controller
             ])->withInput($request->except('password', 'password_confirmation'));
         }
 
+        // Check token expiry window and token hash match.
         $createdAt = Carbon::parse($record->created_at);
         $isExpired = $createdAt->addMinutes(self::TOKEN_EXPIRY_MINUTES)->isPast();
         $isValidToken = Hash::check($validated['token'], $record->token);
@@ -110,6 +116,7 @@ class PasswordResetController extends Controller
             ]);
         }
 
+        // Persist new password and invalidate used reset token.
         $user->update([
             'password' => Hash::make($validated['password']),
         ]);

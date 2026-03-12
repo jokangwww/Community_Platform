@@ -9,6 +9,7 @@ use App\Models\StudentCalendarEvent;
 use App\Models\TicketPurchase;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -195,8 +196,8 @@ class CalendarController extends Controller
             $month = now()->startOfMonth();
         }
 
-        $calendarStart = $month->copy()->startOfWeek(Carbon::SUNDAY);
-        $calendarEnd = $month->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
+        $calendarStart = $month->copy()->startOfWeek(CarbonInterface::SUNDAY);
+        $calendarEnd = $month->copy()->endOfMonth()->endOfWeek(CarbonInterface::SATURDAY);
 
         $entries = StudentCalendarEvent::with('event.subEvents.locationPoint')
             ->where('student_id', $student->id)
@@ -208,7 +209,12 @@ class CalendarController extends Controller
             ->get();
 
         $entriesByDate = $entries->groupBy(function (StudentCalendarEvent $entry) {
-            return $entry->event_date?->format('Y-m-d');
+            $eventDate = $entry->event_date;
+            if ($eventDate instanceof \DateTimeInterface) {
+                return $eventDate->format('Y-m-d');
+            }
+
+            return $eventDate ? (string) $eventDate : null;
         });
 
         $days = [];

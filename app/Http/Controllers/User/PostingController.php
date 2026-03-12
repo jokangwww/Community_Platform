@@ -33,9 +33,11 @@ class PostingController extends Controller
             return 0;
         }
 
-        $matched = $event->facultyLimits->first(function ($row) use ($studentFaculty) {
-            return $this->normalizedFaculty($row->faculty_name ?? null) === $studentFaculty;
-        });
+        $matched = $event->facultyLimits
+            ->filter(function ($row) use ($studentFaculty) {
+                return $this->normalizedFaculty($row->faculty_name ?? null) === $studentFaculty;
+            })
+            ->first();
 
         return $matched ? (int) $matched->limit : 0;
     }
@@ -200,6 +202,10 @@ class PostingController extends Controller
 
         $conflictsByKey = [];
         foreach ($otherEvents as $otherEvent) {
+            if (! $otherEvent instanceof Event) {
+                continue;
+            }
+
             $otherSlots = $this->buildComparableSubEventSlots($otherEvent);
             if ($otherSlots === []) {
                 continue;
