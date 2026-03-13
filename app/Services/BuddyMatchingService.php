@@ -12,9 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class BuddyMatchingService
 {
-    /**
-     * Maximum mentees per mentor (can be made configurable)
-     */
     protected int $maxMenteesPerMentor = 3;
 
     /**
@@ -34,7 +31,6 @@ class BuddyMatchingService
         try {
             DB::beginTransaction();
 
-            // Get available mentors (active, with capacity)
             $mentors = $this->getAvailableMentors();
 
             // Get unmatched mentees sorted by priority
@@ -121,7 +117,7 @@ class BuddyMatchingService
             END")
             ->orderBy('created_at', 'asc');
         } else {
-            // Simple first-come, first-served
+            // first-come, first-served
             $query->orderBy('created_at', 'asc');
         }
 
@@ -137,23 +133,19 @@ class BuddyMatchingService
      */
     protected function tryMatchMentee(BuddyParticipant $mentee, Collection &$mentors): ?array
     {
-        // Get mentee's subject
         $menteeSubjectId = $mentee->subject_id;
 
         if (!$menteeSubjectId) {
             return null;
         }
 
-        // Find a mentor with the same subject and available capacity
+        // Find mentor
         foreach ($mentors as $mentorId => $mentor) {
-            // Check if mentor has capacity
             if ($mentor->mentor_matches_count >= $this->maxMenteesPerMentor) {
                 continue;
             }
 
-            // Check if mentor has the same subject
             if ($mentor->subject_id === $menteeSubjectId) {
-                // Create the match
                 $match = BuddyMatch::create([
                     'mentor_id' => $mentor->id,
                     'mentee_id' => $mentee->id,
@@ -165,16 +157,13 @@ class BuddyMatchingService
                     'completed_sessions' => 0,
                 ]);
 
-                // Populate the pivot table so participant-based queries work
                 $match->participants()->syncWithoutDetaching([
                     $mentor->id => ['role' => 'mentor'],
                     $mentee->id => ['role' => 'mentee'],
                 ]);
 
-                // Update mentor's match count in memory
                 $mentor->mentor_matches_count++;
 
-                // Notify both mentor and mentee about the match
                 $subjectName = $mentee->subject->name ?? 'N/A';
                 if ($mentor->user) {
                     $mentor->user->notify(new BuddyMatchedNotification($match, $mentee->full_name, $subjectName, 'mentor'));
@@ -328,7 +317,7 @@ class BuddyMatchingService
     }
 
     /**
-     * Preview what matches would be created without actually creating them
+     * Preview Auto Match
      * 
      * @return array
      */

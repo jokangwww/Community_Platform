@@ -88,6 +88,66 @@ class ForumTestSeeder extends Seeder
             $qaCatId = $qaCat->id;
         }
 
+        // New category: Campus Life & Events (general-discussion)
+        $campusLifeCat = DB::table('forum_categories')->where('name', 'Campus Life & Events')->first();
+        if (!$campusLifeCat) {
+            $campusLifeCatId = DB::table('forum_categories')->insertGetId([
+                'name' => 'Campus Life & Events',
+                'type' => 'general-discussion',
+                'description' => 'Share and discuss campus events, clubs, social activities, and student life.',
+                'icon' => 'discussion',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $campusLifeCatId = $campusLifeCat->id;
+        }
+
+        // New category: Career & Internship (general-discussion)
+        $careerCat = DB::table('forum_categories')->where('name', 'Career & Internship')->first();
+        if (!$careerCat) {
+            $careerCatId = DB::table('forum_categories')->insertGetId([
+                'name' => 'Career & Internship',
+                'type' => 'general-discussion',
+                'description' => 'Discuss internship opportunities, career advice, resume tips, and job market trends.',
+                'icon' => 'discussion',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $careerCatId = $careerCat->id;
+        }
+
+        // New category: Science & Engineering Q&A (academic-qa)
+        $sciEngCat = DB::table('forum_categories')->where('name', 'Science & Engineering Q&A')->first();
+        if (!$sciEngCat) {
+            $sciEngCatId = DB::table('forum_categories')->insertGetId([
+                'name' => 'Science & Engineering Q&A',
+                'type' => 'academic-qa',
+                'description' => 'Ask and answer questions about physics, chemistry, mathematics, and engineering subjects.',
+                'icon' => 'academic',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $sciEngCatId = $sciEngCat->id;
+        }
+
+        // New category: Tech & Programming Help (academic-qa)
+        $techCat = DB::table('forum_categories')->where('name', 'Tech & Programming Help')->first();
+        if (!$techCat) {
+            $techCatId = DB::table('forum_categories')->insertGetId([
+                'name' => 'Tech & Programming Help',
+                'type' => 'academic-qa',
+                'description' => 'Get help with coding problems, debugging, frameworks, and software development tools.',
+                'icon' => 'academic',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $techCatId = $techCat->id;
+        }
+
         // ──────────────────────────────────────────────
         // 3. Create hashtags
         // ──────────────────────────────────────────────
@@ -95,6 +155,9 @@ class ForumTestSeeder extends Seeder
             'campus-life', 'study-tips', 'exam-prep', 'java', 'python',
             'web-dev', 'mental-health', 'events', 'library', 'food',
             'internship', 'fyp', 'data-structures', 'ai', 'hackathon',
+            'career', 'resume', 'clubs', 'sports', 'networking',
+            'math', 'physics', 'engineering', 'database', 'git',
+            'react', 'laravel', 'debugging',
         ];
         $hashtagIds = [];
         foreach ($hashtagNames as $tagName) {
@@ -114,6 +177,10 @@ class ForumTestSeeder extends Seeder
         $categoryHashtags = [
             $generalCatId => ['campus-life', 'events', 'food', 'mental-health', 'library', 'internship'],
             $qaCatId => ['study-tips', 'exam-prep', 'java', 'python', 'web-dev', 'data-structures', 'ai', 'fyp'],
+            $campusLifeCatId => ['campus-life', 'events', 'clubs', 'sports', 'food'],
+            $careerCatId => ['internship', 'career', 'resume', 'networking'],
+            $sciEngCatId => ['math', 'physics', 'engineering', 'study-tips', 'exam-prep'],
+            $techCatId => ['web-dev', 'python', 'java', 'react', 'laravel', 'database', 'git', 'debugging'],
         ];
         foreach ($categoryHashtags as $catId => $tags) {
             foreach ($tags as $tagName) {
@@ -659,14 +726,437 @@ class ForumTestSeeder extends Seeder
             ]);
         }
 
+        // ──────────────────────────────────────────────
+        // 15. Create Campus Life & Events posts (5 posts)
+        // ──────────────────────────────────────────────
+        $campusLifePosts = [
+            [
+                'title'    => 'Photography Club recruitment — open to all faculties!',
+                'content'  => "Hi everyone! The Photography Club is recruiting new members for this semester. We do weekly photo walks, monthly editing workshops, and an end-of-semester exhibition. No experience required — just bring your phone camera! First meeting is this Thursday at 5pm, Room D201.",
+                'user_idx' => 1,
+                'tags'     => ['clubs', 'events', 'campus-life'],
+                'views'    => 178,
+                'hours_ago' => 4,
+            ],
+            [
+                'title'    => 'Sports Day 2026 — Sign up for your faculty team!',
+                'content'  => "Annual Sports Day is on 28 March! Events include badminton, futsal, basketball, track & field, and tug-of-war. Sign up at your faculty office before 20 March. Last year FOCS won the overall championship — can they defend the title?",
+                'user_idx' => 3,
+                'tags'     => ['sports', 'events', 'campus-life'],
+                'views'    => 312,
+                'hours_ago' => 16,
+            ],
+            [
+                'title'    => 'Movie Night at the amphitheatre this Friday',
+                'content'  => "The Student Union is organizing a free outdoor movie night this Friday at 8pm. They're screening 'Everything Everywhere All At Once'. Bring your own mat/blanket. Free popcorn for the first 100 attendees!",
+                'user_idx' => 0,
+                'tags'     => ['events', 'campus-life'],
+                'views'    => 245,
+                'hours_ago' => 28,
+            ],
+            [
+                'title'    => 'New bubble tea shop near Gate 3 — any reviews?',
+                'content'  => "Saw a new bubble tea place opened near Gate 3 called TeaTime. Has anyone tried it yet? Their signboard says they have brown sugar boba and cheese foam teas. How does it compare to the one in the student mall?",
+                'user_idx' => 4,
+                'tags'     => ['food', 'campus-life'],
+                'views'    => 189,
+                'hours_ago' => 52,
+            ],
+            [
+                'title'    => 'Volunteer opportunity: Blood donation drive next week',
+                'content'  => "The Red Crescent Society is holding a blood donation drive on Tuesday and Wednesday at the Main Hall. They need student volunteers to help with registration and refreshments. You'll get community service hours and a free health check. Sign up at the student affairs counter.",
+                'user_idx' => 2,
+                'tags'     => ['events', 'campus-life'],
+                'views'    => 134,
+                'hours_ago' => 80,
+            ],
+        ];
+
+        $campusLifePostIds = [];
+        foreach ($campusLifePosts as $post) {
+            $createdAt = $now->copy()->subHours($post['hours_ago']);
+            $postId = DB::table('forum_posts')->insertGetId([
+                'user_id'     => $users[$post['user_idx']],
+                'category_id' => $campusLifeCatId,
+                'title'       => $post['title'],
+                'content'     => $post['content'],
+                'views'       => $post['views'],
+                'likes_count' => 0,
+                'comment_count' => 0,
+                'answer_count' => 0,
+                'has_accepted_answer' => false,
+                'status'      => 'active',
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+            $campusLifePostIds[] = $postId;
+            foreach ($post['tags'] as $tagName) {
+                if (isset($hashtagIds[$tagName])) {
+                    DB::table('forum_post_hashtag')->insertOrIgnore([
+                        'post_id'    => $postId,
+                        'hashtag_id' => $hashtagIds[$tagName],
+                    ]);
+                }
+            }
+        }
+
+        // Comments on Campus Life posts
+        $campusLifeComments = [
+            [$campusLifePostIds[0], $users[2], "I joined last semester — the photo walks are really fun! Great way to explore campus too.", 3],
+            [$campusLifePostIds[0], $users[4], "Do we need our own camera or is phone photography okay?", 2],
+            [$campusLifePostIds[1], $users[0], "Signed up for badminton! Anyone else from FOCS doing badminton?", 14],
+            [$campusLifePostIds[1], $users[1], "Tug-of-war is the best event honestly. Pure chaos and fun 😄", 12],
+            [$campusLifePostIds[2], $users[3], "Amazing movie choice! I'll be there with my friends. Should we arrive early for good spots?", 24],
+            [$campusLifePostIds[3], $users[1], "Tried it yesterday! Brown sugar boba is pretty good, 8/10. Cheese foam is average though.", 40],
+            [$campusLifePostIds[3], $users[0], "It's cheaper than the student mall one. Large boba is only RM7.90 vs RM9.50.", 36],
+            [$campusLifePostIds[4], $users[3], "I volunteered last year. It's a great experience and you get a free lunch too!", 60],
+        ];
+
+        foreach ($campusLifeComments as [$postId, $userId, $content, $hoursAgo]) {
+            $createdAt = $now->copy()->subHours($hoursAgo);
+            DB::table('forum_comments')->insert([
+                'post_id'     => $postId,
+                'user_id'     => $userId,
+                'parent_id'   => null,
+                'content'     => $content,
+                'likes_count' => rand(0, 10),
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+        }
+        foreach ($campusLifePostIds as $postId) {
+            $count = DB::table('forum_comments')->where('post_id', $postId)->count();
+            DB::table('forum_posts')->where('id', $postId)->update(['comment_count' => $count]);
+        }
+
+        // ──────────────────────────────────────────────
+        // 16. Create Career & Internship posts (4 posts)
+        // ──────────────────────────────────────────────
+        $careerPosts = [
+            [
+                'title'    => 'Resume tips that got me 3 internship offers',
+                'content'  => "After struggling with rejections last semester, I revamped my resume and got 3 offers this round. Key changes: (1) Put projects before education, (2) Quantify achievements (e.g., 'Built API that handles 1000 req/s'), (3) Keep it to 1 page, (4) Use a clean template from Overleaf. Happy to review anyone's resume — DM me!",
+                'user_idx' => 3,
+                'tags'     => ['career', 'resume', 'internship'],
+                'views'    => 467,
+                'hours_ago' => 6,
+            ],
+            [
+                'title'    => 'Career Fair next Thursday — which companies are coming?',
+                'content'  => "The annual campus career fair is next Thursday 10am-4pm at the Main Hall. I heard Petronas, Maybank, Grab, and some startups will be there. Anyone know the full list? Also, should I bring printed resumes or is a QR code to my LinkedIn enough?",
+                'user_idx' => 0,
+                'tags'     => ['career', 'networking', 'events'],
+                'views'    => 289,
+                'hours_ago' => 20,
+            ],
+            [
+                'title'    => 'Is a LinkedIn profile really necessary for students?',
+                'content'  => "Some lecturers keep telling us to set up LinkedIn but I'm not sure if companies actually look at student profiles. For those who've gotten internships — did having a LinkedIn help? What should I put on it if I don't have work experience yet?",
+                'user_idx' => 2,
+                'tags'     => ['career', 'networking', 'internship'],
+                'views'    => 356,
+                'hours_ago' => 44,
+            ],
+            [
+                'title'    => 'Freelancing while studying — is it worth it?',
+                'content'  => "I've been doing small web dev freelance projects on Fiverr and Upwork. Earning about RM500-800/month. It's good practice but sometimes clashes with assignment deadlines. Any other student freelancers here? How do you balance it?",
+                'user_idx' => 1,
+                'tags'     => ['career', 'internship'],
+                'views'    => 223,
+                'hours_ago' => 68,
+            ],
+        ];
+
+        $careerPostIds = [];
+        foreach ($careerPosts as $post) {
+            $createdAt = $now->copy()->subHours($post['hours_ago']);
+            $postId = DB::table('forum_posts')->insertGetId([
+                'user_id'     => $users[$post['user_idx']],
+                'category_id' => $careerCatId,
+                'title'       => $post['title'],
+                'content'     => $post['content'],
+                'views'       => $post['views'],
+                'likes_count' => 0,
+                'comment_count' => 0,
+                'answer_count' => 0,
+                'has_accepted_answer' => false,
+                'status'      => 'active',
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+            $careerPostIds[] = $postId;
+            foreach ($post['tags'] as $tagName) {
+                if (isset($hashtagIds[$tagName])) {
+                    DB::table('forum_post_hashtag')->insertOrIgnore([
+                        'post_id'    => $postId,
+                        'hashtag_id' => $hashtagIds[$tagName],
+                    ]);
+                }
+            }
+        }
+
+        // Comments on Career posts
+        $careerComments = [
+            [$careerPostIds[0], $users[0], "This is gold! Can you share the Overleaf template link?", 4],
+            [$careerPostIds[0], $users[4], "Quantifying achievements made a huge difference for me too. Recruiters love numbers.", 3],
+            [$careerPostIds[0], $users[2], "I've been putting education first all this time... no wonder I wasn't getting callbacks. Thanks for this!", 2],
+            [$careerPostIds[1], $users[1], "Definitely bring printed resumes. Some booths don't have good WiFi for QR scanning.", 16],
+            [$careerPostIds[1], $users[3], "Here's the full list from the student affairs page: Petronas, Maybank, Grab, Shopee, TNG Digital, Accenture, Deloitte, and 12 local startups.", 14],
+            [$careerPostIds[2], $users[3], "100% yes! My internship supervisor told me they checked my LinkedIn before the interview. Put your projects and skills there.", 36],
+            [$careerPostIds[2], $users[1], "Even without work experience, list your coursework projects, hackathon wins, and any certifications. It shows initiative.", 30],
+            [$careerPostIds[3], $users[4], "I do UI/UX freelancing too! The trick is to only take projects during semester breaks and say no during exam periods.", 50],
+        ];
+
+        foreach ($careerComments as [$postId, $userId, $content, $hoursAgo]) {
+            $createdAt = $now->copy()->subHours($hoursAgo);
+            DB::table('forum_comments')->insert([
+                'post_id'     => $postId,
+                'user_id'     => $userId,
+                'parent_id'   => null,
+                'content'     => $content,
+                'likes_count' => rand(0, 12),
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+        }
+        foreach ($careerPostIds as $postId) {
+            $count = DB::table('forum_comments')->where('post_id', $postId)->count();
+            DB::table('forum_posts')->where('id', $postId)->update(['comment_count' => $count]);
+        }
+
+        // ──────────────────────────────────────────────
+        // 17. Create Science & Engineering Q&A posts (4 posts)
+        // ──────────────────────────────────────────────
+        $sciEngPosts = [
+            [
+                'title'    => 'How to solve simultaneous equations using matrices?',
+                'content'  => "I'm taking Linear Algebra and struggling with solving systems of linear equations using matrix methods. I understand basic row reduction but get confused with augmented matrices and Gauss-Jordan elimination. Can someone walk me through a 3x3 system step by step?",
+                'user_idx' => 2,
+                'tags'     => ['math', 'study-tips'],
+                'views'    => 198,
+                'hours_ago' => 7,
+            ],
+            [
+                'title'    => 'Newton\'s third law confusion — action and reaction forces',
+                'content'  => "If every action has an equal and opposite reaction, why does anything move at all? Shouldn't the forces always cancel out? I know this is a common misconception but I still can't wrap my head around it. Can someone explain with a practical example?",
+                'user_idx' => 0,
+                'tags'     => ['physics', 'study-tips'],
+                'views'    => 267,
+                'hours_ago' => 22,
+            ],
+            [
+                'title'    => 'Best resources for learning circuit analysis (EE students)?',
+                'content'  => "I'm a Year 2 Electrical Engineering student and circuit analysis (KVL, KCL, Thevenin/Norton) is really challenging. The textbook (Sadiku) is dense. Any recommendations for YouTube channels, practice problem sets, or simulation tools?",
+                'user_idx' => 4,
+                'tags'     => ['engineering', 'study-tips'],
+                'views'    => 156,
+                'hours_ago' => 48,
+            ],
+            [
+                'title'    => 'How to calculate standard deviation by hand?',
+                'content'  => "My statistics exam doesn't allow calculators for the first section. I need to compute mean, variance, and standard deviation by hand. For small data sets it's okay, but for 10+ values I keep making arithmetic mistakes. Any tips or shortcuts?",
+                'user_idx' => 1,
+                'tags'     => ['math', 'exam-prep'],
+                'views'    => 211,
+                'hours_ago' => 72,
+            ],
+        ];
+
+        $sciEngPostIds = [];
+        foreach ($sciEngPosts as $post) {
+            $createdAt = $now->copy()->subHours($post['hours_ago']);
+            $postId = DB::table('forum_posts')->insertGetId([
+                'user_id'     => $users[$post['user_idx']],
+                'category_id' => $sciEngCatId,
+                'title'       => $post['title'],
+                'content'     => $post['content'],
+                'views'       => $post['views'],
+                'likes_count' => 0,
+                'comment_count' => 0,
+                'answer_count' => 0,
+                'has_accepted_answer' => false,
+                'status'      => 'active',
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+            $sciEngPostIds[] = $postId;
+            foreach ($post['tags'] as $tagName) {
+                if (isset($hashtagIds[$tagName])) {
+                    DB::table('forum_post_hashtag')->insertOrIgnore([
+                        'post_id'    => $postId,
+                        'hashtag_id' => $hashtagIds[$tagName],
+                    ]);
+                }
+            }
+        }
+
+        // Answers for Science & Engineering posts
+        $sciEngAnswers = [
+            [$sciEngPostIds[0], $users[3], "Here's a step-by-step for a 3x3 system:\n\nGiven: x + 2y + z = 9, 2x - y + 3z = 8, 3x + y - z = 3\n\n1. Write augmented matrix: [1 2 1 | 9; 2 -1 3 | 8; 3 1 -1 | 3]\n2. R2 = R2 - 2R1 → [1 2 1 | 9; 0 -5 1 | -10; 3 1 -1 | 3]\n3. R3 = R3 - 3R1 → [1 2 1 | 9; 0 -5 1 | -10; 0 -5 -4 | -24]\n4. R3 = R3 - R2 → [1 2 1 | 9; 0 -5 1 | -10; 0 0 -5 | -14]\n5. Back-substitute to find z, y, x\n\nKey tip: always make the leading coefficient 1 before eliminating.", true, 8, 0, 5],
+            [$sciEngPostIds[1], $users[3], "The key misconception is that action and reaction act on DIFFERENT objects.\n\nExample: You push a wall with 50N. The wall pushes you back with 50N. These forces DON'T cancel because they act on different things — one on the wall, one on you.\n\nWhen you walk: your foot pushes Earth backward (action). Earth pushes your foot forward (reaction). You move forward because the reaction force acts on YOU. The forces only cancel if they act on the SAME object.", true, 12, 1, 18],
+            [$sciEngPostIds[2], $users[1], "Great resources I used:\n- YouTube: 'The Organic Chemistry Tutor' has excellent EE videos\n- Simulation: Use LTSpice (free) or Multisim to verify your hand calculations\n- Practice: Schaum's Outline of Electric Circuits has 500+ solved problems\n- For Thevenin/Norton specifically, draw the circuit removing the load FIRST, then find Vth/Rth\n\nAlso, Prof. Razavi's lectures on YouTube (UCLA) are top-tier.", false, 6, 0, 36],
+            [$sciEngPostIds[3], $users[4], "Shortcut for standard deviation by hand:\n1. Find the mean (x̄)\n2. For each value, compute (xi - x̄) — keep the deviations in a column\n3. Square each deviation\n4. Sum all squared deviations\n5. Divide by n (population) or n-1 (sample)\n6. Take the square root\n\nTip: If all values are close together, subtract a constant first to make numbers smaller (this doesn't change σ). For example, if data is [101, 103, 105, 107], subtract 100 and work with [1, 3, 5, 7] instead.", true, 7, 0, 60],
+        ];
+
+        foreach ($sciEngAnswers as [$postId, $userId, $content, $isAccepted, $upvotes, $downvotes, $hoursAgo]) {
+            $createdAt = $now->copy()->subHours($hoursAgo);
+            DB::table('forum_answers')->insert([
+                'post_id'         => $postId,
+                'user_id'         => $userId,
+                'content'         => $content,
+                'upvotes_count'   => $upvotes,
+                'downvotes_count' => $downvotes,
+                'is_accepted'     => $isAccepted,
+                'created_at'      => $createdAt,
+                'updated_at'      => $createdAt,
+            ]);
+            if ($isAccepted) {
+                DB::table('forum_posts')->where('id', $postId)->update(['has_accepted_answer' => true]);
+            }
+        }
+        foreach ($sciEngPostIds as $postId) {
+            $count = DB::table('forum_answers')->where('post_id', $postId)->count();
+            DB::table('forum_posts')->where('id', $postId)->update(['answer_count' => $count]);
+        }
+
+        // ──────────────────────────────────────────────
+        // 18. Create Tech & Programming Help posts (5 posts)
+        // ──────────────────────────────────────────────
+        $techPosts = [
+            [
+                'title'    => 'React useEffect infinite loop — how to fix?',
+                'content'  => "I have a component that fetches data in useEffect, but it keeps re-rendering infinitely. My code: `useEffect(() => { setData(fetchData()); }, [data])`. I know the dependency array is the problem but I need to react to data changes. What's the correct pattern?",
+                'user_idx' => 0,
+                'tags'     => ['react', 'web-dev', 'debugging'],
+                'views'    => 289,
+                'hours_ago' => 5,
+            ],
+            [
+                'title'    => 'Git merge conflict — how to resolve properly?',
+                'content'  => "I'm working on a group project and we keep getting merge conflicts when multiple people edit the same file. I usually just accept 'mine' or 'theirs' but sometimes that deletes someone else's work. Can someone explain the proper workflow for resolving conflicts?",
+                'user_idx' => 2,
+                'tags'     => ['git', 'debugging'],
+                'views'    => 345,
+                'hours_ago' => 15,
+            ],
+            [
+                'title'    => 'Laravel Eloquent N+1 query problem — what is it and how to fix?',
+                'content'  => "My lecturer mentioned that N+1 queries are a common performance issue in Laravel. I'm loading a list of posts with their authors and comments, and the page takes 3 seconds to load (200+ DB queries in debugbar). How do I use eager loading properly?",
+                'user_idx' => 4,
+                'tags'     => ['laravel', 'database', 'debugging'],
+                'views'    => 412,
+                'hours_ago' => 32,
+            ],
+            [
+                'title'    => 'How to set up a Python virtual environment correctly?',
+                'content'  => "I keep running into package version conflicts across my different Python projects. Someone told me to use virtual environments but I'm confused between venv, virtualenv, conda, and pipenv. Which one should I use as a student, and how do I set it up step by step?",
+                'user_idx' => 1,
+                'tags'     => ['python', 'debugging'],
+                'views'    => 178,
+                'hours_ago' => 56,
+            ],
+            [
+                'title'    => 'SQL query to find second highest salary — multiple approaches?',
+                'content'  => "This is a classic interview question I keep seeing. I know you can use subquery: SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees). But are there other approaches? What about using LIMIT/OFFSET or window functions?",
+                'user_idx' => 3,
+                'tags'     => ['database', 'study-tips'],
+                'views'    => 523,
+                'hours_ago' => 84,
+            ],
+        ];
+
+        $techPostIds = [];
+        foreach ($techPosts as $post) {
+            $createdAt = $now->copy()->subHours($post['hours_ago']);
+            $postId = DB::table('forum_posts')->insertGetId([
+                'user_id'     => $users[$post['user_idx']],
+                'category_id' => $techCatId,
+                'title'       => $post['title'],
+                'content'     => $post['content'],
+                'views'       => $post['views'],
+                'likes_count' => 0,
+                'comment_count' => 0,
+                'answer_count' => 0,
+                'has_accepted_answer' => false,
+                'status'      => 'active',
+                'created_at'  => $createdAt,
+                'updated_at'  => $createdAt,
+            ]);
+            $techPostIds[] = $postId;
+            foreach ($post['tags'] as $tagName) {
+                if (isset($hashtagIds[$tagName])) {
+                    DB::table('forum_post_hashtag')->insertOrIgnore([
+                        'post_id'    => $postId,
+                        'hashtag_id' => $hashtagIds[$tagName],
+                    ]);
+                }
+            }
+        }
+
+        // Answers for Tech posts
+        $techAnswers = [
+            [$techPostIds[0], $users[3], "The problem is `[data]` in the dependency array — every time data changes, useEffect runs, which sets data, which triggers another run.\n\nFix: Fetch data on mount only:\n```jsx\nuseEffect(() => {\n  const loadData = async () => {\n    const result = await fetchData();\n    setData(result);\n  };\n  loadData();\n}, []); // empty dependency = runs once on mount\n```\n\nIf you need to refetch based on some trigger (like a search query), put THAT in the dependency array instead of the data itself.", true, 10, 0, 3],
+            [$techPostIds[1], $users[3], "Proper merge conflict workflow:\n\n1. `git pull origin main` → see conflicts\n2. Open the conflicting file — look for `<<<<<<< HEAD` markers\n3. The code between `<<<<<<< HEAD` and `=======` is YOUR version\n4. The code between `=======` and `>>>>>>> branch` is THEIRS\n5. Manually edit to keep the correct parts from both versions\n6. Remove ALL conflict markers\n7. `git add .` then `git commit`\n\nPro tip: Use VS Code's merge editor — it shows both versions side by side and lets you accept/reject changes visually.\n\nPrevention: Communicate with your team. Work on different files when possible. Pull frequently.", true, 14, 1, 10],
+            [$techPostIds[2], $users[1], "N+1 problem explained: When you do `Post::all()` then loop through posts accessing `\$post->author`, Laravel runs 1 query for posts + N queries for each author (one per post).\n\nFix with eager loading:\n```php\n// Before (N+1): 201 queries for 200 posts\n\$posts = Post::all();\n\n// After (eager loading): 2 queries total\n\$posts = Post::with(['author', 'comments'])->get();\n```\n\nYou can also add `\$with = ['author']` to your model to always eager load.\n\nUse Laravel Debugbar to monitor query count — it's a lifesaver.", true, 11, 0, 24],
+            [$techPostIds[3], $users[4], "Use `venv` — it's built into Python 3.3+ and the simplest option for students.\n\nStep by step:\n```bash\n# Create\npython -m venv myproject_env\n\n# Activate (Windows)\nmyproject_env\\Scripts\\activate\n\n# Activate (Mac/Linux)\nsource myproject_env/bin/activate\n\n# Install packages (only affects this env)\npip install flask pandas\n\n# Save dependencies\npip freeze > requirements.txt\n\n# Deactivate when done\ndeactivate\n```\n\nFor data science, use conda instead. For everything else, venv is perfect.", true, 9, 0, 40],
+            [$techPostIds[4], $users[0], "Three approaches:\n\n**1. Subquery (your method):**\n```sql\nSELECT MAX(salary) FROM employees\nWHERE salary < (SELECT MAX(salary) FROM employees);\n```\n\n**2. LIMIT/OFFSET:**\n```sql\nSELECT DISTINCT salary FROM employees\nORDER BY salary DESC LIMIT 1 OFFSET 1;\n```\n\n**3. Window function (most flexible):**\n```sql\nSELECT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) as rnk\n  FROM employees\n) t WHERE rnk = 2;\n```\n\nDENSE_RANK is best for interviews because it handles ties correctly and generalizes to Nth highest easily.", true, 16, 0, 70],
+        ];
+
+        foreach ($techAnswers as [$postId, $userId, $content, $isAccepted, $upvotes, $downvotes, $hoursAgo]) {
+            $createdAt = $now->copy()->subHours($hoursAgo);
+            DB::table('forum_answers')->insert([
+                'post_id'         => $postId,
+                'user_id'         => $userId,
+                'content'         => $content,
+                'upvotes_count'   => $upvotes,
+                'downvotes_count' => $downvotes,
+                'is_accepted'     => $isAccepted,
+                'created_at'      => $createdAt,
+                'updated_at'      => $createdAt,
+            ]);
+            if ($isAccepted) {
+                DB::table('forum_posts')->where('id', $postId)->update(['has_accepted_answer' => true]);
+            }
+        }
+        foreach ($techPostIds as $postId) {
+            $count = DB::table('forum_answers')->where('post_id', $postId)->count();
+            DB::table('forum_posts')->where('id', $postId)->update(['answer_count' => $count]);
+        }
+
+        // Post likes for new category posts
+        $newCatLikes = [
+            [$campusLifePostIds[0], [$users[0], $users[2], $users[3]]],
+            [$campusLifePostIds[1], [$users[0], $users[1], $users[2], $users[4]]],
+            [$careerPostIds[0], [$users[0], $users[1], $users[2], $users[4]]],
+            [$careerPostIds[2], [$users[1], $users[3]]],
+            [$techPostIds[2], [$users[0], $users[2], $users[3]]],
+            [$techPostIds[4], [$users[1], $users[2], $users[4]]],
+        ];
+        foreach ($newCatLikes as [$postId, $userIdList]) {
+            foreach ($userIdList as $userId) {
+                DB::table('forum_post_likes')->insertOrIgnore([
+                    'user_id'    => $userId,
+                    'post_id'    => $postId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+            DB::table('forum_posts')->where('id', $postId)->update(['likes_count' => count($userIdList)]);
+        }
+
         $this->command->info('Forum test data seeded successfully!');
         $this->command->info('  - ' . count($users) . ' users');
-        $this->command->info('  - 2 categories');
+        $this->command->info('  - 6 categories (2 original + 4 new)');
         $this->command->info('  - ' . count($hashtagNames) . ' hashtags');
         $this->command->info('  - ' . count($generalPostIds) . ' general discussion posts');
         $this->command->info('  - ' . count($qaPostIds) . ' Q&A posts');
-        $this->command->info('  - ' . count($commentData) . ' comments + ' . count($replies) . ' replies');
-        $this->command->info('  - ' . count($answersData) . ' answers');
+        $this->command->info('  - ' . count($campusLifePostIds) . ' campus life & events posts');
+        $this->command->info('  - ' . count($careerPostIds) . ' career & internship posts');
+        $this->command->info('  - ' . count($sciEngPostIds) . ' science & engineering Q&A posts');
+        $this->command->info('  - ' . count($techPostIds) . ' tech & programming help posts');
+        $this->command->info('  - ' . count($commentData) . ' comments + ' . count($replies) . ' replies (original)');
+        $this->command->info('  - ' . count($campusLifeComments) . ' campus life comments, ' . count($careerComments) . ' career comments');
+        $this->command->info('  - ' . count($answersData) . ' original answers + ' . count($sciEngAnswers) . ' sci/eng + ' . count($techAnswers) . ' tech answers');
         $this->command->info('  - Post likes, comment likes, votes, reactions, mentions, reports, and attachments');
         $this->command->info('');
         $this->command->info('Test user credentials (password: 123123123):');

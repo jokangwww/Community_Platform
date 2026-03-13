@@ -24,6 +24,11 @@ interface ArchivedPoll {
   expiryDate: string;
   totalVotes: number;
   usefulnessScore?: number;
+  targetCriteria?: {
+    faculty?: string;
+    yearOfStudy?: string;
+    course?: string;
+  };
 }
 
 interface PollArchiveProps {
@@ -64,7 +69,8 @@ export function PollArchive({ archivedPolls, onBack, onViewPoll }: PollArchivePr
   const filteredPolls = archivedPolls.filter(poll => {
     const matchesSearch = poll.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          poll.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || poll.category === categoryFilter;
+    const matchesCategory = categoryFilter === "all"
+      || (categoryFilter === "targeted" ? !!(poll.targetCriteria) : poll.category === categoryFilter);
     return matchesSearch && matchesCategory;
   });
 
@@ -113,6 +119,7 @@ export function PollArchive({ archivedPolls, onBack, onViewPoll }: PollArchivePr
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="targeted">Targeted</SelectItem>
             {categories.map(category => (
               <SelectItem key={category} value={category}>
                 {formatCategoryName(category)}

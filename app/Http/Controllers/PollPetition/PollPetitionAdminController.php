@@ -60,7 +60,7 @@ class PollPetitionAdminController extends Controller
                 'creator'       => $poll->user->nickname ?? $poll->user->name,
                 'creatorAvatar' => strtoupper(substr($poll->user->nickname ?? $poll->user->name, 0, 2)),
                 'totalVotes'    => $totalVotes,
-                'participation' => $totalVotes, // could be enhanced with total eligible user count
+                'participation' => $totalVotes,
                 'expiresAt'     => $poll->expires_at->toDateString(),
                 'createdAt'     => $poll->created_at->toDateString(),
                 'status'        => $poll->is_expired ? 'expired' : $poll->status,
@@ -164,7 +164,7 @@ class PollPetitionAdminController extends Controller
         $poll = Poll::findOrFail($id);
         $poll->update([
             'expires_at' => $validated['new_deadline'],
-            'status'     => 'active', // re-activate if it was expired
+            'status'     => 'active',
         ]);
 
         return response()->json(['message' => 'Poll deadline extended.']);
@@ -182,7 +182,7 @@ class PollPetitionAdminController extends Controller
         $petition = Petition::findOrFail($id);
         $petition->update([
             'expires_at' => $validated['new_deadline'],
-            'status'     => 'active', // re-activate if it was expired
+            'status'     => 'active',
         ]);
 
         return response()->json(['message' => 'Petition deadline extended.']);
@@ -278,7 +278,7 @@ class PollPetitionAdminController extends Controller
     }
 
     /**
-     * Export analytics data (JSON format — front-end can convert to PDF).
+     * Export analytics data (JSON format).
      */
     public function exportAnalytics(Request $request): JsonResponse
     {

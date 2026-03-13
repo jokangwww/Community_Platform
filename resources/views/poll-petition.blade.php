@@ -22,6 +22,9 @@
                 'email' => $user->email,
                 'role' => $user->role,
                 'student_id' => $user->student_id,
+                'faculty' => $user->faculty,
+                'programme' => $user->programme,
+                'study_year' => $user->study_year,
                 'is_admin' => $user->role === 'admin',
             ] : null);
         @endphp;

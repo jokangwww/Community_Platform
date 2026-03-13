@@ -187,7 +187,8 @@ class PetitionController extends Controller
         $attachment = PetitionAttachment::where('petition_id', $petitionId)
             ->findOrFail($attachmentId);
 
-        return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
+        $fullPath = Storage::disk('public')->path($attachment->file_path);
+        return response()->download($fullPath, $attachment->file_name);
     }
 
     /**

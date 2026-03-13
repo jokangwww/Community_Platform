@@ -38,19 +38,19 @@ class ForumReportSeeder extends Seeder
                 'student_id'         => 'TEST99001',
                 'study_year'         => 'Year 1',
                 'department'         => 'General',
-                'password'           => bcrypt('password'),
+                'password'           => bcrypt('password123'),
                 'email_verified_at'  => now(),
             ]);
 
-        $contentAuthor = User::where('email', 'content-author@example.com')->first()
+        $contentAuthor = User::where('email', 'tommy.mentee@buddy.test')->first()
             ?? User::factory()->create([
-                'name'               => 'Content Author',
-                'email'              => 'content-author@example.com',
+                'name'               => 'Tommy Mentee',
+                'email'              => 'tommy.mentee@buddy.test',
                 'role'               => 'student',
-                'student_id'         => 'TEST99002',
-                'study_year'         => 'Year 2',
+                'student_id'         => '24MTT00001',
+                'study_year'         => 'Year 1',
                 'department'         => 'General',
-                'password'           => bcrypt('password'),
+                'password'           => bcrypt('password123'),
                 'email_verified_at'  => now(),
             ]);
 
@@ -68,7 +68,7 @@ class ForumReportSeeder extends Seeder
         $postData = [
             [
                 'title'   => '[Test] Harassment Report Sample Post',
-                'content' => 'This is a test post that contains rude and offensive language directed at other students. It was flagged for review by the admin moderation system.',
+                'content' => 'I am so sick of this! JohnDoe is the worst student ever. He should just drop out and never come back.',
             ],
             [
                 'title'   => '[Test] Spam Report Sample Post',
@@ -98,12 +98,12 @@ class ForumReportSeeder extends Seeder
             [
                 'post_id' => $posts[0]->id,
                 'user_id' => $contentAuthor->id,
-                'content' => '[Test] This answer contains harassment and personal attacks targeting other members.',
+                'content' => 'You are so stupid cant even understand this.',
             ],
             [
                 'post_id' => $posts[0]->id,
                 'user_id' => $contentAuthor->id,
-                'content' => '[Test] This answer contains harassment and personal attacks targeting other members.',
+                'content' => 'Dont ask this stupid question again.',
             ]
         );
 
@@ -111,12 +111,12 @@ class ForumReportSeeder extends Seeder
             [
                 'post_id' => $posts[1]->id,
                 'user_id' => $contentAuthor->id,
-                'content' => '[Test] This answer is an off-topic advertisement for external services.',
+                'content' => 'Pls buy my cheap notes instead! WhatsApp +1-000-0000 for amazing deals on exam notes. 100% original content. Guaranteed A grade.',
             ],
             [
                 'post_id' => $posts[1]->id,
                 'user_id' => $contentAuthor->id,
-                'content' => '[Test] This answer is an off-topic advertisement for external services.',
+                'content' => 'Pls buy my cheap notes instead! WhatsApp +1-000-0000 for amazing deals on exam notes. 100% original content. Guaranteed A grade.',
             ]
         );
 
@@ -142,7 +142,7 @@ class ForumReportSeeder extends Seeder
                 'reportable_type' => ForumPost::class,
                 'reportable_id'   => $posts[0]->id,
                 'reason'          => 'harassment',
-                'details'         => 'This post contains direct harassment and offensive language targeting specific students by name.',
+                'details'         => 'This post contains direct harassment targeting specific students by name.',
                 'status'          => 'pending',
                 'admin_action'    => null,
                 'reviewed_by'     => null,
@@ -164,7 +164,7 @@ class ForumReportSeeder extends Seeder
                 'reportable_type' => ForumAnswer::class,
                 'reportable_id'   => $answer1->id,
                 'reason'          => 'harassment',
-                'details'         => 'This answer includes personal attacks and derogatory language against another user.',
+                'details'         => 'This answer includes personal attacks and language against another user.',
                 'status'          => 'pending',
                 'admin_action'    => null,
                 'reviewed_by'     => null,
@@ -175,7 +175,7 @@ class ForumReportSeeder extends Seeder
                 'reportable_type' => ForumAnswer::class,
                 'reportable_id'   => $answer2->id,
                 'reason'          => 'spam',
-                'details'         => 'Blatant spam for external paid services unrelated to the discussion.',
+                'details'         => 'Spam for external paid services unrelated to the discussion.',
                 'status'          => 'pending',
                 'admin_action'    => null,
                 'reviewed_by'     => null,

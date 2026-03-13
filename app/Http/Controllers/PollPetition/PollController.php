@@ -16,11 +16,12 @@ class PollController extends Controller
 {
     /**
      * List active polls (with optional search/filter).
-     * Auto-expires polls past their deadline.
+     * Targeted polls are only shown to users matching the criteria.
      */
     public function index(Request $request): JsonResponse
     {
         $userId = Auth::id();
+        $user   = Auth::user();
 
         // Auto-expire overdue polls
         Poll::where('status', 'active')
@@ -42,9 +43,17 @@ class PollController extends Controller
             }
         }
 
-        // Filter by category
+        // Filter by category (special value 'targeted' shows only targeted polls)
         if ($request->filled('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
+            if ($request->category === 'targeted') {
+                $query->where(function ($q) {
+                    $q->whereNotNull('target_faculty')
+                      ->orWhereNotNull('target_year')
+                      ->orWhereNotNull('target_course');
+                });
+            } else {
+                $query->where('category', $request->category);
+            }
         }
 
         // Search
@@ -66,7 +75,12 @@ class PollController extends Controller
 
         $polls = $query->get();
 
-        $result = $polls->map(function ($poll) use ($userId) {
+        // Filter out targeted polls that don't match the current user
+        $polls = $polls->filter(function ($poll) use ($user) {
+            return $this->isEligibleForPoll($poll, $user);
+        });
+
+        $result = $polls->values()->map(function ($poll) use ($userId) {
             return $this->formatPoll($poll, $userId);
         });
 
@@ -246,6 +260,7 @@ class PollController extends Controller
     public function archived(Request $request): JsonResponse
     {
         $userId = Auth::id();
+        $user   = Auth::user();
 
         // Auto-expire overdue polls
         Poll::where('status', 'active')
@@ -259,9 +274,17 @@ class PollController extends Controller
             })
             ->where('status', '!=', 'disabled');
 
-        // Filter by category
+        // Filter by category (special value 'targeted' shows only targeted polls)
         if ($request->filled('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
+            if ($request->category === 'targeted') {
+                $query->where(function ($q) {
+                    $q->whereNotNull('target_faculty')
+                      ->orWhereNotNull('target_year')
+                      ->orWhereNotNull('target_course');
+                });
+            } else {
+                $query->where('category', $request->category);
+            }
         }
 
         // Search
@@ -286,16 +309,70 @@ class PollController extends Controller
                 'ratings as total_ratings',
             ])->orderByRaw('CASE WHEN total_ratings > 0 THEN useful_count * 100.0 / total_ratings ELSE 0 END DESC');
         } else {
-            $query->orderByDesc('expires_at');
+            $query->orderByDesc('created_at');
         }
 
         $polls = $query->get();
 
-        $result = $polls->map(function ($poll) use ($userId) {
+        // Filter out targeted polls that don't match the current user
+        $polls = $polls->filter(function ($poll) use ($user) {
+            return $this->isEligibleForPoll($poll, $user);
+        });
+
+        $result = $polls->values()->map(function ($poll) use ($userId) {
             return $this->formatPoll($poll, $userId);
         });
 
         return response()->json($result);
+    }
+
+    /**
+     * Check whether a user is eligible to see a targeted poll.
+     * Non-targeted polls (no criteria set) are visible to everyone.
+     * Admins always see all polls.
+     */
+    private function isEligibleForPoll(Poll $poll, $user): bool
+    {
+        $isTargeted = $poll->target_faculty || $poll->target_year || $poll->target_course;
+
+        // Non-targeted polls are visible to everyone
+        if (!$isTargeted) {
+            return true;
+        }
+
+        // Admins see all polls
+        if ($user && $user->role === 'admin') {
+            return true;
+        }
+
+        // Poll creator always sees their own poll
+        if ($user && $poll->user_id === $user->id) {
+            return true;
+        }
+
+        // Check each criterion — all set criteria must match
+        if ($poll->target_faculty && $user) {
+            if (strtolower($user->faculty ?? '') !== strtolower($poll->target_faculty)) {
+                return false;
+            }
+        }
+
+        if ($poll->target_year && $user) {
+            // target_year stored as e.g. "1st year", user study_year as integer
+            $yearMap = ['1st year' => 1, '2nd year' => 2, '3rd year' => 3, '4th year' => 4];
+            $targetYear = $yearMap[strtolower($poll->target_year)] ?? null;
+            if ($targetYear && (int) ($user->study_year ?? 0) !== $targetYear) {
+                return false;
+            }
+        }
+
+        if ($poll->target_course && $user) {
+            if (strtolower($user->programme ?? '') !== strtolower($poll->target_course)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -310,6 +387,7 @@ class PollController extends Controller
             'title'       => $poll->title,
             'description' => $poll->description,
             'category'    => $poll->category,
+            'status'      => $poll->status,
             'author'      => $poll->user->nickname ?? $poll->user->name,
             'createdAt'   => $poll->created_at->format('M j, Y'),
             'expiryDate'  => $poll->expires_at->toDateString(),

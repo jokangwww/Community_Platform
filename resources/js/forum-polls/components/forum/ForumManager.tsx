@@ -22,7 +22,10 @@ interface ForumManagerProps {
   onPetitionClick?: (petitionId: string) => void;
   onViewAllPolls?: () => void;
   onViewAllPetitions?: () => void;
+  onViewPollArchive?: () => void;
   initialPostId?: string | null;
+  onInitialPostConsumed?: () => void;
+  resetToken?: number;
 }
 
 export function ForumManager({ 
@@ -36,7 +39,10 @@ export function ForumManager({
   onPetitionClick,
   onViewAllPolls,
   onViewAllPetitions,
-  initialPostId
+  onViewPollArchive,
+  initialPostId,
+  onInitialPostConsumed,
+  resetToken,
 }: ForumManagerProps) {
   const [view, setView] = useState<'list' | 'create' | 'view' | 'categories' | 'tagSearch' | 'allTags'>('list');
   const [categories, setCategories] = useState<ForumCategory[]>([]);
@@ -98,8 +104,18 @@ export function ForumManager({
   useEffect(() => {
     if (initialPostId) {
       setPendingOpenPostId(initialPostId);
+      onInitialPostConsumed?.();
     }
-  }, [initialPostId]);
+  }, [initialPostId, onInitialPostConsumed]);
+
+  // Reset forum sub-view when parent asks (e.g., switching back from Poll/Petition tabs)
+  useEffect(() => {
+    if (resetToken === undefined) return;
+    setView('list');
+    setSelectedPostId(null);
+    setPendingOpenPostId(null);
+    setSelectedTag(null);
+  }, [resetToken]);
 
   // Once posts are loaded, open the pending post
   useEffect(() => {
@@ -130,18 +146,77 @@ export function ForumManager({
   // Load answers/comments when viewing a post
   useEffect(() => {
     if (!selectedPostId || view !== 'view') return;
-    const post = posts.find(p => p.id === selectedPostId);
-    if (!post) return;
 
-    if (post.category.type === 'academic-qa') {
-      forumApi.fetchAnswers(selectedPostId).then(data => {
-        setAnswers(prev => ({ ...prev, [selectedPostId]: data }));
-      }).catch(console.error);
-    } else {
-      forumApi.fetchComments(selectedPostId).then(data => {
-        setPostComments(prev => ({ ...prev, [selectedPostId]: data }));
-      }).catch(console.error);
-    }
+    let cancelled = false;
+
+    const resolvePost = async () => {
+      const existing = posts.find(p => p.id === selectedPostId);
+      if (existing) return existing;
+
+      try {
+        const fetched = await forumApi.fetchPost(selectedPostId);
+        if (!cancelled) {
+          setPosts(prev => {
+            const idx = prev.findIndex(p => p.id === fetched.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = fetched;
+              return next;
+            }
+            return [fetched, ...prev];
+          });
+        }
+        return fetched;
+      } catch (err) {
+        if (!cancelled) console.error('Failed to load selected post:', err);
+        return null;
+      }
+    };
+
+    const loadThreadData = async () => {
+      try {
+        const post = await resolvePost();
+        if (!post || cancelled) return;
+
+        if (post.category.type === 'academic-qa') {
+          const data = await forumApi.fetchAnswers(selectedPostId);
+          if (!cancelled) {
+            setAnswers(prev => ({ ...prev, [selectedPostId]: data }));
+            setPosts(prev => prev.map(p =>
+              p.id === selectedPostId
+                ? {
+                    ...p,
+                    answerCount: data.length,
+                    hasAcceptedAnswer: data.some(a => a.isAccepted),
+                  }
+                : p
+            ));
+          }
+        } else {
+          const data = await forumApi.fetchComments(selectedPostId);
+          if (!cancelled) {
+            setPostComments(prev => ({ ...prev, [selectedPostId]: data }));
+          }
+        }
+      } catch (err) {
+        if (!cancelled) console.error(err);
+      }
+    };
+
+    loadThreadData();
+
+    // Keep Q&A answers fresh so other students can see new answers without manual refresh.
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    resolvePost().then((post) => {
+      if (!cancelled && post?.category?.type === 'academic-qa') {
+        intervalId = setInterval(loadThreadData, 8000);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [selectedPostId, view]);
 
   const selectedPost = posts.find(p => p.id === selectedPostId);
@@ -289,14 +364,19 @@ export function ForumManager({
     if (!post) return;
     try {
       if (post.category.type === 'academic-qa') {
-        const newAnswer = await forumApi.createAnswer(selectedPostId, { content, mentions });
+        await forumApi.createAnswer(selectedPostId, { content, mentions });
+        const latestAnswers = await forumApi.fetchAnswers(selectedPostId);
         setAnswers(prev => ({
           ...prev,
-          [selectedPostId]: [...(prev[selectedPostId] || []), newAnswer]
+          [selectedPostId]: latestAnswers
         }));
         setPosts(prev => prev.map(p =>
           p.id === selectedPostId
-            ? { ...p, answerCount: (p.answerCount || 0) + 1 }
+            ? {
+                ...p,
+                answerCount: latestAnswers.length,
+                hasAcceptedAnswer: latestAnswers.some(a => a.isAccepted),
+              }
             : p
         ));
       } else {
@@ -426,6 +506,7 @@ export function ForumManager({
             onPetitionClick={onPetitionClick}
             onViewAllPolls={onViewAllPolls}
             onViewAllPetitions={onViewAllPetitions}
+            onViewPollArchive={onViewPollArchive}
             isAdmin={isAdmin}
             isMuted={isMuted}
             mutedUntilDate={mutedUntilDate}
@@ -515,6 +596,8 @@ export function ForumManager({
                 onEditComment={handleEditComment}
                 onDeleteComment={handleDeleteComment}
                 isAuthor={selectedPost.author.id === currentUserId}
+                isMuted={isMuted}
+                mutedUntilDate={mutedUntilDate}
               />
             </div>
           ) : (
@@ -526,6 +609,7 @@ export function ForumManager({
                 tags: selectedPost.hashtags,
                 author: selectedPost.author.nickname,
                 authorId: selectedPost.author.id,
+                authorIsVerifiedMentor: selectedPost.author.isVerifiedMentor,
                 authorAvatar: selectedPost.author.nickname.substring(0, 2).toUpperCase(),
                 timeAgo: selectedPost.createdAt,
                 views: selectedPost.views,
@@ -610,6 +694,8 @@ export function ForumManager({
               onDeletePost={handleDeletePost}
               onEditComment={handleEditComment}
               onDeleteComment={handleDeleteComment}
+              isMuted={isMuted}
+              mutedUntilDate={mutedUntilDate}
             />
           )}
         </>

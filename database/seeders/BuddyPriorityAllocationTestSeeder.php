@@ -25,19 +25,19 @@ use Carbon\Carbon;
  * Subjects: CS101, MATH101, ENG101
  *
  * MENTORS (3, with limited capacity):
- *   Mentor Alpha  → CS101   (2/3 used, 1 slot left)
- *   Mentor Beta   → MATH101 (2/3 used, 1 slot left)
- *   Mentor Gamma  → ENG101  (1/3 used, 2 slots left)
+ *   Mentor Alex   → CS101    (2/3 used, 1 slot left)  — Tommy, Marcus
+ *   Mentor Brenda → MATH101  (2/3 used, 1 slot left)  — Qian Liu, Yvonne
+ *   Mentor Calvin → PIANO101 (1/3 used, 2 slots left) — Kevin
  *
  * UNMATCHED MENTEES (8, staggered registration order):
- *   #1  Ahmad Regular     → CS101   | normal | registered 1st (earliest)
- *   #2  Bella Regular     → ENG101  | normal | registered 2nd
- *   #3  Calvin Repeater   → CS101   | high   | registered 3rd
- *   #4  Diana Repeater    → MATH101 | high   | registered 4th
- *   #5  Edwin Low Rating  → ENG101  | low    | registered 5th
- *   #6  Fiona Regular     → MATH101 | normal | registered 6th
- *   #7  George Repeater   → ENG101  | high   | registered 7th
- *   #8  Hannah Regular    → CS101   | normal | registered 8th (latest)
+ *   #1  Ahmad Regular     → CS101    | normal | registered 1st (earliest)
+ *   #2  Bella Regular     → PIANO101 | normal | registered 2nd
+ *   #3  Calvin Repeater   → CS101    | high   | registered 3rd
+ *   #4  Diana Repeater    → MATH101  | high   | registered 4th
+ *   #5  Edwin Low Rating  → PIANO101 | low    | registered 5th
+ *   #6  Fiona Regular     → MATH101  | normal | registered 6th
+ *   #7  George Repeater   → PIANO101 | high   | registered 7th
+ *   #8  Hannah Regular    → CS101    | normal | registered 8th (latest)
  *
  * ═══════════════════════════════════════════════════════════════════
  * EXPECTED: PRIORITY ALLOCATION = ON
@@ -45,14 +45,14 @@ use Carbon\Carbon;
  *
  * Matching preview processes HIGH tiers first, then NORMAL, then LOW:
  *
- *   1. Calvin Repeater  (CS, high,   reg #3) → CS slot    → ✅ MATCHED
- *   2. Diana Repeater   (MATH, high, reg #4) → MATH slot  → ✅ MATCHED
- *   3. George Repeater  (ENG, high,  reg #7) → ENG slot 1 → ✅ MATCHED
- *   4. Ahmad Regular    (CS, normal, reg #1) → CS: full   → ❌ WAITING
- *   5. Bella Regular    (ENG, normal,reg #2) → ENG slot 2 → ✅ MATCHED
- *   6. Fiona Regular    (MATH, norm, reg #6) → MATH: full → ❌ WAITING
- *   7. Hannah Regular   (CS, normal, reg #8) → CS: full   → ❌ WAITING
- *   8. Edwin Low Rating (ENG, low,   reg #5) → ENG: full  → ❌ WAITING
+ *   1. Calvin Repeater  (CS,    high,   reg #3) → CS slot      → ✅ MATCHED
+ *   2. Diana Repeater   (MATH,  high,   reg #4) → MATH slot    → ✅ MATCHED
+ *   3. George Repeater  (PIANO, high,   reg #7) → PIANO slot 1 → ✅ MATCHED
+ *   4. Ahmad Regular    (CS,    normal, reg #1) → CS: full     → ❌ WAITING
+ *   5. Bella Regular    (PIANO, normal, reg #2) → PIANO slot 2 → ✅ MATCHED
+ *   6. Fiona Regular    (MATH,  normal, reg #6) → MATH: full   → ❌ WAITING
+ *   7. Hannah Regular   (CS,    normal, reg #8) → CS: full     → ❌ WAITING
+ *   8. Edwin Low Rating (PIANO, low,    reg #5) → PIANO: full  → ❌ WAITING
  *
  *   Waiting list order:
  *     #1 Ahmad Regular    (normal, reg 1st)  ← registered first but lost to repeater!
@@ -64,14 +64,14 @@ use Carbon\Carbon;
  * EXPECTED: PRIORITY ALLOCATION = OFF (pure FIFO)
  * ═══════════════════════════════════════════════════════════════════
  *
- *   1. Ahmad Regular    (CS,   reg #1) → CS slot    → ✅ MATCHED
- *   2. Bella Regular    (ENG,  reg #2) → ENG slot 1 → ✅ MATCHED
- *   3. Calvin Repeater  (CS,   reg #3) → CS: full   → ❌ WAITING
- *   4. Diana Repeater   (MATH, reg #4) → MATH slot  → ✅ MATCHED
- *   5. Edwin Low Rating (ENG,  reg #5) → ENG slot 2 → ✅ MATCHED
- *   6. Fiona Regular    (MATH, reg #6) → MATH: full → ❌ WAITING
- *   7. George Repeater  (ENG,  reg #7) → ENG: full  → ❌ WAITING
- *   8. Hannah Regular   (CS,   reg #8) → CS: full   → ❌ WAITING
+ *   1. Ahmad Regular    (CS,    reg #1) → CS slot      → ✅ MATCHED
+ *   2. Bella Regular    (PIANO, reg #2) → PIANO slot 1 → ✅ MATCHED
+ *   3. Calvin Repeater  (CS,    reg #3) → CS: full     → ❌ WAITING
+ *   4. Diana Repeater   (MATH,  reg #4) → MATH slot    → ✅ MATCHED
+ *   5. Edwin Low Rating (PIANO, reg #5) → PIANO slot 2 → ✅ MATCHED
+ *   6. Fiona Regular    (MATH,  reg #6) → MATH: full   → ❌ WAITING
+ *   7. George Repeater  (PIANO, reg #7) → PIANO: full  → ❌ WAITING
+ *   8. Hannah Regular   (CS,    reg #8) → CS: full     → ❌ WAITING
  *
  *   Waiting list order (pure FIFO):
  *     #1 Calvin Repeater  (reg 3rd)
@@ -84,6 +84,9 @@ use Carbon\Carbon;
  */
 class BuddyPriorityAllocationTestSeeder extends Seeder
 {
+    /** Sequential counter for existing-mentee student IDs (24MTT00001, 00002, …) */
+    private int $menteeCounter = 0;
+
     public function run(): void
     {
         $this->command->info('');
@@ -96,6 +99,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $subjects = $this->ensureSubjects();
         $this->createMentorsWithExistingMatches($subjects, $semester);
         $this->createUnmatchedMentees($subjects, $semester);
+        $this->createUnregisteredStudents();
         $this->printTestingGuide();
     }
 
@@ -107,17 +111,17 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
 
         if (!$semester) {
             $semester = BuddySemesterSetting::create([
-                'academic_year'       => '2025/2026',
-                'semester'            => 2,
+                'academic_year'       => '2026/2027',
+                'semester'            => 1,
                 'duration_type'       => 'long',
                 'total_weeks'         => 14,
-                'start_date'          => Carbon::now()->subWeeks(2),
-                'end_date'            => Carbon::now()->addWeeks(12),
+                'start_date'          => Carbon::now(),
+                'end_date'            => Carbon::now()->addWeeks(14),
                 'is_active'           => true,
-                'registration_open'   => true,
+                'registration_open'   => false,
                 'evaluation_enabled'  => false,
                 'testimonial_enabled' => false,
-                'priority_allocation' => true,
+                'priority_allocation' => false,
             ]);
             $this->command->info('✅ Created new active semester with priority_allocation = ON');
         } else {
@@ -137,9 +141,10 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
     private function ensureSubjects(): array
     {
         $data = [
-            ['code' => 'CS101',   'name' => 'Computer Science', 'type' => 'subject'],
-            ['code' => 'MATH101', 'name' => 'Mathematics',      'type' => 'subject'],
-            ['code' => 'ENG101',  'name' => 'English',          'type' => 'subject'],
+            ['code' => 'CS101',    'name' => 'Computer Science', 'type' => 'subject'],
+            ['code' => 'MATH101',  'name' => 'Mathematics',      'type' => 'subject'],
+            ['code' => 'ENG101',   'name' => 'English',          'type' => 'subject'],
+            ['code' => 'PIANO101', 'name' => 'Piano',            'type' => 'skill'],
         ];
 
         $map = [];
@@ -150,7 +155,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Subjects: CS101, MATH101, ENG101');
+        $this->command->info('✅ Subjects: CS101, MATH101, ENG101, PIANO101 (Piano skill)');
         return $map;
     }
 
@@ -161,41 +166,44 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $this->command->newLine();
         $this->command->info('Creating mentors with limited capacity...');
 
-        // Mentor Alpha: CS101 — 2 existing mentees, 1 slot left
+        // Mentor Alex: CS101 — 2 existing mentees, 1 slot left
         $this->createMentorWithMatches(
-            name: 'Mentor Alpha',
-            email: 'mentor.alpha@pa.test',
-            studentId: '24PA_M01',
+            name: 'Mentor Alex',
+            email: 'alex.mentor@buddy.test',
+            studentId: '24MTR00001',
             subject: $subjects['CS101'],
             semester: $semester,
             existingMenteeCount: 2,
             menteePrefix: 'PA_EX_CS',
+            menteeNames: ['Mentee Tommy', 'Mentee Marcus'],
         );
-        $this->command->info('  ✅ Mentor Alpha (CS101) — 2/3 used, 1 slot left');
+        $this->command->info('  ✅ Mentor Alex (CS101) — 2/3 used, 1 slot left (Tommy, Marcus)');
 
-        // Mentor Beta: MATH101 — 2 existing mentees, 1 slot left
+        // Mentor Brenda: MATH101 — 2 existing mentees, 1 slot left
         $this->createMentorWithMatches(
-            name: 'Mentor Beta',
-            email: 'mentor.beta@pa.test',
-            studentId: '24PA_M02',
+            name: 'Mentor Brenda',
+            email: 'mentor.brenda@buddy.test',
+            studentId: '24MTR00002',
             subject: $subjects['MATH101'],
             semester: $semester,
             existingMenteeCount: 2,
             menteePrefix: 'PA_EX_MA',
+            menteeNames: ['Mentee Qian Liu', 'Mentee Yvonne'],
         );
-        $this->command->info('  ✅ Mentor Beta (MATH101) — 2/3 used, 1 slot left');
+        $this->command->info('  ✅ Mentor Brenda (MATH101) — 2/3 used, 1 slot left (Qian Liu, Yvonne)');
 
-        // Mentor Gamma: ENG101 — 1 existing mentee, 2 slots left
+        // Mentor Calvin: PIANO101 — 1 existing mentee, 2 slots left
         $this->createMentorWithMatches(
-            name: 'Mentor Gamma',
-            email: 'mentor.gamma@pa.test',
-            studentId: '24PA_M03',
-            subject: $subjects['ENG101'],
+            name: 'Mentor Calvin',
+            email: 'mentor.calvin@buddy.test',
+            studentId: '24MTR00003',
+            subject: $subjects['PIANO101'],
             semester: $semester,
             existingMenteeCount: 1,
-            menteePrefix: 'PA_EX_EN',
+            menteePrefix: 'PA_EX_PI',
+            menteeNames: ['Mentee Kevin'],
         );
-        $this->command->info('  ✅ Mentor Gamma (ENG101) — 1/3 used, 2 slots left');
+        $this->command->info('  ✅ Mentor Calvin (PIANO101/Piano) — 1/3 used, 2 slots left (Kevin)');
     }
 
     private function createMentorWithMatches(
@@ -206,6 +214,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         BuddySemesterSetting $semester,
         int $existingMenteeCount,
         string $menteePrefix,
+        array $menteeNames = [],
     ): void {
         $user = $this->findOrCreateUser($name, $email, $studentId);
 
@@ -227,12 +236,21 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             ]
         );
 
+        // Sync User table with BuddyParticipant data
+        $user->update([
+            'faculty'    => $mentor->faculty,
+            'programme'  => $mentor->course,
+            'study_year' => $mentor->year_of_study,
+        ]);
+
         // Create pre-existing matched mentees
         for ($i = 1; $i <= $existingMenteeCount; $i++) {
-            $mStudentId = "24{$menteePrefix}_{$i}";
+            $mStudentId = sprintf('24MTT%05d', ++$this->menteeCounter);
+            $menteeName = $menteeNames[$i - 1] ?? "Existing {$subject->code} Mentee {$i}";
+            $menteeSlug = strtolower(str_replace(' ', '.', preg_replace('/^Mentee\s+/i', '', $menteeName)));
             $mUser = $this->findOrCreateUser(
-                "Existing {$subject->code} Mentee {$i}",
-                strtolower("{$menteePrefix}.{$i}@pa.test"),
+                $menteeName,
+                "{$menteeSlug}.mentee@buddy.test",
                 $mStudentId,
             );
 
@@ -240,7 +258,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
                 ['student_id' => $mStudentId, 'semester_id' => $semester->id],
                 [
                     'user_id'       => $mUser->id,
-                    'full_name'     => "Existing {$subject->code} Mentee {$i}",
+                    'full_name'     => $menteeName,
                     'course'        => 'Diploma in IT',
                     'faculty'       => 'Faculty of Computing and Informatics',
                     'year_of_study' => 1,
@@ -253,6 +271,13 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
                     'verified_at'   => now(),
                 ]
             );
+
+            // Sync User table with BuddyParticipant data
+            $mUser->update([
+                'faculty'    => $mentee->faculty,
+                'programme'  => $mentee->course,
+                'study_year' => $mentee->year_of_study,
+            ]);
 
             $match = BuddyMatch::firstOrCreate(
                 [
@@ -287,7 +312,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $mentees = [
             [
                 'name'          => 'Ahmad Regular',
-                'email'         => 'ahmad.regular@pa.test',
+                'email'         => 'ahmad.regular@buddy.test',
                 'student_id'    => '24PA_U01',
                 'subject'       => 'CS101',
                 'is_repeater'   => false,
@@ -297,17 +322,17 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             ],
             [
                 'name'          => 'Bella Regular',
-                'email'         => 'bella.regular@pa.test',
+                'email'         => 'bella.regular@buddy.test',
                 'student_id'    => '24PA_U02',
-                'subject'       => 'ENG101',
+                'subject'       => 'PIANO101',
                 'is_repeater'   => false,
                 'priority_tier' => 'normal',
                 'order'         => 2,
-                'label'         => 'ENG101 | normal | registered 2nd',
+                'label'         => 'PIANO101 (Piano) | normal | registered 2nd',
             ],
             [
                 'name'          => 'Calvin Repeater',
-                'email'         => 'calvin.repeater@pa.test',
+                'email'         => 'calvin.repeater@buddy.test',
                 'student_id'    => '24PA_U03',
                 'subject'       => 'CS101',
                 'is_repeater'   => true,
@@ -317,7 +342,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             ],
             [
                 'name'          => 'Diana Repeater',
-                'email'         => 'diana.repeater@pa.test',
+                'email'         => 'diana.repeater@buddy.test',
                 'student_id'    => '24PA_U04',
                 'subject'       => 'MATH101',
                 'is_repeater'   => true,
@@ -327,17 +352,17 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             ],
             [
                 'name'          => 'Edwin Low Rating',
-                'email'         => 'edwin.low@pa.test',
+                'email'         => 'edwin.low@buddy.test',
                 'student_id'    => '24PA_U05',
-                'subject'       => 'ENG101',
+                'subject'       => 'PIANO101',
                 'is_repeater'   => false,
                 'priority_tier' => 'low',
                 'order'         => 5,
-                'label'         => 'ENG101 | LOW | registered 5th',
+                'label'         => 'PIANO101 (Piano) | LOW | registered 5th',
             ],
             [
                 'name'          => 'Fiona Regular',
-                'email'         => 'fiona.regular@pa.test',
+                'email'         => 'fiona.regular@buddy.test',
                 'student_id'    => '24PA_U06',
                 'subject'       => 'MATH101',
                 'is_repeater'   => false,
@@ -347,17 +372,17 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
             ],
             [
                 'name'          => 'George Repeater',
-                'email'         => 'george.repeater@pa.test',
+                'email'         => 'george.repeater@buddy.test',
                 'student_id'    => '24PA_U07',
-                'subject'       => 'ENG101',
+                'subject'       => 'PIANO101',
                 'is_repeater'   => true,
                 'priority_tier' => 'high',
                 'order'         => 7,
-                'label'         => 'ENG101 | HIGH (repeater) | registered 7th',
+                'label'         => 'PIANO101 (Piano) | HIGH (repeater) | registered 7th',
             ],
             [
                 'name'          => 'Hannah Regular',
-                'email'         => 'hannah.regular@pa.test',
+                'email'         => 'hannah.regular@buddy.test',
                 'student_id'    => '24PA_U08',
                 'subject'       => 'CS101',
                 'is_repeater'   => false,
@@ -391,6 +416,13 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
                 ]
             );
 
+            // Sync User table with BuddyParticipant data
+            $user->update([
+                'faculty'    => $participant->faculty,
+                'programme'  => $participant->course,
+                'study_year' => $participant->year_of_study,
+            ]);
+
             // Force exact created_at for deterministic ordering
             $participant->created_at = $createdAt;
             $participant->save();
@@ -403,6 +435,135 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
 
             $this->command->info("  #{$data['order']} {$tag}  {$data['name']}  →  {$data['label']}");
         }
+    }
+
+    /* ─── Unregistered students (no BuddyParticipant record) ───── */
+
+    private function createUnregisteredStudents(): void
+    {
+        $this->command->newLine();
+        $this->command->info('Creating 12 unregistered student accounts (no buddy registration)...');
+        $this->command->newLine();
+
+        $students = [
+            [
+                'name'        => 'Mentor Adam',
+                'email'       => 'adam.mentor@buddy.test',
+                'student_id'  => '26BP0001',
+                'faculty'     => 'Faculty of Computing and Informatics',
+                'programme'   => 'Bachelor of Computer Science',
+                'study_year'  => 3,
+            ],
+            [
+                'name'        => 'Mentor Felicia',
+                'email'       => 'felicia.mentor@buddy.test',
+                'student_id'  => '26BP0002',
+                'faculty'     => 'Faculty of Engineering and Technology',
+                'programme'   => 'Bachelor of Electrical Engineering',
+                'study_year'  => 2,
+            ],
+            [
+                'name'        => 'Mentor Gordon',
+                'email'       => 'gordon.mentor@buddy.test',
+                'student_id'  => '26BP0003',
+                'faculty'     => 'Faculty of Accountancy, Finance and Business',
+                'programme'   => 'Bachelor of Accounting',
+                'study_year'  => 3,
+            ],
+            [
+                'name'        => 'Mentee Hazel',
+                'email'       => 'hazel.mentee@buddy.test',
+                'student_id'  => '26BP0004',
+                'faculty'     => 'Faculty of Computing and Informatics',
+                'programme'   => 'Diploma in Information Technology',
+                'study_year'  => 1,
+            ],
+            [
+                'name'        => 'Mentee Ivan',
+                'email'       => 'ivan.mentee@buddy.test',
+                'student_id'  => '26BP0005',
+                'faculty'     => 'Faculty of Applied Sciences',
+                'programme'   => 'Diploma in Science',
+                'study_year'  => 1,
+            ],
+            [
+                'name'        => 'Mentee Jasmine',
+                'email'       => 'jasmine.mentee@buddy.test',
+                'student_id'  => '26BP0006',
+                'faculty'     => 'Faculty of Communication and Creative Industries',
+                'programme'   => 'Diploma in Mass Communication',
+                'study_year'  => 2,
+            ],
+            [
+                'name'        => 'Mentee Kevin',
+                'email'       => 'kevin.mentee@buddy.test',
+                'student_id'  => '26BP0007',
+                'faculty'     => 'Faculty of Engineering and Technology',
+                'programme'   => 'Diploma in Mechanical Engineering',
+                'study_year'  => 1,
+            ],
+            [
+                'name'        => 'Mentee Laura',
+                'email'       => 'laura.mentee@buddy.test',
+                'student_id'  => '26BP0008',
+                'faculty'     => 'Faculty of Business',
+                'programme'   => 'Diploma in Business Administration',
+                'study_year'  => 2,
+            ],
+            [
+                'name'        => 'Mentee Mars',
+                'email'       => 'mars.mentee@buddy.test',
+                'student_id'  => '26BP0009',
+                'faculty'     => 'Faculty of Computing and Information Technology',
+                'programme'   => 'Diploma in Software Engineering',
+                'study_year'  => 1,
+            ],
+            [
+                'name'        => 'Mentee Nina',
+                'email'       => 'nina.mentee@buddy.test',
+                'student_id'  => '26BP0010',
+                'faculty'     => 'Faculty of Social Science and Humanities',
+                'programme'   => 'Diploma in Psychology',
+                'study_year'  => 2,
+            ],
+            [
+                'name'        => 'Mentee Oscar',
+                'email'       => 'oscar.mentee@buddy.test',
+                'student_id'  => '26BP0011',
+                'faculty'     => 'Faculty of Accountancy, Finance and Business',
+                'programme'   => 'Diploma in Finance',
+                'study_year'  => 1,
+            ],
+            [
+                'name'        => 'Mentee Priya',
+                'email'       => 'priya.mentee@buddy.test',
+                'student_id'  => '26BP0012',
+                'faculty'     => 'Faculty of Applied Sciences',
+                'programme'   => 'Diploma in Biotechnology',
+                'study_year'  => 2,
+            ],
+        ];
+
+        foreach ($students as $data) {
+            User::firstOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name'              => $data['name'],
+                    'password'          => Hash::make('password123'),
+                    'student_id'        => $data['student_id'],
+                    'role'              => 'student',
+                    'email_verified_at' => now(),
+                    'faculty'           => $data['faculty'],
+                    'programme'         => $data['programme'],
+                    'study_year'        => $data['study_year'],
+                ]
+            );
+
+            $this->command->info("  👤 {$data['name']}  →  {$data['email']}  [{$data['faculty']} | Yr {$data['study_year']}]");
+        }
+
+        $this->command->newLine();
+        $this->command->info('  ✅ 12 unregistered students created (3 Mentor-named, 9 Mentee-named)');
     }
 
     /* ─── Helpers ──────────────────────────────────────────────── */
@@ -431,7 +592,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $this->command->info('══════════════════════════════════════════════════════════════');
         $this->command->newLine();
         $this->command->info('  Current state:');
-        $this->command->info('  • 3 mentors: Alpha(CS,1slot), Beta(MATH,1slot), Gamma(ENG,2slots)');
+        $this->command->info('  • 3 mentors: Alex(CS,1slot), Brenda(MATH,1slot), Calvin(PIANO,2slots)');
         $this->command->info('  • 8 unmatched mentees (3 HIGH, 4 NORMAL, 1 LOW)');
         $this->command->info('  • Priority allocation: ENABLED');
         $this->command->newLine();
@@ -453,10 +614,10 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $this->command->info('  │       #8 Edwin Low Rating  (low,    reg 5th)             │');
         $this->command->info('  │                                                          │');
         $this->command->info('  │  3. Click "Preview Auto-Match" — should show:            │');
-        $this->command->info('  │     ✅ Calvin Repeater  → Mentor Alpha (CS)              │');
-        $this->command->info('  │     ✅ Diana Repeater   → Mentor Beta  (MATH)            │');
-        $this->command->info('  │     ✅ George Repeater  → Mentor Gamma (ENG)             │');
-        $this->command->info('  │     ✅ Bella Regular    → Mentor Gamma (ENG)             │');
+        $this->command->info('  │     ✅ Calvin Repeater  → Mentor Alex   (CS)             │');
+        $this->command->info('  │     ✅ Diana Repeater   → Mentor Brenda (MATH)           │');
+        $this->command->info('  │     ✅ George Repeater  → Mentor Calvin (PIANO)          │');
+        $this->command->info('  │     ✅ Bella Regular    → Mentor Calvin (PIANO)          │');
         $this->command->info('  │     ❌ Ahmad, Fiona, Hannah, Edwin → unmatched           │');
         $this->command->info('  │                                                          │');
         $this->command->info('  │  4. Run Auto-Match → verify same results                 │');
@@ -482,11 +643,11 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $this->command->info('  │     #7 George (7th) #8 Hannah (8th)                      │');
         $this->command->info('  │                                                          │');
         $this->command->info('  │  4. Preview Auto-Match — now first-come-first-served:    │');
-        $this->command->info('  │     ✅ Ahmad Regular   → Mentor Alpha (CS)  ← gets slot! │');
-        $this->command->info('  │     ✅ Bella Regular   → Mentor Gamma (ENG)              │');
-        $this->command->info('  │     ✅ Diana Repeater  → Mentor Beta  (MATH)             │');
-        $this->command->info('  │     ✅ Edwin Low       → Mentor Gamma (ENG) ← gets slot! │');
-        $this->command->info('  │     ❌ Calvin, Fiona, George, Hannah → unmatched         │');
+        $this->command->info('  │     ✅ Ahmad Regular   → Mentor Alex   (CS)   ← gets slot! │');
+        $this->command->info('  │     ✅ Bella Regular   → Mentor Calvin (PIANO)            │');
+        $this->command->info('  │     ✅ Diana Repeater  → Mentor Brenda (MATH)             │');
+        $this->command->info('  │     ✅ Edwin Low       → Mentor Calvin (PIANO) ← gets slot! │');
+        $this->command->info('  │     ❌ Calvin, Fiona, George, Hannah → unmatched           │');
         $this->command->info('  │                                                          │');
         $this->command->info('  │  KEY: Ahmad now gets slot (registered first).             │');
         $this->command->info('  │       Edwin gets ENG slot (registered before George).     │');
@@ -495,7 +656,7 @@ class BuddyPriorityAllocationTestSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->info('  🔑 All test accounts use password: password123');
-        $this->command->info('  📧 Emails: *@pa.test');
+        $this->command->info('  📧 Emails: *@buddy.test');
         $this->command->info('══════════════════════════════════════════════════════════════');
         $this->command->newLine();
     }

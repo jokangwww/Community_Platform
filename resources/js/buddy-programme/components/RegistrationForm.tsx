@@ -24,10 +24,17 @@ const FACULTIES = [
   'Faculty of Accountancy, Finance and Business',
   'Faculty of Applied Sciences',
   'Faculty of Computing and Information Technology',
+  'Faculty of Computing and Informatics',
   'Faculty of Built Environment',
   'Faculty of Engineering and Technology',
+  'Faculty of Engineering',
   'Faculty of Communication and Creative Industries',
-  'Faculty of Social Science and Humanities'
+  'Faculty of Social Science and Humanities',
+  'Faculty of Science',
+  'Faculty of Arts',
+  'Faculty of Business',
+  'Faculty of Medicine',
+  'Faculty of Law'
 ];
 
 export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
@@ -67,11 +74,30 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [lockedFields, setLockedFields] = useState<Record<string, boolean>>({});
   const safeSearchQuery = searchQuery ?? '';
   const safeSkillSearch = skillSearch ?? '';
   const filteredSkills = skills.filter((s) =>
     (s?.name ?? '').toLowerCase().includes(safeSkillSearch.toLowerCase())
   );
+
+  // Auto-fill form fields from authenticated user data and lock them
+  useEffect(() => {
+    const user = (window as any).authUser;
+    if (!user) return;
+
+    const locked: Record<string, boolean> = {};
+    const updates: Partial<typeof formData> = {};
+
+    if (user.name) { updates.fullName = user.name; locked.fullName = true; }
+    if (user.student_id) { updates.studentId = user.student_id; locked.studentId = true; }
+    if (user.faculty) { updates.faculty = user.faculty; locked.faculty = true; }
+    if (user.programme) { updates.course = user.programme; locked.course = true; }
+    if (user.study_year) { updates.yearOfStudy = String(user.study_year); locked.yearOfStudy = true; }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+    setLockedFields(locked);
+  }, []);
 
   // Fetch skills on mount
   useEffect(() => {
@@ -474,7 +500,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                readOnly={!!lockedFields.fullName}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  lockedFields.fullName ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'cursor-pointer'
+                } ${
                   errors.fullName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your full name"
@@ -496,7 +525,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.studentId}
                   onChange={(e) => handleInputChange('studentId', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                  readOnly={!!lockedFields.studentId}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    lockedFields.studentId ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'cursor-pointer'
+                  } ${
                     errors.studentId ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 24WMR00123"
@@ -545,7 +577,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
               <select
                 value={formData.faculty}
                 onChange={(e) => handleInputChange('faculty', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                disabled={!!lockedFields.faculty}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  lockedFields.faculty ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'cursor-pointer'
+                } ${
                   errors.faculty ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -571,7 +606,10 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   type="text"
                   value={formData.course}
                   onChange={(e) => handleInputChange('course', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                  readOnly={!!lockedFields.course}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    lockedFields.course ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'cursor-pointer'
+                  } ${
                     errors.course ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Computer Science"

@@ -37,9 +37,24 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
   const [targetCourse, setTargetCourse] = useState("all");
 
   const categories = ["Campus Life", "Facilities", "Academic", "Events", "Sports", "Student Services"];
-  const faculties = ["All Students", "Engineering", "Business", "Arts & Sciences", "Medicine", "Law"];
-  const years = ["All Years", "1st Year", "2nd Year", "3rd Year", "4th Year", "Graduate"];
-  const courses = ["All Courses", "Computer Science", "Business Administration", "Biology", "Psychology", "Economics"];
+  const faculties = [
+    "All Students",
+    "Faculty of Accountancy, Finance and Business",
+    "Faculty of Applied Sciences",
+    "Faculty of Computing and Information Technology",
+    "Faculty of Computing and Informatics",
+    "Faculty of Built Environment",
+    "Faculty of Engineering and Technology",
+    "Faculty of Engineering",
+    "Faculty of Communication and Creative Industries",
+    "Faculty of Social Science and Humanities",
+    "Faculty of Science",
+    "Faculty of Arts",
+    "Faculty of Business",
+    "Faculty of Medicine",
+    "Faculty of Law",
+  ];
+  const years = ["All Years", "1st Year", "2nd Year", "3rd Year", "4th Year"];
 
   const handleAddOption = () => {
     if (options.length < 5) {
@@ -272,7 +287,7 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 </SelectTrigger>
                 <SelectContent>
                   {faculties.map((faculty) => (
-                    <SelectItem key={faculty} value={faculty === "All Students" ? "all" : faculty.toLowerCase()}>
+                    <SelectItem key={faculty} value={faculty === "All Students" ? "all" : faculty}>
                       {faculty}
                     </SelectItem>
                   ))}
@@ -298,18 +313,14 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
 
             <div className="space-y-2">
               <Label htmlFor="course">Course</Label>
-              <Select value={targetCourse} onValueChange={setTargetCourse} disabled={!canCreatePoll}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course} value={course === "All Courses" ? "all" : course.toLowerCase()}>
-                      {course}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="course"
+                value={targetCourse === "all" ? "" : targetCourse}
+                onChange={(e) => setTargetCourse(e.target.value.trim() === "" ? "all" : e.target.value)}
+                placeholder="e.g. Bachelor of Computer Science (leave empty for all courses)"
+                maxLength={100}
+                disabled={!canCreatePoll}
+              />
             </div>
 
             {(targetFaculty !== "all" || targetYear !== "all" || targetCourse !== "all") && (
@@ -318,7 +329,7 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                 <div className="flex flex-wrap gap-2">
                   {targetFaculty !== "all" && (
                     <Badge className="bg-blue-100 text-blue-800">
-                      {faculties.find(f => f.toLowerCase() === targetFaculty)}
+                      {targetFaculty}
                     </Badge>
                   )}
                   {targetYear !== "all" && (
@@ -328,7 +339,7 @@ export function CreatePollForm({ onBack, onCreatePoll, canCreatePoll, nextAvaila
                   )}
                   {targetCourse !== "all" && (
                     <Badge className="bg-blue-100 text-blue-800">
-                      {courses.find(c => c.toLowerCase() === targetCourse)}
+                      {targetCourse}
                     </Badge>
                   )}
                 </div>

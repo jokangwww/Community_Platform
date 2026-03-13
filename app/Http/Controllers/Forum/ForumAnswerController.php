@@ -9,6 +9,7 @@ use App\Models\Forum\ForumPost;
 use App\Models\Forum\ForumReaction;
 use App\Models\Forum\ForumVote;
 use App\Models\User;
+use App\Notifications\ForumMentionNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +31,7 @@ class ForumAnswerController extends Controller
             ->orderByRaw('(CAST(upvotes_count AS SIGNED) - CAST(downvotes_count AS SIGNED)) DESC')
             ->orderByDesc('created_at')
             ->get()
-            ->map(function ($answer) use ($userId) {
+            ->map(function (ForumAnswer $answer) use ($userId) {
                 return $this->formatAnswer($answer, $userId);
             });
 
@@ -80,18 +81,23 @@ class ForumAnswerController extends Controller
 
             $post->increment('answer_count');
 
-            // Handle mentions
+            // Handle mentions (supports @student_id)
             if (!empty($validated['mentions'])) {
-                foreach ($validated['mentions'] as $nickname) {
-                    $mentionedUser = User::where('nickname', $nickname)
-                        ->orWhere('name', $nickname)
-                        ->first();
-                    if ($mentionedUser) {
+                foreach ($validated['mentions'] as $identifier) {
+                    $mentionedUser = User::where('student_id', $identifier)->first();
+                    if ($mentionedUser && $mentionedUser->id !== $user->id) {
                         ForumMention::create([
                             'user_id' => $mentionedUser->id,
                             'mentionable_id' => $answer->id,
                             'mentionable_type' => ForumAnswer::class,
                         ]);
+
+                        $mentionedUser->notify(new ForumMentionNotification(
+                            mentionedByName: $user->nickname ?? $user->name,
+                            contentType: 'answer',
+                            postTitle: $post->title,
+                            postId: $post->id,
+                        ));
                     }
                 }
             }
@@ -267,14 +273,7 @@ class ForumAnswerController extends Controller
      */
     private function formatAnswer(ForumAnswer $answer, ?int $userId): array
     {
-        $isVerifiedMentor = false;
-        if ($answer->user) {
-            $isVerifiedMentor = DB::table('buddy_participants')
-                ->where('user_id', $answer->user_id)
-                ->where('role', 'mentor')
-                ->where('status', 'active')
-                ->exists();
-        }
+        $isVerifiedMentor = $this->hasVerifiedMentorBadge($answer->user);
 
         $reactions = ForumReaction::where('reactable_id', $answer->id)
             ->where('reactable_type', ForumAnswer::class)
@@ -296,7 +295,7 @@ class ForumAnswerController extends Controller
         $mentionedNames = $answer->mentions
             ? $answer->mentions->map(function ($m) {
                 $user = User::find($m->user_id);
-                return $user ? ($user->nickname ?? $user->name) : null;
+                return $user ? ($user->student_id ?? $user->nickname ?? $user->name) : null;
             })->filter()->values()->toArray()
             : [];
 
@@ -317,5 +316,29 @@ class ForumAnswerController extends Controller
             'createdAt' => $answer->created_at->diffForHumans(),
             'mentions' => $mentionedNames,
         ];
+    }
+
+    /**
+     * Determine whether the given user should display a Verified Mentor badge.
+     */
+    private function hasVerifiedMentorBadge(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        // Fallback for systems where mentor is stored directly on users.role.
+        if (($user->role ?? null) === 'mentor') {
+            return true;
+        }
+
+        return DB::table('buddy_participants')
+            ->where('user_id', $user->id)
+            ->where('role', 'mentor')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'rejected');
+            })
+            ->exists();
     }
 }

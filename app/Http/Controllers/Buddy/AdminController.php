@@ -575,7 +575,7 @@ class AdminController extends Controller
             'total_weeks'   => $totalWeeks,
             'start_date'    => $request->start_date,
             'end_date'      => $request->end_date,
-            'updated_by'    => auth()->id(),
+            'updated_by'    => Auth::id(),
         ]);
 
         return response()->json([

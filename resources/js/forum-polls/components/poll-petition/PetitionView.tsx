@@ -146,7 +146,18 @@ export function PetitionView({ petition, onBack, onSupport }: PetitionViewProps)
                           <p className="text-xs text-muted-foreground">{attachment.size}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = attachment.url;
+                          link.download = attachment.name;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>

@@ -9,6 +9,7 @@ use App\Models\Forum\ForumMention;
 use App\Models\Forum\ForumPost;
 use App\Models\Forum\ForumReaction;
 use App\Models\User;
+use App\Notifications\ForumMentionNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -71,19 +72,24 @@ class ForumCommentController extends Controller
 
             $post->increment('comment_count');
 
-            // Handle mentions
-            preg_match_all('/@(\w+)/', $validated['content'], $mentionMatches);
+            // Handle mentions (supports @student_id)
+            preg_match_all('/@([\w]+)/', $validated['content'], $mentionMatches);
             if (!empty($mentionMatches[1])) {
-                foreach ($mentionMatches[1] as $nickname) {
-                    $mentionedUser = User::where('nickname', $nickname)
-                        ->orWhere('name', $nickname)
-                        ->first();
-                    if ($mentionedUser) {
+                foreach ($mentionMatches[1] as $identifier) {
+                    $mentionedUser = User::where('student_id', $identifier)->first();
+                    if ($mentionedUser && $mentionedUser->id !== $user->id) {
                         ForumMention::create([
                             'user_id' => $mentionedUser->id,
                             'mentionable_id' => $comment->id,
                             'mentionable_type' => ForumComment::class,
                         ]);
+
+                        $mentionedUser->notify(new ForumMentionNotification(
+                            mentionedByName: $user->nickname ?? $user->name,
+                            contentType: 'comment',
+                            postTitle: $post->title,
+                            postId: $post->id,
+                        ));
                     }
                 }
             }
@@ -138,21 +144,10 @@ class ForumCommentController extends Controller
      */
     private function formatComment(ForumComment $comment, ?int $userId): array
     {
-        $isVerifiedMentor = false;
-        if ($comment->user) {
-            $isVerifiedMentor = DB::table('buddy_participants')
-                ->where('user_id', $comment->user_id)
-                ->where('role', 'mentor')
-                ->where('status', 'active')
-                ->exists();
-        }
+        $isVerifiedMentor = $this->hasVerifiedMentorBadge($comment->user);
 
         $replies = $comment->replies ? $comment->replies->map(function ($reply) use ($userId) {
-            $replyMentor = DB::table('buddy_participants')
-                ->where('user_id', $reply->user_id)
-                ->where('role', 'mentor')
-                ->where('status', 'active')
-                ->exists();
+            $replyMentor = $this->hasVerifiedMentorBadge($reply->user);
 
             return [
                 'id' => (string) $reply->id,
@@ -179,6 +174,29 @@ class ForumCommentController extends Controller
             'isVerifiedMentor' => $isVerifiedMentor,
             'replies' => $replies,
         ];
+    }
+
+    /**
+     * Determine whether the given user should display a Verified Mentor badge.
+     */
+    private function hasVerifiedMentorBadge(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (($user->role ?? null) === 'mentor') {
+            return true;
+        }
+
+        return DB::table('buddy_participants')
+            ->where('user_id', $user->id)
+            ->where('role', 'mentor')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'rejected');
+            })
+            ->exists();
     }
 
     /**

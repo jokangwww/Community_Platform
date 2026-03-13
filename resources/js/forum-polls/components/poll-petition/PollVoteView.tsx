@@ -372,11 +372,11 @@ export function PollVoteView({ poll, onBack, onVote, onRateUsefulness }: PollVot
                 </CardHeader>
                 <CardContent>
                   <div className="text-center">
-                    <div className="text-3xl font-bold mb-2">{poll.usefulnessScore}%</div>
+                    <div className="text-3xl font-bold mb-2">{poll.usefulnessScore ?? 0}%</div>
                     <p className="text-sm text-muted-foreground">
                       of voters found this poll useful
                     </p>
-                    {poll.usefulnessScore < 30 && (
+                    {(poll.usefulnessScore ?? 0) < 30 && (
                       <Badge variant="secondary" className="mt-3 bg-yellow-100 text-yellow-800">
                         Flagged for Review
                       </Badge>

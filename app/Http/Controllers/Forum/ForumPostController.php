@@ -8,9 +8,12 @@ use App\Models\Forum\ForumPostAttachment;
 use App\Models\Forum\ForumPostLike;
 use App\Models\Forum\ForumHashtag;
 use App\Models\Forum\ForumCategory;
+use App\Models\Forum\ForumComment;
+use App\Models\Forum\ForumAnswer;
 use App\Models\Forum\ForumMention;
 use App\Models\User;
 use App\Models\UserModerationAction;
+use App\Notifications\ForumMentionNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -171,19 +174,24 @@ class ForumPostController extends Controller
                 }
             }
 
-            // Handle mentions
-            preg_match_all('/@(\w+)/', $validated['content'], $mentionMatches);
+            // Handle mentions (supports @student_id)
+            preg_match_all('/@([\w]+)/', $validated['content'], $mentionMatches);
             if (!empty($mentionMatches[1])) {
-                foreach ($mentionMatches[1] as $nickname) {
-                    $mentionedUser = User::where('nickname', $nickname)
-                        ->orWhere('name', $nickname)
-                        ->first();
-                    if ($mentionedUser) {
+                foreach ($mentionMatches[1] as $identifier) {
+                    $mentionedUser = User::where('student_id', $identifier)->first();
+                    if ($mentionedUser && $mentionedUser->id !== $user->id) {
                         ForumMention::create([
                             'user_id' => $mentionedUser->id,
                             'mentionable_id' => $post->id,
                             'mentionable_type' => ForumPost::class,
                         ]);
+
+                        $mentionedUser->notify(new ForumMentionNotification(
+                            mentionedByName: $user->nickname ?? $user->name,
+                            contentType: 'post',
+                            postTitle: $validated['title'],
+                            postId: $post->id,
+                        ));
                     }
                 }
             }
@@ -350,8 +358,8 @@ class ForumPostController extends Controller
             ]);
         $activities = $activities->merge($likeActivity);
 
-        // Mentions
-        $mentionActivity = DB::table('forum_mentions')
+        // Mentions (from posts, comments, and answers)
+        $postMentions = DB::table('forum_mentions')
             ->where('forum_mentions.user_id', $userId)
             ->where('forum_mentions.mentionable_type', ForumPost::class)
             ->join('forum_posts', 'forum_posts.id', '=', 'forum_mentions.mentionable_id')
@@ -361,21 +369,67 @@ class ForumPostController extends Controller
                 'forum_posts.id as post_id',
                 'forum_posts.title as post_title',
                 DB::raw("COALESCE(users.nickname, users.name) as author_name"),
+                DB::raw("'post' as mention_context"),
                 'forum_mentions.created_at as timestamp'
-            )
-            ->orderByDesc('forum_mentions.created_at')
+            );
+
+        $commentMentions = DB::table('forum_mentions')
+            ->where('forum_mentions.user_id', $userId)
+            ->where('forum_mentions.mentionable_type', ForumComment::class)
+            ->join('forum_comments', 'forum_comments.id', '=', 'forum_mentions.mentionable_id')
+            ->join('forum_posts', 'forum_posts.id', '=', 'forum_comments.post_id')
+            ->join('users', 'users.id', '=', 'forum_comments.user_id')
+            ->select(
+                'forum_mentions.id',
+                'forum_posts.id as post_id',
+                'forum_posts.title as post_title',
+                DB::raw("COALESCE(users.nickname, users.name) as author_name"),
+                DB::raw("'comment' as mention_context"),
+                'forum_mentions.created_at as timestamp'
+            );
+
+        $answerMentions = DB::table('forum_mentions')
+            ->where('forum_mentions.user_id', $userId)
+            ->where('forum_mentions.mentionable_type', ForumAnswer::class)
+            ->join('forum_answers', 'forum_answers.id', '=', 'forum_mentions.mentionable_id')
+            ->join('forum_posts', 'forum_posts.id', '=', 'forum_answers.post_id')
+            ->join('users', 'users.id', '=', 'forum_answers.user_id')
+            ->select(
+                'forum_mentions.id',
+                'forum_posts.id as post_id',
+                'forum_posts.title as post_title',
+                DB::raw("COALESCE(users.nickname, users.name) as author_name"),
+                DB::raw("'answer' as mention_context"),
+                'forum_mentions.created_at as timestamp'
+            );
+
+        $mentionActivity = $postMentions
+            ->union($commentMentions)
+            ->union($answerMentions)
+            ->orderByDesc('timestamp')
             ->limit(5)
             ->get()
-            ->map(fn($row) => [
-                'id' => 'mention-' . $row->id,
-                'type' => 'mention',
-                'title' => 'You were mentioned',
-                'description' => "{$row->author_name} mentioned you in '{$row->post_title}'",
-                'timestamp' => \Carbon\Carbon::parse($row->timestamp)->diffForHumans(),
-                'postId' => (string) $row->post_id,
-                'category' => null,
-                'isUnread' => \Carbon\Carbon::parse($row->timestamp)->isToday(),
-            ]);
+            ->map(function ($row) {
+                $contextLabel = match ($row->mention_context) {
+                    'comment' => 'a comment on',
+                    'answer'  => 'an answer on',
+                    default   => '',
+                };
+                $desc = $contextLabel
+                    ? "{$row->author_name} mentioned you in {$contextLabel} '{$row->post_title}'"
+                    : "{$row->author_name} mentioned you in '{$row->post_title}'";
+
+                return [
+                    'id' => 'mention-' . $row->id,
+                    'type' => 'mention',
+                    'title' => 'You were mentioned',
+                    'description' => $desc,
+                    'timestamp' => \Carbon\Carbon::parse($row->timestamp)->diffForHumans(),
+                    'postId' => (string) $row->post_id,
+                    'category' => null,
+                    'isUnread' => \Carbon\Carbon::parse($row->timestamp)->isToday(),
+                ];
+            });
         $activities = $activities->merge($mentionActivity);
 
         // Comments on user's posts
@@ -511,15 +565,7 @@ class ForumPostController extends Controller
      */
     private function formatPost(ForumPost $post, ?int $userId): array
     {
-        $isVerifiedMentor = false;
-        // Check if user is a verified mentor from buddy programme
-        if ($post->user) {
-            $isVerifiedMentor = DB::table('buddy_participants')
-                ->where('user_id', $post->user_id)
-                ->where('role', 'mentor')
-                ->where('status', 'active')
-                ->exists();
-        }
+        $isVerifiedMentor = $this->hasVerifiedMentorBadge($post->user);
 
         return [
             'id' => (string) $post->id,
@@ -542,7 +588,7 @@ class ForumPostController extends Controller
                     'name' => $att->name,
                     'type' => $att->type,
                     'size' => $att->size,
-                    'url' => Storage::url($att->path),
+                    'url' => route('forum.attachments.download', $att->id),
                 ];
             })->toArray() : [],
             'createdAt' => $post->created_at->diffForHumans(),
@@ -561,6 +607,29 @@ class ForumPostController extends Controller
             return number_format($bytes / 1048576, 1) . ' MB';
         }
         return number_format($bytes / 1024, 1) . ' KB';
+    }
+
+    /**
+     * Determine whether the given user should display a Verified Mentor badge.
+     */
+    private function hasVerifiedMentorBadge(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (($user->role ?? null) === 'mentor') {
+            return true;
+        }
+
+        return DB::table('buddy_participants')
+            ->where('user_id', $user->id)
+            ->where('role', 'mentor')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'rejected');
+            })
+            ->exists();
     }
 
     /**
@@ -604,5 +673,20 @@ class ForumPostController extends Controller
         $post->update(['status' => 'deleted']);
 
         return response()->json(['success' => true, 'message' => 'Post deleted successfully.']);
+    }
+
+    /**
+     * Download a forum post attachment.
+     */
+    public function downloadAttachment(int $attachmentId)
+    {
+        $attachment = ForumPostAttachment::findOrFail($attachmentId);
+
+        if (!Storage::disk('public')->exists($attachment->path)) {
+            abort(404, 'File not found.');
+        }
+
+        $filePath = Storage::disk('public')->path($attachment->path);
+        return response()->download($filePath, $attachment->name);
     }
 }

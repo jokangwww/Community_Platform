@@ -15,7 +15,6 @@ const WaitingForMentorScreen = lazy(() => import('./components/WaitingForMentorS
 const MentorDeclinedNotice = lazy(() => import('./components/MentorDeclinedNotice').then(m => ({ default: m.MentorDeclinedNotice })));
 const RoleSelectionForView = lazy(() => import('./components/RoleSelectionForView').then(m => ({ default: m.RoleSelectionForView })));
 
-// Loading fallback component
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-100">
     <div className="text-center">
@@ -39,7 +38,6 @@ type EntryState =
   | 'dashboard_readonly'
   | null;
 
-// Auth user from Laravel
 interface SemesterSetting {
   academic_year: string;
   semester: number;
@@ -53,6 +51,9 @@ interface AuthUser {
   email: string;
   role: string;
   student_id: string | null;
+  faculty: string | null;
+  programme: string | null;
+  study_year: number | string | null;
   is_admin: boolean;
 }
 
@@ -109,12 +110,10 @@ export default function App() {
   const [isEvaluationEnabled, setIsEvaluationEnabled] = useState(false);
   const [semesterInfo, setSemesterInfo] = useState<SemesterSetting | null>(null);
 
-  // Fetch settings on load (always — header needs semester info for all roles)
   useEffect(() => {
     fetchSettings();
   }, [isAdmin]);
 
-  // Auto-check status for all authenticated non-admin users (resolved from auth session in middleware)
   useEffect(() => {
     if (!isAdmin && !hasCheckedStatus) {
       checkRegistrationStatus();
@@ -126,7 +125,7 @@ export default function App() {
       setIsLoadingSettings(true);
       const [settingsResponse, semesterResponse] = await Promise.all([
         fetch('/api/buddy/admin/settings'),
-        fetch('/api/buddy/semester-info'),  // auth-only, no admin required
+        fetch('/api/buddy/semester-info'),  
       ]);
       const result = await settingsResponse.json();
       const semResult = await semesterResponse.json();

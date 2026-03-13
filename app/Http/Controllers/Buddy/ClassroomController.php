@@ -12,6 +12,7 @@ use App\Models\BuddyStudyMaterial;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class ClassroomController extends Controller
 {
@@ -46,7 +47,7 @@ class ClassroomController extends Controller
      */
     private function getMentorMatchIds(int $matchId): array
     {
-        $mentorPivot = \DB::table('buddy_match_participants')
+        $mentorPivot = DB::table('buddy_match_participants')
             ->where('match_id', $matchId)
             ->where('role', 'mentor')
             ->first();
@@ -319,7 +320,7 @@ class ClassroomController extends Controller
         $mentees = [];
         if ($isMentor) {
             $allMatchIds = $this->getMentorMatchIds($matchId);
-            $allMenteeParticipantIds = \DB::table('buddy_match_participants')
+            $allMenteeParticipantIds = DB::table('buddy_match_participants')
                 ->whereIn('match_id', $allMatchIds)
                 ->where('role', 'mentee')
                 ->pluck('participant_id')

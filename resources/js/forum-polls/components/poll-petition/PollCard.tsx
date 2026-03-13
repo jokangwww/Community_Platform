@@ -97,6 +97,11 @@ export function PollCard({ poll, onViewPoll, isBookmarked = false, onToggleBookm
                   Voted
                 </Badge>
               )}
+              {poll.targetCriteria && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 border border-amber-300">
+                  Targeted
+                </Badge>
+              )}
             </div>
           </div>
         </div>

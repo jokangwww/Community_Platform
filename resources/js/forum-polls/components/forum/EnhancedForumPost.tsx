@@ -117,6 +117,8 @@ interface EnhancedForumPostProps {
   onEditComment?: (commentId: string, content: string) => void;
   onDeleteComment?: (commentId: string) => void;
   isAuthor: boolean;
+  isMuted?: boolean;
+  mutedUntilDate?: string | null;
 }
 
 const emojiOptions = ['👍', '❤️', '😊', '🎉', '🤔', '👏'];
@@ -135,7 +137,9 @@ export function EnhancedForumPost({
   onDeletePost,
   onEditComment,
   onDeleteComment,
-  isAuthor
+  isAuthor,
+  isMuted,
+  mutedUntilDate
 }: EnhancedForumPostProps) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
@@ -383,14 +387,16 @@ export function EnhancedForumPost({
                   {reaction.emoji} {reaction.count}
                 </Button>
               ))}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 text-xs cursor-pointer"
-                onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-              >
-                Reply
-              </Button>
+              {!isMuted && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs cursor-pointer"
+                  onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                >
+                  Reply
+                </Button>
+              )}
               {comment.author.id !== currentUserId && (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex items-center justify-center h-6 w-6 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer focus:outline-none">
@@ -445,7 +451,7 @@ export function EnhancedForumPost({
                 <Textarea
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Write a reply... (use @username to mention)"
+                  placeholder="Write a reply... (use @student_id to mention)"
                   rows={2}
                   className="text-sm"
                 />
@@ -559,7 +565,12 @@ export function EnhancedForumPost({
                     key={attachment.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.open(attachment.url, '_blank');
+                      const link = document.createElement('a');
+                      link.href = attachment.url;
+                      link.download = attachment.name;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
                     }}
                     className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-400 hover:underline cursor-pointer"
                   >
@@ -615,17 +626,25 @@ export function EnhancedForumPost({
         )}
 
         {/* Add answer/comment form */}
-        <Card className="p-4">
-          <Textarea
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            placeholder={isQA ? "Write your answer..." : "Write a comment... (use @username to mention)"}
-            rows={4}
-          />
-          <Button className="mt-2 cursor-pointer" onClick={() => handleReply(post.id)}>
-            {isQA ? 'Post Answer' : 'Post Comment'}
-          </Button>
-        </Card>
+        {isMuted ? (
+          <Card className="p-4 border-red-500/30 bg-red-500/10">
+            <p className="text-red-400 text-sm font-medium">
+              🔇 Your account is muted{mutedUntilDate ? ` until ${mutedUntilDate}` : ''}. You cannot {isQA ? 'post answers' : 'comment'} during this period.
+            </p>
+          </Card>
+        ) : (
+          <Card className="p-4">
+            <Textarea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              placeholder={isQA ? "Write your answer..." : "Write a comment... (use @student_id to mention)"}
+              rows={4}
+            />
+            <Button className="mt-2 cursor-pointer" onClick={() => handleReply(post.id)}>
+              {isQA ? 'Post Answer' : 'Post Comment'}
+            </Button>
+          </Card>
+        )}
       </div>
 
       {/* Report dialog */}

@@ -34,6 +34,8 @@ interface TopItem {
   title: string;
   category: string;
   votes: number;
+  status?: string;
+  isExpired?: boolean;
 }
 
 interface ForumDiscussionLayoutProps {
@@ -45,6 +47,7 @@ interface ForumDiscussionLayoutProps {
   onPetitionClick?: (petitionId: string) => void;
   onViewAllPolls?: () => void;
   onViewAllPetitions?: () => void;
+  onViewPollArchive?: () => void;
   isAdmin?: boolean;
   isMuted?: boolean;
   mutedUntilDate?: string | null;
@@ -70,6 +73,7 @@ export function ForumDiscussionLayout({
   onPetitionClick,
   onViewAllPolls,
   onViewAllPetitions,
+  onViewPollArchive,
   isAdmin,
   isMuted,
   mutedUntilDate,
@@ -135,28 +139,89 @@ export function ForumDiscussionLayout({
       })
       .catch(() => { if (!cancelled) { setPopularTags([]); setAllTags([]); } });
 
-    const fetchSidebar = Promise.allSettled([
-      fetch('/api/poll-petition/polls?per_page=3&sort=popularity', { headers }).then(r => r.ok ? r.json() : null),
-      fetch('/api/poll-petition/petitions?per_page=3', { headers }).then(r => r.ok ? r.json() : null),
-    ]).then(([pollsRes, petitionsRes]) => {
-      if (cancelled) return;
-      if (pollsRes.status === 'fulfilled' && pollsRes.value) {
-        const rawPolls = Array.isArray(pollsRes.value)
-          ? pollsRes.value
-          : (pollsRes.value.polls || []);
-        setTopPolls(rawPolls.slice(0, 3).map((p: any) => ({
-          id: String(p.id), title: p.title, category: p.category, votes: p.totalVotes ?? p.total_votes ?? 0,
-        })));
+    // Daily cache key — rankings only refresh once per day
+    const today = new Date().toISOString().split('T')[0];
+    const CACHE_KEY = `topSidebar_${today}`;
+    // Purge stale cache entries from previous days
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('topSidebar_') && k !== CACHE_KEY)
+      .forEach(k => localStorage.removeItem(k));
+
+    const cachedSidebar = localStorage.getItem(CACHE_KEY);
+    const fetchSidebar = (() => {
+      if (cachedSidebar) {
+        try {
+          const parsed = JSON.parse(cachedSidebar);
+          const cachedPolls: TopItem[] = Array.isArray(parsed?.polls) ? parsed.polls : [];
+          const cachedPetitions: TopItem[] = Array.isArray(parsed?.petitions) ? parsed.petitions : [];
+          if (!cancelled) {
+            setTopPolls(cachedPolls);
+            setTopPetitions(cachedPetitions);
+          }
+        } catch {
+          // ignore invalid cache and continue with network fetch below
+        }
       }
-      if (petitionsRes.status === 'fulfilled' && petitionsRes.value) {
-        const raw = Array.isArray(petitionsRes.value)
-          ? petitionsRes.value
-          : (petitionsRes.value.petitions || []);
-        setTopPetitions(raw.slice(0, 3).map((p: any) => ({
-          id: String(p.id), title: p.title, category: p.category ?? 'General', votes: p.supportCount ?? p.support_count ?? 0,
-        })));
-      }
-    });
+
+      return Promise.allSettled([
+        // Top 3 polls by votes (includes active & expired, excludes disabled)
+        fetch('/api/poll-petition/polls?sort=popularity', {
+          headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
+        }).then(r => r.ok ? r.json() : null),
+        // Top 3 petitions by supporter count
+        fetch('/api/poll-petition/petitions?sort=supporters', {
+          headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
+        }).then(r => r.ok ? r.json() : null),
+      ]).then(([pollsRes, petitionsRes]) => {
+        if (cancelled) return;
+
+        let newPolls: TopItem[] = [];
+        let newPetitions: TopItem[] = [];
+
+        if (pollsRes.status === 'fulfilled' && pollsRes.value) {
+          const payload: any = pollsRes.value;
+          const rawPolls = Array.isArray(payload)
+            ? payload
+            : (payload.data || payload.polls || []);
+
+          newPolls = rawPolls.slice(0, 3).map((p: any) => ({
+            id: String(p.id),
+            title: p.title,
+            category: p.category,
+            votes: p.totalVotes ?? p.total_votes ?? 0,
+            status: p.status,
+            isExpired: p.isExpired ?? p.is_expired ?? false,
+          }));
+        }
+
+        if (petitionsRes.status === 'fulfilled' && petitionsRes.value) {
+          const payload: any = petitionsRes.value;
+          const rawPetitions = Array.isArray(payload)
+            ? payload
+            : (payload.data || payload.petitions || []);
+
+          newPetitions = rawPetitions.slice(0, 3).map((p: any) => ({
+            id: String(p.id),
+            title: p.title,
+            category: p.category ?? 'General',
+            votes: p.supportCount ?? p.support_count ?? 0,
+            status: p.status,
+          }));
+        }
+
+        setTopPolls(newPolls);
+        setTopPetitions(newPetitions);
+
+        // Persist ranking to localStorage for the day (including empty arrays if API has no data)
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ polls: newPolls, petitions: newPetitions }));
+        } catch {
+          // storage full or unavailable
+        }
+      });
+    })();
 
     Promise.all([fetchPosts, fetchTags, fetchSidebar]).finally(() => {
       if (!cancelled) setPageReady(true);
@@ -349,7 +414,7 @@ export function ForumDiscussionLayout({
             {isMuted ? (
               <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                   </div>
                   <div>
@@ -450,6 +515,11 @@ export function ForumDiscussionLayout({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-white text-sm">{post.author.nickname}</span>
+                          {post.author.isVerifiedMentor && (
+                            <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 border-0">
+                              Verified Mentor
+                            </Badge>
+                          )}
                           <span className="text-gray-500 text-xs">•</span>
                           <span className="text-gray-400 text-xs">{post.createdAt}</span>
                         </div>

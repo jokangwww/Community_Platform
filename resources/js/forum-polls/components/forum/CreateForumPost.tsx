@@ -36,14 +36,7 @@ export function CreateForumPost({ categories, onCreatePost, onCancel }: CreateFo
   const handleAddHashtag = (tag: string) => {
     const cleanTag = tag.trim().replace(/^#/, '');
     if (cleanTag && !hashtags.includes(cleanTag)) {
-      // Check if category has hashtag restrictions
-      if (category?.hashtags && category.hashtags.length > 0) {
-        if (category.hashtags.includes(cleanTag)) {
-          setHashtags([...hashtags, cleanTag]);
-        }
-      } else {
-        setHashtags([...hashtags, cleanTag]);
-      }
+      setHashtags([...hashtags, cleanTag]);
     }
     setHashtagInput("");
   };
@@ -193,7 +186,7 @@ export function CreateForumPost({ categories, onCreatePost, onCancel }: CreateFo
             <Input
               value={hashtagInput}
               onChange={(e) => setHashtagInput(e.target.value)}
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   handleAddHashtag(hashtagInput);

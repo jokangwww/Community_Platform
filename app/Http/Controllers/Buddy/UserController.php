@@ -13,6 +13,7 @@ use App\Models\BuddySemesterSetting;
 use App\Notifications\BuddySchedulePublishedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -96,7 +97,6 @@ class UserController extends Controller
                 $match = $matchRecord;
             }
         } else {
-            // Get first active match via pivot table
             $matchRecord = BuddyMatch::whereHas('participants', function ($query) use ($participant) {
                     $query->where('buddy_match_participants.participant_id', $participant->id)
                           ->where('buddy_match_participants.role', 'mentee');
@@ -184,7 +184,6 @@ class UserController extends Controller
             }
         }
 
-        // Build response
         $response = [
             'user' => [
                 'id' => $participant->id,
@@ -288,7 +287,7 @@ class UserController extends Controller
         }
 
         // Get the mentor's participant ID for this match to find sibling sessions
-        $mentorPivot = \DB::table('buddy_match_participants')
+        $mentorPivot = DB::table('buddy_match_participants')
             ->where('match_id', $match->id)
             ->where('role', 'mentor')
             ->first();
@@ -1636,7 +1635,7 @@ class UserController extends Controller
             $session->mentor_check_in = now();
 
             // Find the mentee for THIS session's match to determine attendance
-            $sessionMenteePivot = \DB::table('buddy_match_participants')
+            $sessionMenteePivot = DB::table('buddy_match_participants')
                 ->where('match_id', $session->match_id)
                 ->where('role', 'mentee')
                 ->first();
@@ -1688,7 +1687,7 @@ class UserController extends Controller
                 $siblingSession->description = $session->description;
 
                 // Find the mentee for this sibling session's match
-                $siblingMenteePivot = \DB::table('buddy_match_participants')
+                $siblingMenteePivot = DB::table('buddy_match_participants')
                     ->where('match_id', $siblingSession->match_id)
                     ->where('role', 'mentee')
                     ->first();

@@ -50,6 +50,7 @@ class PollPetitionSeeder extends Seeder
         $this->createUsefulnessRatings();
         $this->createPetitions();
         $this->createBookmarks();
+        $this->createTargetedPolls();
         $this->printTestingGuide();
     }
 
@@ -443,6 +444,173 @@ class PollPetitionSeeder extends Seeder
         $this->command->newLine();
     }
 
+    /**
+     * Create targeted polls visible only to students from BuddyPriorityAllocationTestSeeder.
+     * Also updates those users' faculty/study_year/programme so poll targeting works.
+     */
+    private function createTargetedPolls(): void
+    {
+        $this->command->info('Setting up targeted polls for Buddy test accounts...');
+        $this->command->newLine();
+
+        // ── Update Buddy test users with faculty/study_year/programme ──
+        // Mentors (year 3, Bachelor of Computer Science)
+        $mentorEmails = ['alex.mentor@buddy.test', 'mentor.brenda@buddy.test', 'mentor.calvin@buddy.test'];
+        User::whereIn('email', $mentorEmails)->update([
+            'faculty'    => 'Faculty of Computing and Informatics',
+            'study_year' => 3,
+            'programme'  => 'Bachelor of Computer Science',
+        ]);
+
+        // Existing mentees (year 1, Diploma in IT)
+        $existingMenteeEmails = [
+            'tommy.mentee@buddy.test', 'marcus.mentee@buddy.test',
+            'qian.liu.mentee@buddy.test', 'yvonne.mentee@buddy.test',
+            'kevin.mentee@buddy.test',
+        ];
+        User::whereIn('email', $existingMenteeEmails)->update([
+            'faculty'    => 'Faculty of Computing and Informatics',
+            'study_year' => 1,
+            'programme'  => 'Diploma in IT',
+        ]);
+
+        // Unmatched mentees — split by year
+        $unmatchedYear1 = [
+            'ahmad.regular@buddy.test', 'bella.regular@buddy.test',
+            'edwin.low@buddy.test', 'hannah.regular@buddy.test',
+        ];
+        User::whereIn('email', $unmatchedYear1)->update([
+            'faculty'    => 'Faculty of Computing and Informatics',
+            'study_year' => 1,
+            'programme'  => 'Diploma in IT',
+        ]);
+
+        $unmatchedYear2 = [
+            'calvin.repeater@buddy.test', 'diana.repeater@buddy.test',
+            'fiona.regular@buddy.test', 'george.repeater@buddy.test',
+        ];
+        User::whereIn('email', $unmatchedYear2)->update([
+            'faculty'    => 'Faculty of Computing and Informatics',
+            'study_year' => 2,
+            'programme'  => 'Diploma in IT',
+        ]);
+
+        $updatedCount = User::whereIn('email', array_merge($mentorEmails, $existingMenteeEmails, $unmatchedYear1, $unmatchedYear2))->count();
+        $this->command->info("  ✅ Updated {$updatedCount} Buddy users with faculty/study_year/programme");
+        $this->command->newLine();
+
+        // ── Create targeted polls ──
+        $this->command->info('Creating targeted polls...');
+
+        // Use voter1 as the poll creator
+        $creatorId = $this->users['voter1@bookmark.test']->id;
+
+        // Collect all buddy user IDs for voting
+        $buddyUsers = User::whereIn('email', array_merge(
+            $mentorEmails, $existingMenteeEmails, $unmatchedYear1, $unmatchedYear2
+        ))->get();
+
+        $targetedPollsData = [
+            [
+                'title'          => 'Should we add more Computing lab timeslots?',
+                'description'    => 'The current lab timeslots are always full. This poll is for Computing & Informatics students only.',
+                'category'       => 'facilities',
+                'status'         => 'active',
+                'expires_at'     => now()->addDays(10),
+                'target_faculty' => 'Faculty of Computing and Informatics',
+                'target_year'    => null,
+                'target_course'  => null,
+                'options'        => ['Yes, add evening slots', 'Yes, add weekend slots', 'Both evening and weekend', 'No, current slots are enough'],
+                'label'          => 'Faculty-only → ALL 16 buddy accounts can view & vote',
+            ],
+            [
+                'title'          => 'Year 1 Diploma orientation — preferred format?',
+                'description'    => 'We want to plan the best orientation for new Diploma in IT students. Year 1 DIT students only.',
+                'category'       => 'events',
+                'status'         => 'active',
+                'expires_at'     => now()->addDays(14),
+                'target_faculty' => 'Faculty of Computing and Informatics',
+                'target_year'    => '1st year',
+                'target_course'  => 'Diploma in IT',
+                'options'        => ['Campus tour + ice-breaking', 'Tech workshop day', 'Outdoor team building', 'Online virtual orientation'],
+                'label'          => 'Faculty + Year 1 + DIT → 9 accounts (5 existing mentees + 4 unmatched Y1)',
+            ],
+            [
+                'title'          => 'Applied Sciences — preferred lab safety training format',
+                'description'    => 'Help us pick the best format for mandatory lab safety training next semester.',
+                'category'       => 'academic',
+                'status'         => 'active',
+                'expires_at'     => now()->addDays(7),
+                'target_faculty' => 'Faculty of Applied Sciences',
+                'target_year'    => null,
+                'target_course'  => null,
+                'options'        => ['In-person workshop', 'Online video course', 'Hybrid (video + practical)', 'Self-paced e-learning'],
+                'label'          => 'Different faculty → NO buddy accounts can view (control test)',
+            ],
+        ];
+
+        foreach ($targetedPollsData as $data) {
+            $poll = Poll::create([
+                'user_id'        => $creatorId,
+                'title'          => $data['title'],
+                'description'    => $data['description'],
+                'category'       => $data['category'],
+                'status'         => $data['status'],
+                'expires_at'     => $data['expires_at'],
+                'target_faculty' => $data['target_faculty'],
+                'target_year'    => $data['target_year'],
+                'target_course'  => $data['target_course'],
+                'is_official'    => false,
+            ]);
+
+            foreach ($data['options'] as $optIndex => $optText) {
+                PollOption::create([
+                    'poll_id'  => $poll->id,
+                    'text'     => $optText,
+                    'position' => $optIndex,
+                ]);
+            }
+
+            // Add votes from eligible buddy users
+            $options = $poll->options;
+            $voteCount = 0;
+            foreach ($buddyUsers as $buddyUser) {
+                $eligible = true;
+                if ($data['target_faculty'] && strtolower($buddyUser->faculty ?? '') !== strtolower($data['target_faculty'])) {
+                    $eligible = false;
+                }
+                if ($eligible && $data['target_year']) {
+                    $yearMap = ['1st year' => 1, '2nd year' => 2, '3rd year' => 3, '4th year' => 4];
+                    $targetYear = $yearMap[strtolower($data['target_year'])] ?? null;
+                    if ($targetYear && (int) ($buddyUser->study_year ?? 0) !== $targetYear) {
+                        $eligible = false;
+                    }
+                }
+                if ($eligible && $data['target_course']) {
+                    if (strtolower($buddyUser->programme ?? '') !== strtolower($data['target_course'])) {
+                        $eligible = false;
+                    }
+                }
+
+                if ($eligible) {
+                    PollVote::create([
+                        'poll_id'        => $poll->id,
+                        'poll_option_id' => $options->random()->id,
+                        'user_id'        => $buddyUser->id,
+                    ]);
+                    $voteCount++;
+                }
+            }
+
+            $this->polls[] = $poll;
+            $this->command->info("  🎯 Poll #{$poll->id}: {$data['title']}");
+            $this->command->info("     {$data['label']}");
+            $this->command->info("     {$voteCount} votes from eligible buddy users");
+        }
+
+        $this->command->newLine();
+    }
+
     private function printTestingGuide(): void
     {
         $this->command->info('══════════════════════════════════════════════════════════');
@@ -542,10 +710,46 @@ class PollPetitionSeeder extends Seeder
         $this->command->info('  │                                                     │');
         $this->command->info('  └─────────────────────────────────────────────────────┘');
         $this->command->newLine();
+        $this->command->newLine();
+        $this->command->info('  ┌─────────────────────────────────────────────────────┐');
+        $this->command->info('  │  TARGETED POLLS (for Buddy test accounts)           │');
+        $this->command->info('  ├─────────────────────────────────────────────────────┤');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  Poll: "Computing lab timeslots"                    │');
+        $this->command->info('  │    Target: Faculty of Computing and Informatics     │');
+        $this->command->info('  │    ✅ CAN view (all 16 buddy accounts):             │');
+        $this->command->info('  │      Mentors:  alex.mentor@buddy.test               │');
+        $this->command->info('  │               mentor.brenda@buddy.test              │');
+        $this->command->info('  │               mentor.calvin@buddy.test              │');
+        $this->command->info('  │      Mentees: tommy, marcus, qian.liu, yvonne,      │');
+        $this->command->info('  │               kevin (.mentee@buddy.test)             │');
+        $this->command->info('  │      Unmatched: ahmad.regular, bella.regular,       │');
+        $this->command->info('  │               calvin.repeater, diana.repeater,       │');
+        $this->command->info('  │               edwin.low, fiona.regular,              │');
+        $this->command->info('  │               george.repeater, hannah.regular        │');
+        $this->command->info('  │               (@buddy.test)                         │');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  Poll: "Year 1 Diploma orientation"                 │');
+        $this->command->info('  │    Target: FCI + 1st year + Diploma in IT           │');
+        $this->command->info('  │    ✅ CAN view (9 accounts):                        │');
+        $this->command->info('  │      tommy, marcus, qian.liu, yvonne, kevin         │');
+        $this->command->info('  │      ahmad.regular, bella.regular, edwin.low,       │');
+        $this->command->info('  │      hannah.regular                                 │');
+        $this->command->info('  │    ❌ CANNOT view: mentors (Y3), repeaters (Y2),    │');
+        $this->command->info('  │      fiona.regular (Y2)                              │');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  Poll: "Applied Sciences lab safety"                │');
+        $this->command->info('  │    Target: Faculty of Applied Sciences              │');
+        $this->command->info('  │    ❌ NO buddy accounts can view (control test)     │');
+        $this->command->info('  │                                                     │');
+        $this->command->info('  │  All buddy accounts password: password123           │');
+        $this->command->info('  └─────────────────────────────────────────────────────┘');
+        $this->command->newLine();
         $this->command->info('  📊 CREATED:');
-        $this->command->info("     • " . count($this->polls) . " polls (4 active, 4 expired, 1 archived/disabled)");
+        $this->command->info("     • " . count($this->polls) . " polls (4 active + 3 targeted, 4 expired, 1 archived)");
         $this->command->info("     • " . count($this->petitions) . " petitions (3 active, 2 closed, 1 archived)");
         $this->command->info("     • Usefulness ratings on 5 archived polls");
+        $this->command->info("     • 3 targeted polls for buddy test accounts");
         $this->command->info("     • 3 test users with various bookmarks");
         $this->command->info("     • Total bookmarks: 6");
         $this->command->newLine();

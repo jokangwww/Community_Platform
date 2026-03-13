@@ -87,6 +87,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('poll-petition');
 });
 
+
 // Buddy Programme API Routes
 Route::prefix('api/buddy')->name('buddy.')->group(function () {
     // Public/Guest Routes - No authentication required
@@ -215,8 +216,6 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
             ->name('gap-points.export');
     });
 
-
-
     // Subject/Skill Routes - Require authentication
     Route::middleware(['auth'])->group(function () {
         Route::get('/subjects/search', [\App\Http\Controllers\Buddy\SubjectController::class, 'search'])
@@ -328,6 +327,7 @@ Route::prefix('api/buddy')->name('buddy.')->group(function () {
     });
 });
 
+
 // Forum API Routes
 Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function () {
     // Categories
@@ -355,6 +355,8 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
         ->name('posts.destroy');
     Route::get('/posts/search/hashtag', [\App\Http\Controllers\Forum\ForumPostController::class, 'searchByHashtag'])
         ->name('posts.searchByHashtag');
+    Route::get('/attachments/{attachmentId}/download', [\App\Http\Controllers\Forum\ForumPostController::class, 'downloadAttachment'])
+        ->name('attachments.download');
     Route::get('/dashboard', [\App\Http\Controllers\Forum\ForumPostController::class, 'userDashboard'])
         ->name('dashboard');
 
@@ -431,6 +433,75 @@ Route::prefix('api/forum')->middleware(['auth'])->name('forum.')->group(function
         return response()->json(['success' => true]);
     })->name('moderation.notices.read');
 });
+
+
+// Poll & Petition API Routes
+Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')->group(function () {
+    // Polls
+    Route::get('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'index'])
+        ->name('polls.index');
+    Route::get('/polls/can-create', [\App\Http\Controllers\PollPetition\PollController::class, 'canCreate'])
+        ->name('polls.canCreate');
+    Route::get('/polls/archived', [\App\Http\Controllers\PollPetition\PollController::class, 'archived'])
+        ->name('polls.archived');
+    Route::post('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'store'])
+        ->name('polls.store');
+    Route::get('/polls/{id}', [\App\Http\Controllers\PollPetition\PollController::class, 'show'])
+        ->name('polls.show');
+    Route::post('/polls/{id}/vote', [\App\Http\Controllers\PollPetition\PollController::class, 'vote'])
+        ->name('polls.vote');
+    Route::post('/polls/{id}/rate', [\App\Http\Controllers\PollPetition\PollController::class, 'rate'])
+        ->name('polls.rate');
+
+    // Petitions
+    Route::get('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'index'])
+        ->name('petitions.index');
+    Route::get('/petitions/can-create', [\App\Http\Controllers\PollPetition\PetitionController::class, 'canCreate'])
+        ->name('petitions.canCreate');
+    Route::get('/petitions/archived', [\App\Http\Controllers\PollPetition\PetitionController::class, 'archived'])
+        ->name('petitions.archived');
+    Route::post('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'store'])
+        ->name('petitions.store');
+    Route::get('/petitions/{id}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'show'])
+        ->name('petitions.show');
+    Route::post('/petitions/{id}/support', [\App\Http\Controllers\PollPetition\PetitionController::class, 'support'])
+        ->name('petitions.support');
+    Route::get('/petitions/{petitionId}/attachments/{attachmentId}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'downloadAttachment'])
+        ->name('petitions.attachment');
+
+    // Dashboard (combined polls + petitions for user dashboard)
+    Route::get('/dashboard', [\App\Http\Controllers\PollPetition\PollPetitionDashboardController::class, 'index'])
+        ->name('dashboard');
+
+    // Bookmarks
+    Route::post('/bookmarks/toggle', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'toggle'])
+        ->name('bookmarks.toggle');
+    Route::get('/bookmarks', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'index'])
+        ->name('bookmarks.index');
+
+    // Admin
+    Route::get('/admin/polls', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'polls'])
+        ->name('admin.polls');
+    Route::get('/admin/petitions', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'petitions'])
+        ->name('admin.petitions');
+    Route::post('/admin/polls/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePoll'])
+        ->name('admin.polls.disable');
+    Route::post('/admin/petitions/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePetition'])
+        ->name('admin.petitions.disable');
+    Route::post('/admin/polls/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPollDeadline'])
+        ->name('admin.polls.extend');
+    Route::post('/admin/petitions/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPetitionDeadline'])
+        ->name('admin.petitions.extend');
+    Route::post('/admin/polls/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPoll'])
+        ->name('admin.polls.official');
+    Route::post('/admin/petitions/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPetition'])
+        ->name('admin.petitions.official');
+    Route::get('/admin/analytics', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'analytics'])
+        ->name('admin.analytics');
+    Route::get('/admin/analytics/export', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'exportAnalytics'])
+        ->name('admin.analytics.export');
+});
+
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->name('profile');
@@ -910,73 +981,6 @@ Route::prefix('vendor')->middleware(['auth', 'role:vendor'])->group(function () 
     })->name('vendor.home');
     Route::get('/booth-applications', [VendorBoothController::class, 'index'])->name('vendor.booth-applications.index');
     Route::post('/booth-applications/{event}', [VendorBoothController::class, 'store'])->name('vendor.booth-applications.store');
-});
-
-// Poll & Petition API Routes
-Route::prefix('api/poll-petition')->middleware(['auth'])->name('poll-petition.')->group(function () {
-    // Polls
-    Route::get('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'index'])
-        ->name('polls.index');
-    Route::get('/polls/can-create', [\App\Http\Controllers\PollPetition\PollController::class, 'canCreate'])
-        ->name('polls.canCreate');
-    Route::get('/polls/archived', [\App\Http\Controllers\PollPetition\PollController::class, 'archived'])
-        ->name('polls.archived');
-    Route::post('/polls', [\App\Http\Controllers\PollPetition\PollController::class, 'store'])
-        ->name('polls.store');
-    Route::get('/polls/{id}', [\App\Http\Controllers\PollPetition\PollController::class, 'show'])
-        ->name('polls.show');
-    Route::post('/polls/{id}/vote', [\App\Http\Controllers\PollPetition\PollController::class, 'vote'])
-        ->name('polls.vote');
-    Route::post('/polls/{id}/rate', [\App\Http\Controllers\PollPetition\PollController::class, 'rate'])
-        ->name('polls.rate');
-
-    // Petitions
-    Route::get('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'index'])
-        ->name('petitions.index');
-    Route::get('/petitions/can-create', [\App\Http\Controllers\PollPetition\PetitionController::class, 'canCreate'])
-        ->name('petitions.canCreate');
-    Route::get('/petitions/archived', [\App\Http\Controllers\PollPetition\PetitionController::class, 'archived'])
-        ->name('petitions.archived');
-    Route::post('/petitions', [\App\Http\Controllers\PollPetition\PetitionController::class, 'store'])
-        ->name('petitions.store');
-    Route::get('/petitions/{id}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'show'])
-        ->name('petitions.show');
-    Route::post('/petitions/{id}/support', [\App\Http\Controllers\PollPetition\PetitionController::class, 'support'])
-        ->name('petitions.support');
-    Route::get('/petitions/{petitionId}/attachments/{attachmentId}', [\App\Http\Controllers\PollPetition\PetitionController::class, 'downloadAttachment'])
-        ->name('petitions.attachment');
-
-    // Dashboard (combined polls + petitions for user dashboard)
-    Route::get('/dashboard', [\App\Http\Controllers\PollPetition\PollPetitionDashboardController::class, 'index'])
-        ->name('dashboard');
-
-    // Bookmarks
-    Route::post('/bookmarks/toggle', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'toggle'])
-        ->name('bookmarks.toggle');
-    Route::get('/bookmarks', [\App\Http\Controllers\PollPetition\BookmarkController::class, 'index'])
-        ->name('bookmarks.index');
-
-    // Admin
-    Route::get('/admin/polls', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'polls'])
-        ->name('admin.polls');
-    Route::get('/admin/petitions', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'petitions'])
-        ->name('admin.petitions');
-    Route::post('/admin/polls/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePoll'])
-        ->name('admin.polls.disable');
-    Route::post('/admin/petitions/{id}/disable', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'disablePetition'])
-        ->name('admin.petitions.disable');
-    Route::post('/admin/polls/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPollDeadline'])
-        ->name('admin.polls.extend');
-    Route::post('/admin/petitions/{id}/extend', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'extendPetitionDeadline'])
-        ->name('admin.petitions.extend');
-    Route::post('/admin/polls/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPoll'])
-        ->name('admin.polls.official');
-    Route::post('/admin/petitions/{id}/official', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'publishOfficialPetition'])
-        ->name('admin.petitions.official');
-    Route::get('/admin/analytics', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'analytics'])
-        ->name('admin.analytics');
-    Route::get('/admin/analytics/export', [\App\Http\Controllers\PollPetition\PollPetitionAdminController::class, 'exportAnalytics'])
-        ->name('admin.analytics.export');
 });
 
 Route::get('/register', [RegistrationOtpController::class, 'showRegisterForm'])->name('register');

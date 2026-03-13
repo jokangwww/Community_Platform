@@ -171,6 +171,19 @@ export default function App() {
   const [openPostId, setOpenPostId] = useState<string | null>(() => {
     return new URLSearchParams(window.location.search).get('viewPost');
   });
+  const [forumResetToken, setForumResetToken] = useState(0);
+
+  const handleMainTabChange = useCallback((value: 'discussions' | 'polls' | 'petitions') => {
+    if (value === 'discussions' && mainTab !== 'discussions') {
+      setForumResetToken(prev => prev + 1);
+    }
+
+    if (value !== 'discussions') {
+      setOpenPostId(null);
+    }
+
+    setMainTab(value);
+  }, [mainTab]);
 
   /* -- Data fetchers -- */
 
@@ -480,7 +493,7 @@ export default function App() {
             </div>
 
             {/* Main Tabs */}
-            <Tabs value={mainTab} onValueChange={(v: any) => setMainTab(v)}>
+            <Tabs value={mainTab} onValueChange={(v: any) => handleMainTabChange(v)}>
               <div className="bg-white rounded-lg px-6 py-2 shadow-sm">
                 <TabsList className="w-full flex bg-muted border-b-0">
                   <TabsTrigger 
@@ -517,10 +530,17 @@ export default function App() {
                   isMuted={isMuted}
                   mutedUntilDate={mutedUntilDate}
                   initialPostId={openPostId}
+                  onInitialPostConsumed={() => setOpenPostId(null)}
+                  resetToken={forumResetToken}
                   onPollClick={(pollId) => {
+                    setSinglePollDetail(null);
                     setSelectedPollId(pollId);
                     setMainTab('polls');
                     setPollView('vote');
+                    // If the poll isn't loaded yet (e.g. archived/expired), fetch it individually
+                    if (!polls.find(p => p.id === pollId) && !archivedPolls.find(p => p.id === pollId)) {
+                      fetchPollById(pollId);
+                    }
                   }}
                   onPetitionClick={(petitionId) => {
                     setSelectedPetitionId(petitionId);
@@ -531,6 +551,11 @@ export default function App() {
                   onViewAllPolls={() => {
                     setMainTab('polls');
                     setPollView('list');
+                  }}
+                  onViewPollArchive={() => {
+                    setMainTab('polls');
+                    setPollView('archive');
+                    fetchArchivedPolls();
                   }}
                   onViewAllPetitions={() => {
                     setMainTab('petitions');
@@ -595,6 +620,7 @@ export default function App() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Categories</SelectItem>
+                          <SelectItem value="targeted">Targeted</SelectItem>
                           {pollCategories.map(cat => (
                             <SelectItem key={cat} value={cat}>
                               {cat.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}

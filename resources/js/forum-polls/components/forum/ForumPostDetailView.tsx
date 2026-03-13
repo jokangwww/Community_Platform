@@ -30,6 +30,7 @@ interface Comment {
   authorId?: string;
   author: string;
   authorAvatar: string;
+  isVerifiedMentor?: boolean;
   content: string;
   timeAgo: string;
   likes: number;
@@ -44,6 +45,7 @@ interface ForumPostDetail {
   tags: string[];
   author: string;
   authorId?: string;
+  authorIsVerifiedMentor?: boolean;
   authorAvatar: string;
   timeAgo: string;
   views: number;
@@ -72,6 +74,8 @@ interface ForumPostDetailViewProps {
   onDeletePost?: (postId: string) => void;
   onEditComment?: (commentId: string, content: string) => void;
   onDeleteComment?: (commentId: string) => void;
+  isMuted?: boolean;
+  mutedUntilDate?: string | null;
 }
 
 export function ForumPostDetailView({
@@ -86,7 +90,9 @@ export function ForumPostDetailView({
   onEditPost,
   onDeletePost,
   onEditComment,
-  onDeleteComment
+  onDeleteComment,
+  isMuted,
+  mutedUntilDate
 }: ForumPostDetailViewProps) {
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -156,7 +162,14 @@ export function ForumPostDetailView({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="text-white font-medium">{post.author}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-white font-medium">{post.author}</h3>
+                  {post.authorIsVerifiedMentor && (
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 border-0">
+                      Verified Mentor
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-gray-400 text-sm">{post.timeAgo}</p>
               </div>
             </div>
@@ -237,7 +250,14 @@ export function ForumPostDetailView({
               {post.attachments.map(attachment => (
                 <button
                   key={attachment.id}
-                  onClick={() => window.open(attachment.url, '_blank')}
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = attachment.url;
+                    link.download = attachment.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
                   className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
                 >
                   <Paperclip className="h-4 w-4" />
@@ -287,33 +307,41 @@ export function ForumPostDetailView({
           </h2>
 
           {/* Add Comment */}
-          <div className="mb-6">
-            <div className="flex gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-[#6b7280] text-white text-sm">
-                  You
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <Textarea
-                  placeholder="Write a comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-[80px] resize-none"
-                />
-                <div className="flex justify-end mt-2">
-                  <Button
-                    onClick={handleSubmitComment}
-                    disabled={!newComment.trim()}
-                    className="bg-[#ff6934] hover:bg-[#ff7a47] text-white cursor-pointer"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Comment
-                  </Button>
+          {isMuted ? (
+            <div className="mb-6 p-4 rounded-lg border border-red-500/30 bg-red-500/10">
+              <p className="text-red-400 text-sm font-medium">
+                🔇 Your account is muted{mutedUntilDate ? ` until ${mutedUntilDate}` : ''}. You cannot comment during this period.
+              </p>
+            </div>
+          ) : (
+            <div className="mb-6">
+              <div className="flex gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-[#6b7280] text-white text-sm">
+                    You
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <Textarea
+                    placeholder="Write a comment... (use @student_id to mention)"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-20 resize-none"
+                  />
+                  <div className="flex justify-end mt-2">
+                    <Button
+                      onClick={handleSubmitComment}
+                      disabled={!newComment.trim()}
+                      className="bg-[#ff6934] hover:bg-[#ff7a47] text-white cursor-pointer"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Comment
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Comments List */}
           <div className="space-y-6">
@@ -330,7 +358,14 @@ export function ForumPostDetailView({
                     <div className="bg-[#3a4149] rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <h4 className="text-white font-medium text-sm">{comment.author}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-white font-medium text-sm">{comment.author}</h4>
+                            {comment.isVerifiedMentor && (
+                              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 border-0">
+                                Verified Mentor
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-gray-400 text-xs">{comment.timeAgo}</p>
                         </div>
                         {comment.authorId !== currentUserId && (
@@ -385,7 +420,7 @@ export function ForumPostDetailView({
                           <Textarea
                             value={editCommentContent}
                             onChange={(e) => setEditCommentContent(e.target.value)}
-                            className="bg-[#2c3138] border-gray-700 text-white placeholder:text-gray-500 min-h-[60px] resize-none text-sm"
+                            className="bg-[#2c3138] border-gray-700 text-white placeholder:text-gray-500 min-h-15 resize-none text-sm"
                           />
                           <div className="flex gap-2 justify-end">
                             <Button
@@ -423,12 +458,14 @@ export function ForumPostDetailView({
                         <Heart className={`h-3.5 w-3.5 cursor-pointer ${comment.isLiked ? 'fill-[#ff6934] text-[#ff6934]' : ''}`} />
                         <span className="text-xs">{comment.likes}</span>
                       </button>
-                      <button
-                        onClick={() => setReplyingTo(comment.id)}
-                        className="text-gray-400 hover:text-white text-xs transition-colors cursor-pointer"
-                      >
-                        Reply
-                      </button>
+                      {!isMuted && (
+                        <button
+                          onClick={() => setReplyingTo(comment.id)}
+                          className="text-gray-400 hover:text-white text-xs transition-colors cursor-pointer"
+                        >
+                          Reply
+                        </button>
+                      )}
                     </div>
 
                     {/* Reply Input */}
@@ -444,7 +481,7 @@ export function ForumPostDetailView({
                             placeholder={`Reply to ${comment.author}...`}
                             value={replyContent}
                             onChange={(e) => setReplyContent(e.target.value)}
-                            className="bg-[#2c3138] border-gray-700 text-white placeholder:text-gray-500 min-h-[60px] resize-none text-sm"
+                            className="bg-[#2c3138] border-gray-700 text-white placeholder:text-gray-500 min-h-15 resize-none text-sm"
                           />
                           <div className="flex justify-end gap-2 mt-2">
                             <Button
@@ -485,7 +522,14 @@ export function ForumPostDetailView({
                               <div className="bg-[#3a4149] rounded-lg p-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <div>
-                                    <h4 className="text-white font-medium text-sm">{reply.author}</h4>
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-white font-medium text-sm">{reply.author}</h4>
+                                      {reply.isVerifiedMentor && (
+                                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 border-0">
+                                          Verified Mentor
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <p className="text-gray-400 text-xs">{reply.timeAgo}</p>
                                   </div>
                                 </div>
@@ -542,7 +586,7 @@ export function ForumPostDetailView({
               <Textarea
                 value={editPostTitle}
                 onChange={(e) => setEditPostTitle(e.target.value)}
-                className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-[40px] resize-none"
+                className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-10 resize-none"
               />
             </div>
             <div>
@@ -550,7 +594,7 @@ export function ForumPostDetailView({
               <Textarea
                 value={editPostContent}
                 onChange={(e) => setEditPostContent(e.target.value)}
-                className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-[120px] resize-none"
+                className="bg-[#3a4149] border-gray-700 text-white placeholder:text-gray-500 min-h-30 resize-none"
               />
             </div>
             <div className="flex gap-2 justify-end">
