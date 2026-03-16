@@ -628,7 +628,7 @@ Route::post('/login', function (Request $request) {
         'password' => ['required'],
     ]);
 
-    if (Auth::attempt($credentials, true)) {
+    if (Auth::attempt($credentials, $request->boolean('remember'))) {
         $request->session()->regenerate();
         $user = Auth::user();
         if ($user instanceof User && $user->role === 'club' && $user->club_approval_status !== 'approved') {

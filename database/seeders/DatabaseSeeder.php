@@ -101,6 +101,7 @@ class DatabaseSeeder extends Seeder
             DemoAccountsSeeder::class,
             TarumtClubEventPostingSeeder::class,
             SoftSkillCategorySeeder::class,
+            StudentPortfolioHistorySeeder::class,
         ]);
     }
 }

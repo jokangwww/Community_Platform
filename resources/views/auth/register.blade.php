@@ -198,7 +198,7 @@
 
                 <div class="field" id="ic-number-field" style="display:none;">
                     <label for="ic_number">IC Number</label>
-                    <input id="ic_number" name="ic_number" type="text" placeholder="e.g. 000808-14-XXXX" value="{{ old('ic_number') }}">
+                    <input id="ic_number" name="ic_number" type="text" placeholder="e.g. 00080814XXXX" value="{{ old('ic_number') }}">
                 </div>
 
                 <div class="field" id="programme-field" style="display:none;">
