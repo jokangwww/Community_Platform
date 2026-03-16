@@ -128,15 +128,34 @@ class Event extends Model
             return null;
         }
 
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $path = (string) ($parts['path'] ?? '');
+
         // Convert common YouTube URL formats into embeddable URLs.
-        if (preg_match('~(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{6,})~', $url, $matches) === 1) {
-            return 'https://www.youtube.com/embed/' . $matches[1];
+        if (Str::contains($host, 'youtube.com') || Str::contains($host, 'youtu.be')) {
+            if (Str::contains($path, '/embed/')) {
+                return $url;
+            }
+
+            $videoId = null;
+            if (Str::contains($host, 'youtu.be')) {
+                $videoId = trim($path, '/');
+            } else {
+                parse_str((string) ($parts['query'] ?? ''), $query);
+                $videoId = trim((string) ($query['v'] ?? ''));
+
+                if ($videoId === '' && preg_match('~/(?:live|shorts)/([A-Za-z0-9_-]{6,})~', $path, $matches) === 1) {
+                    $videoId = $matches[1];
+                }
+            }
+
+            if ($videoId !== '' && preg_match('/^[A-Za-z0-9_-]{6,}$/', $videoId) === 1) {
+                return 'https://www.youtube.com/embed/' . $videoId;
+            }
         }
 
-        if (Str::contains($url, 'youtube.com/embed/')) {
-            return $url;
-        }
-
+        // Non-YouTube URLs are returned as-is; some providers may block iframe playback.
         return $url;
     }
 

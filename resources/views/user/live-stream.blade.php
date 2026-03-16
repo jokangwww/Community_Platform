@@ -72,6 +72,17 @@
             border-radius: 8px;
             background: #f1f1f1;
         }
+        .stream-actions {
+            font-size: 13px;
+        }
+        .stream-actions a {
+            color: #0b5ed7;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .stream-actions a:hover {
+            text-decoration: underline;
+        }
         .empty-state {
             margin-top: 20px;
             border: 1px dashed #d0d0d0;
@@ -129,6 +140,12 @@
                             loading="lazy"
                             referrerpolicy="strict-origin-when-cross-origin"
                         ></iframe>
+                        <div class="stream-actions">
+                            If video cannot play here,
+                            <a href="{{ $event->live_stream_url }}" target="_blank" rel="noopener noreferrer">
+                                open stream in new tab
+                            </a>.
+                        </div>
                     @else
                         <div class="empty-state">Unable to preview this stream URL.</div>
                     @endif

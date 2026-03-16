@@ -19,6 +19,7 @@ class LiveStreamController extends Controller
             ->whereNotNull('live_stream_url')
             ->where('live_stream_url', '!=', '')
             ->where('approval_status', 'approved')
+            // Hide stale stream URLs left on events that are already marked ended.
             ->where('status', '!=', 'ended')
             ->when($keyword !== '', function ($query) use ($keyword) {
                 $query->where(function ($inner) use ($keyword) {

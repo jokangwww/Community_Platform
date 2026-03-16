@@ -312,7 +312,7 @@
                 $selectedVenue = old('venue');
                 $knownVenueValues = array_column($venueOptions ?? [], 'value');
             @endphp
-            <select id="venue" name="venue">
+            <select id="venue" name="venue" data-scrollable-select>
                 <option value="">Select location point</option>
                 @foreach (($venueOptions ?? []) as $option)
                     <option value="{{ $option['value'] }}" @selected($selectedVenue === $option['value'])>{{ $option['label'] }}</option>
@@ -367,7 +367,7 @@
                     @foreach (old('sub_event_title') as $index => $title)
                         <div class="subevent-row">
                             <input type="text" name="sub_event_title[]" value="{{ $title }}" placeholder="e.g. Registration day">
-                            <select name="sub_event_location_point_id[]">
+                            <select name="sub_event_location_point_id[]" data-scrollable-select>
                                 <option value="">Select location point</option>
                                 @foreach (($locationPointOptions ?? []) as $option)
                                     <option value="{{ $option['id'] }}" @selected((string) old('sub_event_location_point_id.' . $index) === (string) $option['id'])>{{ $option['label'] }}</option>
@@ -458,6 +458,36 @@
 
     <script>
         (function () {
+            function bindScrollableSelect(select) {
+                if (!select || select.dataset.scrollableBound === 'true') {
+                    return;
+                }
+
+                select.dataset.scrollableBound = 'true';
+
+                var visibleRows = Math.min(8, Math.max(4, select.options.length));
+                select.addEventListener('focus', function () {
+                    select.size = visibleRows;
+                });
+                select.addEventListener('blur', function () {
+                    select.size = 1;
+                });
+                select.addEventListener('change', function () {
+                    select.size = 1;
+                    select.blur();
+                });
+            }
+
+            document.querySelectorAll('select[data-scrollable-select]').forEach(function (select) {
+                bindScrollableSelect(select);
+            });
+
+            window.bindScrollableSelect = bindScrollableSelect;
+        })();
+    </script>
+
+    <script>
+        (function () {
             var startDateInput = document.getElementById('start_date');
             var endDateInput = document.getElementById('end_date');
 
@@ -504,6 +534,7 @@
 
                 var locationSelect = document.createElement('select');
                 locationSelect.name = 'sub_event_location_point_id[]';
+                locationSelect.setAttribute('data-scrollable-select', 'true');
 
                 var emptyOption = document.createElement('option');
                 emptyOption.value = '';
@@ -546,6 +577,9 @@
                 row.appendChild(startTimeInput);
                 row.appendChild(endTimeInput);
                 row.appendChild(remove);
+                if (typeof window.bindScrollableSelect === 'function') {
+                    window.bindScrollableSelect(locationSelect);
+                }
                 return row;
             }
 

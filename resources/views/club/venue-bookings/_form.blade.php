@@ -49,6 +49,7 @@
             <label>
                 Booking Date
                 <input type="date" name="booking_date" value="{{ $bookingDate }}" required>
+                <small>Pick date + start/end time to list available venues.</small>
             </label>
 
             <label>
@@ -61,6 +62,7 @@
                         </option>
                     @endforeach
                 </select>
+                <small>Or pick venue first to preview available dates for next 14 days.</small>
             </label>
 
             <label>
@@ -81,7 +83,7 @@
 
         <div class="bf-actions">
             <div class="left">
-                <button type="button" id="check-availability-btn">Check Venue Availability</button>
+                <button type="button" id="check-availability-btn">Check Availability</button>
             </div>
             <div class="right">
                 <button type="submit">{{ $editing ? 'Update Booking' : 'Submit Booking' }}</button>
@@ -97,52 +99,187 @@
 document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('check-availability-btn');
     const box = document.getElementById('availability-result');
+    const form = btn ? btn.closest('form') : null;
+    const bookingDateInput = form ? form.querySelector('[name="booking_date"]') : null;
+    const startTimeInput = form ? form.querySelector('[name="start_time"]') : null;
+    const endTimeInput = form ? form.querySelector('[name="end_time"]') : null;
+    const venueSelect = form ? form.querySelector('[name="venue_id"]') : null;
+
     if (!btn || !box) return;
+    if (!form || !bookingDateInput || !startTimeInput || !endTimeInput || !venueSelect) return;
+
+    const originalVenueOptions = Array.from(venueSelect.options).map(function (option) {
+        return {
+            value: option.value,
+            text: option.textContent,
+        };
+    });
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function resetVenueList() {
+        Array.from(venueSelect.options).forEach(function (option, index) {
+            if (index === 0) {
+                option.disabled = false;
+                option.textContent = originalVenueOptions[index] ? originalVenueOptions[index].text : 'Select venue';
+                return;
+            }
+            option.disabled = false;
+            const origin = originalVenueOptions.find(function (item) {
+                return item.value === option.value;
+            });
+            option.textContent = origin ? origin.text : option.textContent;
+        });
+    }
+
+    function applyAvailableVenueFilter(available) {
+        const availableIds = new Set((available || []).map(function (venue) {
+            return String(venue.id);
+        }));
+
+        Array.from(venueSelect.options).forEach(function (option, index) {
+            if (index === 0 || option.value === '') {
+                option.disabled = false;
+                return;
+            }
+
+            const origin = originalVenueOptions.find(function (item) {
+                return item.value === option.value;
+            });
+            const label = origin ? origin.text : option.textContent;
+            const isAvailable = availableIds.has(option.value);
+
+            option.disabled = !isAvailable;
+            option.textContent = isAvailable ? label : (label + ' (Unavailable)');
+        });
+    }
+
+    async function fetchAvailability(params) {
+        const response = await fetch('{{ route('club.venue-bookings.availability') }}?' + params.toString(), {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await response.json();
+        return { response, data };
+    }
 
     btn.addEventListener('click', async function () {
-        const form = btn.closest('form');
-        const bookingDate = form.querySelector('[name="booking_date"]').value;
-        const startTime = form.querySelector('[name="start_time"]').value;
-        const endTime = form.querySelector('[name="end_time"]').value;
+        const bookingDate = bookingDateInput.value;
+        const startTime = startTimeInput.value;
+        const endTime = endTimeInput.value;
+        const venueId = venueSelect.value;
 
-        if (!bookingDate || !startTime || !endTime) {
+        const hasTimeslot = Boolean(bookingDate && startTime && endTime);
+        const hasVenue = Boolean(venueId);
+
+        if (!hasTimeslot && !hasVenue) {
+            resetVenueList();
             box.style.display = 'block';
-            box.textContent = 'Please select booking date, start time, and end time first.';
+            box.textContent = 'Select date/time to find venues, or select venue to view available dates.';
             return;
         }
 
-        const params = new URLSearchParams({
-            booking_date: bookingDate,
-            start_time: startTime,
-            end_time: endTime,
-        });
-
         try {
-            const response = await fetch('{{ route('club.venue-bookings.availability') }}?' + params.toString(), {
-                headers: { 'Accept': 'application/json' },
-            });
-            const data = await response.json();
+            const params = new URLSearchParams();
+            if (hasTimeslot) {
+                params.set('booking_date', bookingDate);
+                params.set('start_time', startTime);
+                params.set('end_time', endTime);
+                if (hasVenue) {
+                    params.set('venue_id', venueId);
+                }
+            } else if (hasVenue) {
+                params.set('venue_id', venueId);
+            }
+
+            const { response, data } = await fetchAvailability(params);
 
             box.style.display = 'block';
             if (!response.ok || !data.ok) {
+                resetVenueList();
                 box.textContent = data.message || 'Failed to check venue availability.';
                 return;
             }
 
-            let html = '<div>' + (data.message || '') + '</div>';
-            if (Array.isArray(data.available) && data.available.length > 0) {
-                html += '<ul>';
-                for (const venue of data.available) {
-                    html += '<li>' + venue.name + ' (' + venue.location + ')</li>';
+            let html = '<div>' + escapeHtml(data.message || '') + '</div>';
+
+            if (data.mode === 'timeslot') {
+                applyAvailableVenueFilter(data.available || []);
+
+                if (Array.isArray(data.available) && data.available.length > 0) {
+                    html += '<ul>';
+                    for (const venue of data.available) {
+                        html += '<li>' + escapeHtml(venue.name) + ' (' + escapeHtml(venue.location) + ')</li>';
+                    }
+                    html += '</ul>';
                 }
-                html += '</ul>';
+
+                if (typeof data.selected_venue_available === 'boolean' && hasVenue) {
+                    html += '<div style="margin-top:8px;">Selected venue is ' + (data.selected_venue_available ? 'available' : 'not available') + ' for this timeslot.</div>';
+                }
+            } else if (data.mode === 'venue') {
+                resetVenueList();
+
+                if (Array.isArray(data.available_dates) && data.available_dates.length > 0) {
+                    html += '<div style="margin-top:8px;"><strong>Fully free dates:</strong></div><ul>';
+                    data.available_dates.forEach(function (dateText) {
+                        html += '<li>' + escapeHtml(dateText) + '</li>';
+                    });
+                    html += '</ul>';
+                }
+
+                if (Array.isArray(data.date_summaries) && data.date_summaries.length > 0) {
+                    const limitedDays = data.date_summaries.filter(function (item) {
+                        return Array.isArray(item.booked_slots) && item.booked_slots.length > 0;
+                    });
+                    if (limitedDays.length > 0) {
+                        html += '<div style="margin-top:8px;"><strong>Booked slots (next 14 days):</strong></div><ul>';
+                        limitedDays.forEach(function (item) {
+                            const slots = item.booked_slots.map(function (slot) {
+                                return escapeHtml(slot.start_time) + '-' + escapeHtml(slot.end_time) + ' (' + escapeHtml(slot.event_title) + ')';
+                            }).join(', ');
+                            html += '<li>' + escapeHtml(item.date) + ': ' + slots + '</li>';
+                        });
+                        html += '</ul>';
+                    }
+                }
             }
+
             box.innerHTML = html;
         } catch (e) {
             box.style.display = 'block';
             box.textContent = 'Failed to check venue availability.';
         }
     });
+
+    [bookingDateInput, startTimeInput, endTimeInput].forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (bookingDateInput.value && startTimeInput.value && endTimeInput.value) {
+                btn.click();
+            }
+        });
+    });
+
+    venueSelect.addEventListener('change', function () {
+        if (bookingDateInput.value && startTimeInput.value && endTimeInput.value) {
+            btn.click();
+            return;
+        }
+
+        if (venueSelect.value) {
+            btn.click();
+            return;
+        }
+
+        resetVenueList();
+        box.style.display = 'none';
+        box.textContent = '';
+    });
 });
 </script>
-

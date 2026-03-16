@@ -1017,6 +1017,12 @@ class EventController extends Controller
         ]);
 
         if ($validated['action'] === 'start') {
+            if (($event->approval_status ?? 'pending') !== 'approved') {
+                throw ValidationException::withMessages([
+                    'stream_url' => 'Live stream is not allowed until this event is approved by admin.',
+                ]);
+            }
+
             if (empty($validated['stream_url'])) {
                 throw ValidationException::withMessages([
                     'stream_url' => 'Live stream URL is required to start.',

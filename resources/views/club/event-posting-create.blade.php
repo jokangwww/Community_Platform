@@ -231,7 +231,7 @@
                     <div class="form-grid">
                         <div class="form-row">
                             <label for="event_id">Event <span class="required-mark">*</span></label>
-                            <select id="event_id" name="event_id" required>
+                            <select id="event_id" name="event_id" data-scrollable-select required>
                                 <option value="">Select an event</option>
                                 @foreach ($events as $event)
                                     <option value="{{ $event->id }}" @selected(old('event_id') == $event->id)>
@@ -303,8 +303,37 @@
         (function () {
             const input = document.getElementById('posters');
             const previews = document.getElementById('posterPreviews');
+            const form = document.querySelector('.posting-form');
+            const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+            const scrollableSelects = document.querySelectorAll('select[data-scrollable-select]');
+
+            scrollableSelects.forEach(function (select) {
+                const visibleRows = Math.min(8, Math.max(4, select.options.length));
+
+                select.addEventListener('focus', function () {
+                    select.size = visibleRows;
+                });
+
+                select.addEventListener('blur', function () {
+                    select.size = 1;
+                });
+
+                select.addEventListener('change', function () {
+                    select.size = 1;
+                    select.blur();
+                });
+            });
 
             if (!input || !previews) {
+                if (form && submitBtn) {
+                    form.addEventListener('submit', function () {
+                        if (submitBtn.disabled) {
+                            return;
+                        }
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Creating...';
+                    });
+                }
                 return;
             }
 
@@ -332,6 +361,16 @@
                     reader.readAsDataURL(file);
                 });
             });
+
+            if (form && submitBtn) {
+                form.addEventListener('submit', function () {
+                    if (submitBtn.disabled) {
+                        return;
+                    }
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creating...';
+                });
+            }
         })();
     </script>
 @endsection

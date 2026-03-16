@@ -191,38 +191,115 @@ class VenueBookingController extends Controller
     // AJAX endpoint to check which active venues are free for a selected date/time range.
     public function availability(Request $request): JsonResponse
     {
-        $request->validate([
-            'booking_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i'],
-        ]);
+        $bookingDate = trim((string) $request->query('booking_date', ''));
+        $startTime = trim((string) $request->query('start_time', ''));
+        $endTime = trim((string) $request->query('end_time', ''));
+        $venueIdRaw = $request->query('venue_id');
+        $hasVenue = filled($venueIdRaw);
+        $hasRange = $bookingDate !== '' && $startTime !== '' && $endTime !== '';
 
-        $startAt = Carbon::createFromFormat('Y-m-d H:i', $request->string('booking_date') . ' ' . $request->string('start_time'));
-        $endAt = Carbon::createFromFormat('Y-m-d H:i', $request->string('booking_date') . ' ' . $request->string('end_time'));
-
-        if ($endAt->lessThanOrEqualTo($startAt)) {
+        if (! $hasVenue && ! $hasRange) {
             return response()->json([
                 'ok' => false,
-                'message' => 'End time must be later than start time.',
-                'available' => [],
+                'mode' => 'none',
+                'message' => 'Select date/time first to find available venues, or select a venue first to see available dates.',
             ], 422);
         }
 
-        // Return a lightweight venue list for the frontend availability checker UI.
-        $availableVenues = $this->availableVenuesForRange($startAt, $endAt)
-            ->map(fn (Venue $venue) => [
-                'id' => $venue->id,
-                'name' => $venue->name,
-                'location' => $venue->location,
-            ])
+        if ($hasRange) {
+            $validated = $request->validate([
+                'booking_date' => ['required', 'date'],
+                'start_time' => ['required', 'date_format:H:i'],
+                'end_time' => ['required', 'date_format:H:i'],
+                'venue_id' => ['nullable', 'integer', 'exists:venues,id'],
+            ]);
+
+            $startAt = Carbon::createFromFormat('Y-m-d H:i', $validated['booking_date'] . ' ' . $validated['start_time']);
+            $endAt = Carbon::createFromFormat('Y-m-d H:i', $validated['booking_date'] . ' ' . $validated['end_time']);
+
+            if ($endAt->lessThanOrEqualTo($startAt)) {
+                return response()->json([
+                    'ok' => false,
+                    'mode' => 'timeslot',
+                    'message' => 'End time must be later than start time.',
+                    'available' => [],
+                ], 422);
+            }
+
+            // Return a lightweight venue list for the frontend availability checker UI.
+            $availableVenues = $this->availableVenuesForRange($startAt, $endAt)
+                ->map(fn (Venue $venue) => [
+                    'id' => $venue->id,
+                    'name' => $venue->name,
+                    'location' => $venue->location,
+                ])
+                ->values();
+
+            $selectedVenueAvailable = null;
+            if (! empty($validated['venue_id'])) {
+                $selectedVenueAvailable = $availableVenues->contains(fn (array $item) => (int) $item['id'] === (int) $validated['venue_id']);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'mode' => 'timeslot',
+                'available' => $availableVenues,
+                'selected_venue_available' => $selectedVenueAvailable,
+                'message' => $availableVenues->isEmpty()
+                    ? 'No venue is available for the selected timeslot.'
+                    : $availableVenues->count() . ' venue(s) available.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'venue_id' => ['required', 'integer', 'exists:venues,id'],
+        ]);
+
+        $today = now()->startOfDay();
+        $days = 14;
+        $windowEnd = (clone $today)->addDays($days - 1)->endOfDay();
+
+        $bookings = VenueBooking::query()
+            ->blocking()
+            ->where('venue_id', (int) $validated['venue_id'])
+            ->where('start_at', '<=', $windowEnd)
+            ->where('end_at', '>=', $today)
+            ->orderBy('start_at')
+            ->get(['start_at', 'end_at', 'event_title', 'status']);
+
+        $bookingsByDate = $bookings->groupBy(fn (VenueBooking $booking) => $booking->start_at?->format('Y-m-d'));
+        $dateSummaries = collect();
+        for ($offset = 0; $offset < $days; $offset++) {
+            $date = (clone $today)->addDays($offset)->format('Y-m-d');
+            $items = ($bookingsByDate->get($date) ?? collect())
+                ->map(fn (VenueBooking $booking) => [
+                    'start_time' => $booking->start_at?->format('H:i'),
+                    'end_time' => $booking->end_at?->format('H:i'),
+                    'event_title' => $booking->event_title,
+                    'status' => $booking->status,
+                ])
+                ->values();
+
+            $dateSummaries->push([
+                'date' => $date,
+                'is_available' => $items->isEmpty(),
+                'booked_slots' => $items,
+            ]);
+        }
+
+        $availableDates = $dateSummaries
+            ->where('is_available', true)
+            ->pluck('date')
             ->values();
 
         return response()->json([
             'ok' => true,
-            'available' => $availableVenues,
-            'message' => $availableVenues->isEmpty()
-                ? 'No venue is available for the selected timeslot.'
-                : $availableVenues->count() . ' venue(s) available.',
+            'mode' => 'venue',
+            'available_dates' => $availableDates,
+            'date_summaries' => $dateSummaries->values(),
+            'message' => $availableDates->isEmpty()
+                ? 'No fully free date found in the next 14 days for this venue.'
+                : 'Showing available dates for the next 14 days.',
         ]);
     }
 
