@@ -126,36 +126,11 @@
             background: #f8fbff;
             color: #4b6079;
         }
-        /* Bell badge on action icon */
-        .action-icon-wrap {
-            position: relative;
-            display: inline-flex;
-        }
-        .notif-badge {
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            background: #e53e3e;
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 1px 5px;
-            border-radius: 10px;
-            line-height: 1.4;
-            pointer-events: none;
-        }
     </style>
 
     <div class="tabs">
         <div class="tab">Admin Home</div>
         <div class="actions">
-            @php $notifCount = ($pendingMentors ?? 0) + ($pendingRepeaters ?? 0); @endphp
-            <span class="action-icon-wrap">
-                <a class="action-icon" href="{{ route('admin.notifications') }}" aria-label="Notifications">&#128276;</a>
-                @if($notifCount > 0)
-                    <span class="notif-badge">{{ $notifCount }}</span>
-                @endif
-            </span>
             <a class="action-icon" href="{{ route('admin.profile') }}" aria-label="Profile">&#128100;</a>
         </div>
     </div>

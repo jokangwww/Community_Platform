@@ -717,21 +717,7 @@ Route::get('/admin', function () {
     return view('admin.home', compact('pendingMentors', 'pendingRepeaters'));
 })->middleware(['auth', 'role:admin'])->name('admin.home');
 Route::get('/admin/notifications', function () {
-    $activeSemester = \App\Models\BuddySemesterSetting::getActiveSemester();
-    $semesterId = $activeSemester?->id;
-
-    $pendingMentors = \App\Models\BuddyParticipant::mentors()
-        ->where('status', 'pending')
-        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
-        ->count();
-
-    $pendingRepeaters = \App\Models\BuddyParticipant::mentees()
-        ->where('status', 'pending')
-        ->where('is_repeater', true)
-        ->when($semesterId, fn($q) => $q->where('semester_id', $semesterId))
-        ->count();
-
-    return view('admin.notifications', compact('pendingMentors', 'pendingRepeaters'));
+    return redirect()->to(route('admin.home') . '#admin-notifications');
 })->middleware(['auth', 'role:admin'])->name('admin.notifications');
 Route::get('/admin/profile', [AdminProfileController::class, 'show'])
     ->middleware(['auth', 'role:admin'])
