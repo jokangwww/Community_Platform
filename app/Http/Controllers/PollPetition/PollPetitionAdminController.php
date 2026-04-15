@@ -122,8 +122,6 @@ class PollPetitionAdminController extends Controller
                 'createdAt'     => $petition->created_at->toDateString(),
                 'status'        => $effectiveStatus,
                 'isOfficial'    => $petition->is_official,
-                'hasDisputes'   => false,
-                'disputeCount'  => 0,
             ];
         });
 
@@ -271,7 +269,6 @@ class PollPetitionAdminController extends Controller
                 'totalSupporters'       => $totalSupporters,
                 'successful'            => $successfulPetitions,
                 'lowParticipation'      => $lowParticipationPetitions,
-                'hasDisputes'           => 0,
                 'averagePetitionPerDay' => $averagePetitionPerDay,
             ],
         ]);

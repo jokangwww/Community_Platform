@@ -163,6 +163,8 @@ class EvaluationController extends Controller
                 'feedback' => $request->feedback,
             ]);
 
+            $this->refreshParticipantRatingAndPriority($toParticipant);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Evaluation submitted successfully',
@@ -174,6 +176,34 @@ class EvaluationController extends Controller
                 'message' => 'Failed to submit evaluation: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Refresh participant rating and derive mentee allocation priority.
+     */
+    private function refreshParticipantRatingAndPriority(BuddyParticipant $participant): void
+    {
+        $averageRating = BuddyEvaluation::where('to_participant_id', $participant->id)
+            ->avg('rating');
+
+        if ($averageRating === null) {
+            return;
+        }
+
+        $rating = round((float) $averageRating, 1);
+        $updates = ['rating' => $rating];
+
+        if ($participant->role === 'mentee') {
+            if ($rating < 3.0) {
+                $updates['priority_tier'] = 'low';
+            } elseif ($participant->is_repeater) {
+                $updates['priority_tier'] = 'high';
+            } else {
+                $updates['priority_tier'] = 'normal';
+            }
+        }
+
+        $participant->update($updates);
     }
 
     /**

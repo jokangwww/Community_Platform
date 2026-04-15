@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Clock, Archive } from 'lucide-react';
 
 interface WaitingForMentorScreenProps {
@@ -8,7 +9,7 @@ interface WaitingForMentorScreenProps {
   /** semester_id of the last semester to pass to dashboard for read-only view */
   lastSemesterId: number | null;
   /** Render the actual last-semester dashboard in an iframe-style section */
-  renderReadOnlyDashboard?: () => React.ReactNode;
+  renderReadOnlyDashboard?: () => ReactNode;
 }
 
 /**

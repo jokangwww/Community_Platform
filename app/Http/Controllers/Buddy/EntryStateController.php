@@ -223,10 +223,22 @@ class EntryStateController extends Controller
     // ── Mentor-specific logic ─────────────────────────────────────────────────
     private function mentorEntryState(BuddyParticipant $last, ?BuddySemesterSetting $active): JsonResponse
     {
-        $pendingCount = BuddyContinuation::where('mentor_participant_id', $last->id)
+        if ($last->continuation_choice === 'declined') {
+            return response()->json(['success' => true, 'data' => [
+                'state'              => 'dashboard_readonly',
+                'participant'        => $this->participantSummary($last),
+                'semester'           => $last->semester?->toSettingsArray(),
+                'has_multiple_roles' => $this->hasMultipleRoles($last->user_id),
+            ]]);
+        }
+
+        $continuations = BuddyContinuation::where('mentor_participant_id', $last->id)
+            ->when($active, fn($q) => $q->where('to_semester_id', $active->id))
+            ->get();
+
+        $pendingCount = $continuations
             ->where('mentee_choice', 'continue')
             ->where('mentor_choice', 'pending')
-            ->when($active, fn($q) => $q->where('to_semester_id', $active->id))
             ->count();
 
         if ($pendingCount > 0) {
@@ -237,6 +249,19 @@ class EntryStateController extends Controller
                 'next_semester' => $active?->toSettingsArray(),
                 'pending_count' => $pendingCount,
             ]]);
+        }
+
+        if ($continuations->isNotEmpty()) {
+            $acceptedCount = $continuations->where('mentor_choice', 'continue')->count();
+
+            if ($acceptedCount > 0 || $continuations->every(fn($continuation) => $continuation->mentor_choice === 'decline')) {
+                return response()->json(['success' => true, 'data' => [
+                    'state'              => 'dashboard_readonly',
+                    'participant'        => $this->participantSummary($last),
+                    'semester'           => $last->semester?->toSettingsArray(),
+                    'has_multiple_roles' => $this->hasMultipleRoles($last->user_id),
+                ]]);
+            }
         }
 
         // Check if mentor had active matches in old semester — if so, show

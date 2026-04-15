@@ -204,6 +204,19 @@ export default function App() {
     setEntryStateData(null);
   };
 
+  const goToFreshRegistration = () => {
+    setCurrentView('register');
+    setShowRegistration(false);
+    setSelectedRole(null);
+    setRegistrationStatus(null);
+    setHasCheckedStatus(true);
+    setEntryState('new_user');
+    setEntryStateData(null);
+    setArchiveViewRole(null);
+    setSelectedSemesterId(null);
+    setSelectedSemesterRole(null);
+  };
+
   // Render the registration section based on status
   const renderRegisterContent = () => {
     // Show loading while checking settings
@@ -307,6 +320,9 @@ export default function App() {
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <WaitingForMentorScreen
+              lastSemesterLabel={entryStateData?.semester?.label}
+              studentId={studentId}
+              lastSemesterId={entryStateData?.semester?.id ?? null}
               renderReadOnlyDashboard={() => (
                 <Suspense fallback={<LoadingSpinner />}>
                   <MenteeDashboard
@@ -328,11 +344,16 @@ export default function App() {
             <MentorDeclinedNotice
               continuations={entryStateData?.continuations ?? []}
               nextSemesterLabel={entryStateData?.semester?.label}
-              onRegisterFresh={() => {
-                setEntryState('new_user');
-                setHasCheckedStatus(true);
-                setRegistrationStatus(null);
-              }}
+              onRegisterFresh={goToFreshRegistration}
+              renderReadOnlyDashboard={() => (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MenteeDashboard
+                    studentId={studentId}
+                    selectedSemesterId={entryStateData?.semester?.id ?? null}
+                    onSemesterChange={undefined}
+                  />
+                </Suspense>
+              )}
             />
           </Suspense>
         );
@@ -349,6 +370,15 @@ export default function App() {
                 setEntryState(null);
                 checkRegistrationStatus();
               }}
+              renderReadOnlyDashboard={() => (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MentorDashboard
+                    studentId={studentId}
+                    selectedSemesterId={entryStateData?.semester?.id ?? null}
+                    onSemesterChange={undefined}
+                  />
+                </Suspense>
+              )}
             />
           </Suspense>
         );
@@ -581,16 +611,17 @@ export default function App() {
                 {/* Register button for declined / readonly users — lets them re-register for the new semester */}
                 {!isAdmin && entryState === 'dashboard_readonly' && (
                   <button
-                    onClick={() => {
-                      setCurrentView('register');
-                      setShowRegistration(false);
-                      setSelectedRole(null);
-                      setRegistrationStatus(null);
-                      setHasCheckedStatus(true);
-                      setEntryState('new_user');
-                      setEntryStateData(null);
-                      setArchiveViewRole(null);
-                    }}
+                    onClick={goToFreshRegistration}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Users className="w-4 h-4" />
+                    Register for New Semester
+                  </button>
+                )}
+
+                {!isAdmin && entryState === 'mentor_declined' && (
+                  <button
+                    onClick={goToFreshRegistration}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <Users className="w-4 h-4" />

@@ -37,6 +37,24 @@ export function AdminTestimonialManagement() {
     fetchTestimonials();
   }, [selectedSemesterId]);
 
+  const getCsrfToken = () => {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  };
+
+  const parseApiResponse = async (response: Response) => {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+
+    const text = await response.text();
+    return {
+      success: false,
+      message: text || `Request failed with status ${response.status}`,
+    };
+  };
+
   const fetchTestimonials = async () => {
     try {
       setLoading(true);
@@ -67,10 +85,16 @@ export function AdminTestimonialManagement() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
         },
       });
 
-      const result = await response.json();
+      const result = await parseApiResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to approve testimonial (${response.status})`);
+      }
 
       if (result.success) {
         setTestimonials(testimonials.map(t => 
@@ -88,7 +112,8 @@ export function AdminTestimonialManagement() {
       }
     } catch (err) {
       console.error('Error approving testimonial:', err);
-      alert('Failed to approve testimonial. Please try again.');
+      const message = err instanceof Error ? err.message : 'Failed to approve testimonial. Please try again.';
+      alert(message);
     } finally {
       setProcessing(false);
     }
@@ -104,11 +129,17 @@ export function AdminTestimonialManagement() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ reason }),
       });
 
-      const result = await response.json();
+      const result = await parseApiResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to reject testimonial (${response.status})`);
+      }
 
       if (result.success) {
         setTestimonials(testimonials.map(t => 
@@ -126,7 +157,8 @@ export function AdminTestimonialManagement() {
       }
     } catch (err) {
       console.error('Error rejecting testimonial:', err);
-      alert('Failed to reject testimonial. Please try again.');
+      const message = err instanceof Error ? err.message : 'Failed to reject testimonial. Please try again.';
+      alert(message);
     } finally {
       setProcessing(false);
     }

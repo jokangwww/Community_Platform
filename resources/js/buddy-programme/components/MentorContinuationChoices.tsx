@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useState, useEffect } from 'react';
 import { Check, X, Loader2 } from 'lucide-react';
 
@@ -13,13 +14,18 @@ interface ContinuationRequest {
 interface MentorContinuationChoicesProps {
   nextSemesterLabel?: string;
   onAllResolved: () => void;
+  renderReadOnlyDashboard?: () => ReactNode;
 }
 
 /**
  * Shown to a mentor who has pending continuation requests from their mentees.
  * They can accept or decline each one individually.
  */
-export function MentorContinuationChoices({ nextSemesterLabel, onAllResolved }: MentorContinuationChoicesProps) {
+export function MentorContinuationChoices({
+  nextSemesterLabel,
+  onAllResolved,
+  renderReadOnlyDashboard,
+}: MentorContinuationChoicesProps) {
   const [requests, setRequests] = useState<ContinuationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -102,8 +108,8 @@ export function MentorContinuationChoices({ nextSemesterLabel, onAllResolved }: 
   const pendingRequests = requests.filter((r) => r.mentor_choice === 'pending');
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="space-y-5">
+      <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 mb-1" style={{ fontSize: '1.3rem' }}>
           Continuation Requests{nextSemesterLabel ? ` — ${nextSemesterLabel}` : ''}
         </h2>
@@ -180,7 +186,7 @@ export function MentorContinuationChoices({ nextSemesterLabel, onAllResolved }: 
 
       {/* Mentor's own continuation choice (only shown if no pending requests to resolve first) */}
       {requests.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-2" style={{ fontSize: '1.3rem' }}>Do you wish to continue as a mentor?</h3>
           <p className="text-sm text-gray-500 mb-4">
             No mentees have requested continuation with you. You can choose to re-register for the new semester or stop here.
@@ -205,6 +211,8 @@ export function MentorContinuationChoices({ nextSemesterLabel, onAllResolved }: 
           </div>
         </div>
       )}
+
+      {renderReadOnlyDashboard && <div>{renderReadOnlyDashboard()}</div>}
     </div>
   );
 }

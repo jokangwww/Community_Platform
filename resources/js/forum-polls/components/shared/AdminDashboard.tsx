@@ -108,8 +108,6 @@ interface AdminPetition {
   createdAt: string;
   status: "active" | "successful" | "expired" | "closed" | "disabled";
   isOfficial: boolean;
-  hasDisputes: boolean;
-  disputeCount?: number;
 }
 
 interface AdminDashboardProps {
@@ -403,7 +401,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
             averagePetitionPerDay: analytics.petitions?.averagePetitionPerDay || "0.0",
             totalSupporters: analytics.petitions?.totalSupporters || 0,
             lowParticipation: petitions.filter(p => p.participation < 30).length,
-            hasDisputes: petitions.filter(p => p.hasDisputes).length,
             disabledPetitions: petitions.filter(p => p.status === "disabled").length
           }
         };
@@ -452,7 +449,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
         <tr><td>Average Petition Per Day</td><td>${summary.averagePetitionPerDay ?? 0}</td></tr>
         <tr><td>Total Supporters</td><td>${summary.totalSupporters ?? 0}</td></tr>
         <tr><td>Low Participation</td><td>${summary.lowParticipation ?? 0}</td></tr>
-        <tr><td>Has Disputes</td><td>${summary.hasDisputes ?? 0}</td></tr>
         <tr><td>Disabled Petitions</td><td>${summary.disabledPetitions ?? 0}</td></tr>
       `;
     }
@@ -837,14 +833,14 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
 
                             {report.status === "pending" ? (
                               <div className="flex gap-2">
-                                <Button
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => onViewContent(report.contentId, report.contentType)}
                                 >
                                   <Eye className="h-4 w-4 mr-1" />
                                   View
-                                </Button>
+                                </Button> */}
                                 <Button
                                   size="sm"
                                   variant="destructive"
@@ -899,14 +895,14 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                               </div>
                             ) : (
                               <div className="flex gap-2">
-                                <Button
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => onViewContent(report.contentId, report.contentType)}
                                 >
                                   <Eye className="h-4 w-4 mr-1" />
                                   View
-                                </Button>
+                                </Button> */}
                               </div>
                             )}
                           </div>
@@ -1151,17 +1147,18 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                 </div>
               </Card>
 
-              <Card className="p-4 flex-1 min-w-[120px] border border-orange-200">
+              <Card className="p-4 flex-1 min-w-[120px] border border-gray-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <PauseCircle className="h-5 w-5 text-gray-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{petitions.filter(p => p.hasDisputes).length}</p>
-                    <p className="text-xs text-gray-600">Has Disputes</p>
+                    <p className="text-2xl font-bold">{petitions.filter(p => p.status === "disabled").length}</p>
+                    <p className="text-xs text-gray-600">Disabled Petitions</p>
                   </div>
                 </div>
               </Card>
+
             </div>
 
             {/* Petition Search */}
@@ -1198,7 +1195,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <div 
                       key={petition.id} 
                       className={`p-4 border-2 rounded-lg ${
-                        petition.hasDisputes ? "border-orange-300 bg-orange-50" :
                         petition.participation < 30 ? "border-red-200 bg-red-50" :
                         "border-gray-200 bg-white"
                       }`}
@@ -1209,12 +1205,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                             <h3 className="font-semibold">{petition.title}</h3>
                             {petition.isOfficial && (
                               null
-                            )}
-                            {petition.hasDisputes && (
-                              <Badge className="bg-orange-500 text-white">
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                {petition.disputeCount} Disputes
-                              </Badge>
                             )}
                             {petition.participation < 30 && (
                               <Badge className="bg-red-500 text-white">
@@ -1506,10 +1496,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                   <h3 className="font-semibold text-lg mb-1">
                     {analyticsPreview.type?.charAt(0).toUpperCase() + analyticsPreview.type?.slice(1)} Analytics Report
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    Generated on {analyticsPreview.data?.generatedDate} at {analyticsPreview.data?.generatedTime}
-                  </p>
-                  <p className="text-sm text-gray-600">Period: {analyticsPreview.data?.period}</p>
                 </div>
                 <Badge className="bg-blue-100 text-blue-700 text-lg px-4 py-2">
                   {analyticsPreview.type?.toUpperCase()}
@@ -1550,10 +1536,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-sm text-gray-600">Total Deleted Posts</p>
                     <p className="text-3xl font-bold text-red-900 mt-8">{analyticsPreview.data?.summary.deletedContent}</p>
                   </Card>
-                  <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
+                  {/* <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Average Post Per Day</p>
                     <p className="text-3xl font-bold text-indigo-900 mt-8">{analyticsPreview.data?.summary.averagePostPerDay}</p>
-                  </Card>
+                  </Card> */}
                 </div>
               </div>
             )}
@@ -1571,10 +1557,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-sm text-gray-600">Active Polls</p>
                     <p className="text-3xl font-bold text-green-900 mt-8">{analyticsPreview.data?.summary.activePolls}</p>
                   </Card>
-                  <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
+                  {/* <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Average Poll Per Day</p>
                     <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averagePollPerDay}</p>
-                  </Card>
+                  </Card> */}
                   <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Total Votes</p>
                     <p className="text-3xl font-bold text-indigo-900 mt-8">{analyticsPreview.data?.summary.totalVotes}</p>
@@ -1612,10 +1598,10 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                     <p className="text-sm text-gray-600">Successful Petitions</p>
                     <p className="text-3xl font-bold text-emerald-900 mt-8">{analyticsPreview.data?.summary.successfulPetitions}</p>
                   </Card>
-                  <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
+                  {/* <Card className="p-6 bg-purple-50 border-purple-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Average Petition Per Day</p>
                     <p className="text-3xl font-bold text-purple-900 mt-8">{analyticsPreview.data?.summary.averagePetitionPerDay}</p>
-                  </Card>
+                  </Card> */}
                   <Card className="p-6 bg-indigo-50 border-indigo-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Total Supporters</p>
                     <p className="text-3xl font-bold text-indigo-900 mt-8">{analyticsPreview.data?.summary.totalSupporters}</p>
@@ -1623,10 +1609,6 @@ export function AdminDashboard({ adminId, onViewContent, defaultTab }: AdminDash
                   <Card className="p-6 bg-red-50 border-red-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Low Participation</p>
                     <p className="text-3xl font-bold text-red-900 mt-8">{analyticsPreview.data?.summary.lowParticipation}</p>
-                  </Card>
-                  <Card className="p-6 bg-orange-50 border-orange-200 h-[120px] overflow-hidden gap-0 block">
-                    <p className="text-sm text-gray-600">Has Disputes</p>
-                    <p className="text-3xl font-bold text-orange-900 mt-8">{analyticsPreview.data?.summary.hasDisputes}</p>
                   </Card>
                   <Card className="p-6 bg-gray-50 border-gray-200 h-[120px] overflow-hidden gap-0 block">
                     <p className="text-sm text-gray-600">Disabled Petitions</p>
